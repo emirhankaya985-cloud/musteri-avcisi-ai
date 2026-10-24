@@ -1,0 +1,25 @@
+name: Telegram Three-Button Demo
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/telegram-buttons-demo.yml'
+permissions:
+  contents: read
+jobs:
+  send-demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Offline button safety tests
+        run: python -m unittest tests.test_telegram_buttons -v
+      - name: Send one owner-only demo message
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m leadhunter.telegram_buttons send-test

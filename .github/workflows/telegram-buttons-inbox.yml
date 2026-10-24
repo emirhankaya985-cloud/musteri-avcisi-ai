@@ -1,0 +1,35 @@
+name: Telegram Three-Button Inbox
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+permissions:
+  contents: write
+concurrency:
+  group: telegram-three-button-inbox
+  cancel-in-progress: false
+jobs:
+  handle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Process owner-only demo choices
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m leadhunter.telegram_buttons poll
+      - name: Store only numeric update offset
+        run: |
+          if [ -f data/telegram_demo_offset.json ]; then
+            git add data/telegram_demo_offset.json
+            if ! git diff --cached --quiet; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git commit -m "chore: track Telegram demo update cursor"
+              git push
+            fi
+          fi
