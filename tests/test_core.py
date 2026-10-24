@@ -104,6 +104,50 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(len({url for url, _ in calls}), 3)
         self.assertTrue(all(timeout <= 25 for _, timeout in calls))
 
+    def test_premium_scope_by_sector(self):
+        from leadhunter.core import recommend
+        cases = [
+            ('amenity', 'car_wash', 'yıkama paketleri'),
+            ('shop', 'hairdresser', 'galerisi'),
+            ('shop', 'beauty', 'seans'),
+        ]
+        for field, value, expected in cases:
+            with self.subTest(sector=value):
+                lead = lead_from_osm({'type':'node', 'id':123,
+                        'tags':{'name':'Deneme',field:value}})
+                rec = recommend(lead)
+                self.assertEqual(rec['focus'], 'website')
+                self.assertIn(expected, rec['premium_scope'])
+                self.assertIn('premium bir web sitesi', offer(lead))
+                self.assertIn('Premium web sitesi kapsamı', format_telegram(lead))
+
+    def test_outreach_requires_manual_review_no_unverified_site_claim(self):
+        from leadhunter.core import recommend
+        lead = lead_from_osm(self.osm)
+        rec = recommend(lead)
+        self.assertIn('manuel doğrula', rec['next_step'])
+        self.assertIn('yanıt yoksa ısrar etme', rec['next_step'])
+        self.assertNotIn('web siteniz yok', offer(lead).lower())
+        self.assertIn('Sonraki adım:', format_telegram(lead))
+
+    def test_automation_has_no_premium_website_pitch(self):
+        from leadhunter.core import recommend
+        self.osm['tags']['website'] = 'https://example.com'
+        lead = lead_from_osm(self.osm)
+        rec = recommend(lead)
+        self.assertEqual(rec['focus'], 'automation')
+        self.assertIsNone(rec['premium_scope'])
+        self.assertNotIn('Premium web sitesi kapsamı', format_telegram(lead))
+        self.assertIn('mevcut sistemlerinize', offer(lead).lower())
+
+    def test_premium_draft_is_safe_from_html_injection(self):
+        self.osm['tags']['name'] = '<img src=x onerror=alert(1)>'
+        lead = lead_from_osm(self.osm)
+        message = format_telegram(lead)
+        self.assertIn('&lt;img', message)
+        self.assertNotIn('<img', message)
+        self.assertIn('otomatik mesaj', message)
+
     def test_bbox(self):
         self.assertEqual(len(bbox_parse('40.98,29.00,41,29.02')), 4)
         with self.assertRaises(ValueError): bbox_parse('1,2,3')

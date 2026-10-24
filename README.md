@@ -8,6 +8,8 @@
 - Her çalıştırmada en fazla **5 yeni işletme** için **yalnızca hesabın sahibine** Telegram fırsat mesajı gönderir.
 - OSM'de eksik web sitesi kaydı, gerçek dünyada sitenin kesin yokluğu demek değildir.
 - 🔴 **WEB SİTESİ FIRSATI:** OSM kaydında web adresi yoksa sektörüne uygun site fikri gösterir. Bu **doğrulanmış web sitesi eksikliği değildir**; önce kontrol et.
+- 🎨 **PREMIUM WEB SİTESİ TEKLİFİ:** Kırmızı fırsatlar için sektöre özgü tasarım kapsamı (ör. galeri, mobil randevu, hizmet katalogları, hızlı mobil deneyim) ve işletme adına göre düzenlenmiş kısa bir tanışma mesajı hazırlanır. Gerçek ihtiyaç ve mevcut web sitesi önceden manuel doğrulanmalıdır.
+- 📩 **İLETİŞİM KONTROLÜ:** İşletmeye otomatik mesaj atılmaz. Kullanıcı uygun/yasal iletişim kanalını ve ilgiyi kontrol eder, tek ve saygılı bir tanışma teklifi gönderip göndermemeye kendisi karar verir. Yanıt yoksa ısrarlı takip yapılmaz.
 - 🟢 **OTOMASYON FIRSATI:** OSM'de web adresi kayıtlıysa iş koluna göre randevu/talep otomasyonu fikri gösterir. İşletmenin bu çözüme ihtiyaç duyduğu **kanıtlanmış değildir**.
 - Her işletme için **isim, sektör, website kaydı, telefon ve adres bilgisine göre** gerekçe, öneri ve manuel iletişim taslağı kişiselleştirilir. Otomatik satış mesajı gönderilmez.
 

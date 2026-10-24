@@ -93,6 +93,13 @@ SECTOR_IDEAS = {
 }
 
 
+# Proposed premium website scope, not a claim about an existing business.
+PREMIUM_SITE_SCOPE = {
+    'Oto yıkama': 'özgün marka tasarımı, yıkama paketleri, mobil randevu veya WhatsApp talebi ve harita',
+    'Kuaför/berber': 'özel tasarım, örnek çalışma galerisi, hizmet menüsü, mobil randevu ve harita',
+    'Güzellik salonu': 'premium görsel tasarım, hizmet/seans tanıtımı ve mobil danışma-randevu formu',
+}
+
 def recommend(lead):
     """Classify from *OSM metadata only*, never infer the business' real needs."""
     website_recorded = bool(str(lead.get('website') or '').strip())
@@ -115,26 +122,37 @@ def recommend(lead):
     location = ('Konum bilgisi OSM üzerinde kayıtlı.'
                 if lead.get('address') else
                 'OSM adres alanı eksik; konumu ayrıca doğrula.')
+    if focus == 'website':
+        next_step = ('Önce işletmenin web varlığını manuel doğrula. Gerçekten ihtiyaç '
+                     'görülüyorsa uygun ve hukuka uygun tek bir iletişimde örnek '
+                     'tasarımı görmeyi isteyip istemediklerini sor; yanıt yoksa ısrar etme.')
+    else:
+        next_step = ('Mevcut randevu ve müşteri takip süreçlerini araştır. İhtiyaç '
+                     'doğrulanmadan otomasyon çözümü varmış gibi davranma.')
     return {'focus': focus, 'indicator': indicator, 'idea': ideas[focus],
-            'evidence': evidence, 'contacts': contacts, 'location': location}
+            'evidence': evidence, 'contacts': contacts, 'location': location,
+            'next_step': next_step,
+            'premium_scope': PREMIUM_SITE_SCOPE.get(
+                lead.get('category'),
+                'özel marka tasarımı, hızlı mobil sayfalar, iletişim ve talep formu')
+            if focus == 'website' else None}
 
 
 def offer(lead):
-    """Tailored, unsent draft. Do not state inferred problems as facts."""
+    """Unsent, individualized proposal. Never claim verified unmet needs."""
     recommendation = recommend(lead)
-    name = lead['name']
-    category = lead.get('category') or 'işletme'
-    idea = recommendation['idea']
+    name = str(lead.get('name') or 'işletmeniz')
+    category = str(lead.get('category') or 'işletmeniz')
     if recommendation['focus'] == 'website':
-        intro = 'online tanıtım ve yeni müşteri taleplerini kolaylaştırabilecek'
-    else:
-        intro = 'günlük iş takibini kolaylaştırabilecek'
-    context = ('Konum ve iletişim bilgilerini de tek yerde sunabiliriz. '
-               if recommendation['focus'] == 'website' and lead.get('address') else
-               'Mevcut çalışma şeklinize uygunsa birlikte değerlendirebiliriz. ')
-    return (f'Merhaba, {name} için {category.lower()} alanına uygun, '
-            f'{intro} bir fikir paylaşmak istedim: {idea}. '
-            f'{context}İsterseniz kısa bir örnek sunabilirim. İyi çalışmalar.')
+        return (f'Merhaba, {name} için {category.lower()} alanına özel, '
+                f'premium bir web sitesi konsepti önermek istiyorum: '
+                f"{recommendation['premium_scope']}. "
+                'İlginizi çekerse kısa, size özel bir örnek tasarım '
+                'paylaşabilirim. İyi çalışmalar.')
+    return (f'Merhaba, {name} için {category.lower()} alanındaki '
+            f"iş süreçlerini kolaylaştırabilecek bir fikir: {recommendation['idea']}. "
+            'Mevcut sistemlerinize uygunsa kısa bir örnek paylaşabilirim. '
+            'İyi çalışmalar.')
 
 
 def format_telegram(lead, demo=False):
@@ -148,6 +166,8 @@ def format_telegram(lead, demo=False):
              f"🏷️ {h(lead['category'])} | OSM araştırma önceliği: {lead['score']}/100",
              f"📌 <b>{h(suggestion['indicator'])}</b>",
              f"💡 İşletmeye uygun fikir: {h(suggestion['idea'])}",
+             *( [f"✨ Premium web sitesi kapsamı: {h(suggestion['premium_scope'])}"]
+                if suggestion['premium_scope'] else []),
              f"🔎 Gerekçe: {h(suggestion['evidence'])}",
              f'🌐 {site}']
     if lead['phone']:
@@ -157,10 +177,11 @@ def format_telegram(lead, demo=False):
     if lead['website']:
         lines.append(f"🔗 Kayıtlı site: {h(lead['website'])}")
     lines += [f"📝 Kontrol: {h(suggestion['contacts'])} {h(suggestion['location'])}",
+              f"➡️ Sonraki adım: {h(suggestion['next_step'])}",
               f"🗺️ <a href=\"https://www.openstreetmap.org/{h(lead['id'])}\">OSM kaydı</a>",
               '\n✉️ <b>Yalnızca manuel kullanım için kişiselleştirilmiş teklif:</b>',
               f"<blockquote>{h(offer(lead))}</blockquote>",
-              '\n© OpenStreetMap contributors — ODbL. İhtiyaçlar doğrulanmadı.']
+              '\n© OpenStreetMap contributors — ODbL. İhtiyaçlar doğrulanmadı. İşletmeye otomatik mesaj gönderilmez.']
     return '\n'.join(lines)
 
 
