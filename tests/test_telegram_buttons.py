@@ -77,3 +77,20 @@ class TelegramButtonTests(unittest.TestCase):
                    "CALLBACK_OFFSET_FILE": str(path)}
             self.assertEqual(poll(env, open_, lambda _: None), 0)
             self.assertEqual(json.loads(path.read_text()), {"next_offset": 100})
+
+
+    def test_expired_callback_query_ack_does_not_erase_saved_choice(self):
+        calls = []
+        cb = {"callback_query": {
+            "id": "expired", "data": "demo:v1:no", "from": {"id": 123},
+            "message": {"message_id": 42,
+                        "text": "🧪 Müşteri Avcısı AI — Buton Testi",
+                        "chat": {"id": 123, "type": "private"}}}}
+        def opener(req, timeout=None):
+            method = req.full_url.split("/")[-1]
+            calls.append(method)
+            if method == "answerCallbackQuery":
+                raise HTTPError(req.full_url, 400, "query is too old", {}, None)
+            return io.BytesIO(b'{"ok": true, "result": true}')
+        self.assertTrue(process_update(cb, "fake", "123", opener))
+        self.assertEqual(calls, ["editMessageText", "answerCallbackQuery"])

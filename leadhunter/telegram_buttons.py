@@ -77,9 +77,14 @@ def process_update(update, token, owner, opener=urlopen):
                 "\n✅ Demo kararı kaydedildi. Hiçbir e-posta gönderilmedi.",
         "reply_markup": {"inline_keyboard": []},
     }, opener=opener)
-    api(token, "answerCallbackQuery", {
-        "callback_query_id": callback["id"], "text": "Seçim alındı (demo).",
-    }, opener=opener)
+    try:
+        api(token, "answerCallbackQuery", {
+            "callback_query_id": callback["id"], "text": "Seçim alındı (demo).",
+        }, opener=opener)
+    except RuntimeError:
+        # GitHub scheduled polls are delayed; callback query IDs may expire,
+        # but the owner's original demo message has already been updated.
+        pass
     return True
 
 
