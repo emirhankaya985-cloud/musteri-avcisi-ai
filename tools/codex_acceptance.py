@@ -47,7 +47,7 @@ def verify_tracked_files() -> None:
 def verify_config() -> None:
     ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     digest = (ROOT / ".github/workflows/lead-digest.yml").read_text(encoding="utf-8")
-    assert "python -m unittest discover -s tests -v" in ci
+    assert "python tools/codex_acceptance.py" in ci
     assert "cron: '23 7 * * 1-5'" in digest
     assert "secrets.TELEGRAM_BOT_TOKEN" in digest
     assert "secrets.TELEGRAM_CHAT_ID" in digest
