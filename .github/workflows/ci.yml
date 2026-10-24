@@ -29,7 +29,5 @@ jobs:
           fi
       - name: Check Python syntax
         run: python -m compileall -q leadhunter tests tools
-      - name: Run offline unit tests
-        run: python -m unittest discover -s tests -v
-      - name: Generate demonstration Telegram digest
-        run: python -m leadhunter demo
+      - name: Codex acceptance suite (offline, no secrets)
+        run: python tools/codex_acceptance.py
