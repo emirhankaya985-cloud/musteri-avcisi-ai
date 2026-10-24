@@ -3,6 +3,12 @@ on:
   # Start automatically when the repository changes from private to public.
   public:
   workflow_dispatch:
+  # One-time initial live smoke test when this workflow is introduced/modified on main.
+  # This does not run for normal lead-state commits or general code changes.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lead-digest.yml'
   schedule:
     - cron: '23 7 * * 1-5' # weekdays 10:23 TRT (UTC+3)
 permissions:
