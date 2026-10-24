@@ -11,6 +11,25 @@ class CoreTests(unittest.TestCase):
     def setUp(self):
         self.osm = {'type':'node','id':42,'tags':{'name':'Test & Wash','amenity':'car_wash','phone':'123'}}
 
+    def test_overpass_timeout_falls_back_once(self):
+        from leadhunter.core import get_osm
+        calls = []
+        def fake_open(request, timeout=None):
+            calls.append(request.full_url)
+            if len(calls) == 1:
+                raise TimeoutError('provider temporarily busy')
+            return io.BytesIO(json.dumps({'elements': [self.osm]}).encode())
+        self.assertEqual(get_osm((40.98, 29, 41, 29.02), fake_open), [self.osm])
+        self.assertEqual(len(calls), 2)
+        self.assertNotEqual(calls[0], calls[1])
+
+    def test_overpass_both_unavailable_fails_safely(self):
+        from leadhunter.core import get_osm
+        def fail(_request, timeout=None):
+            raise TimeoutError('timeout')
+        with self.assertRaisesRegex(RuntimeError, 'Overpass instances unavailable'):
+            get_osm((40.98, 29, 41, 29.02), fail)
+
     def test_bbox(self):
         self.assertEqual(len(bbox_parse('40.98,29.00,41,29.02')), 4)
         with self.assertRaises(ValueError): bbox_parse('1,2,3')

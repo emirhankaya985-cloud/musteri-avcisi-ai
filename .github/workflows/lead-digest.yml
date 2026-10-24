@@ -3,7 +3,7 @@ on:
   # Start automatically when the repository changes from private to public.
   public:
   workflow_dispatch:
-  # One-time initial live smoke test when this workflow is introduced/modified on main.
+  # Smoke test on workflow modifications; source failover retries prevent transient OSM timeouts.
   # This does not run for normal lead-state commits or general code changes.
   push:
     branches: [main]

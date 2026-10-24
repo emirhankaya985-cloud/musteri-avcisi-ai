@@ -7,7 +7,11 @@ from urllib.parse import urlencode
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-OVERPASS = 'https://overpass-api.de/api/interpreter'
+# Public Overpass instances can be temporarily busy; keep requests low volume.
+OVERPASS_ENDPOINTS = (
+    'https://overpass.private.coffee/api/interpreter',
+    'https://overpass-api.de/api/interpreter',
+)
 DEFAULT_BBOX = '40.982,29.015,41.008,29.055'
 CATEGORIES = {'car_wash': 'Oto yıkama', 'hairdresser': 'Kuaför/berber', 'beauty': 'Güzellik salonu'}
 
@@ -27,12 +31,23 @@ def get_osm(bbox, opener=urlopen):
              f'nwr["amenity"="car_wash"]({box});'
              f'nwr["shop"="hairdresser"]({box});'
              f'nwr["shop"="beauty"]({box}););out center tags 200;')
-    req = Request(OVERPASS, data=urlencode({'data': query}).encode(), headers={
-        'User-Agent': 'MusteriAvcisiAI/0.1 (small weekdays-only lead research)',
-        'Content-Type': 'application/x-www-form-urlencoded'})
-    with opener(req, timeout=45) as response:
-        data = json.load(response)
-    return data['elements']
+    payload = urlencode({'data': query}).encode()
+    for endpoint in OVERPASS_ENDPOINTS:
+        req = Request(endpoint, data=payload, headers={
+            'User-Agent': 'MusteriAvcisiAI/0.1 (small weekdays-only lead research)',
+            'Content-Type': 'application/x-www-form-urlencoded'})
+        try:
+            with opener(req, timeout=40) as response:
+                data = json.load(response)
+            return data['elements']
+        except HTTPError as exc:
+            # Try another instance only for temporary failures.
+            if exc.code not in (408, 429, 500, 502, 503, 504):
+                raise RuntimeError(f'Overpass API HTTP {exc.code}') from None
+        except (TimeoutError, URLError, OSError):
+            # One fallback only: public services must not be hammered.
+            pass
+    raise RuntimeError('Overpass instances unavailable; no leads sent')
 
 
 def lead_from_osm(row):
