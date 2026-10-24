@@ -35,6 +35,9 @@ jobs:
           preview = Path('dist/telegram-demo.txt').read_text(encoding='utf-8')
           assert '🔴 WEB SİTESİ FIRSATI' in preview
           assert '🟢 OTOMASYON FIRSATI' in preview
+          assert 'Premium web sitesi kapsamı:' in preview
+          assert 'premium bir web sitesi' in preview
+          assert 'Sonraki adım:' in preview
           print('Website/automation recommendation preview validated')
           PY
       - name: Find opportunities and send Telegram report
