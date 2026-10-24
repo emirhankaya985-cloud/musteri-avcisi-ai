@@ -76,6 +76,50 @@ def select_leads(raw, already_seen, maximum=5):
     return sorted(unique.values(), key=lambda x: (-x['score'], x['id']))[:maximum]
 
 
+def discovery_stats(raw, already_seen):
+    """Count discovery outcomes without exposing business contact details."""
+    eligible = {}
+    rejected = 0
+    for row in raw:
+        lead = lead_from_osm(row)
+        if lead is None:
+            rejected += 1
+        else:
+            eligible[lead['id']] = lead
+    old = sum(lead_id in already_seen for lead_id in eligible)
+    return {
+        'fetched': len(raw),
+        'eligible': len(eligible),
+        'rejected': rejected,
+        'duplicates': len(raw) - rejected - len(eligible),
+        'already_seen': old,
+        'new': len(eligible) - old,
+    }
+
+
+def emit_discovery_summary(stats, sent, env, output):
+    """Print safe counters, optionally writing GitHub's workflow summary."""
+    summary = (
+        f"OSM tarama: {stats['fetched']} ham kayıt; "
+        f"{stats['eligible']} geçerli; {stats['rejected']} elendi; "
+        f"{stats['duplicates']} tekrar; {stats['already_seen']} önce görülmüş; "
+        f"{stats['new']} yeni aday"
+    )
+    output(summary)
+    output(f'Gönderilen yeni fırsat: {sent}')
+    summary_path = env.get('GITHUB_STEP_SUMMARY')
+    if summary_path:
+        with open(summary_path, 'a', encoding='utf-8') as handle:
+            handle.write(
+                '\\n### Müşteri Avcısı AI — OSM tarama özeti\\n'
+                '| Ham | Geçerli | Elenen | Tekrar | Önceden görülen | Yeni aday | Telegram gönderimi |\\n'
+                '| ---: | ---: | ---: | ---: | ---: | ---: | ---: |\\n'
+                f"| {stats['fetched']} | {stats['eligible']} | {stats['rejected']} | "
+                f"{stats['duplicates']} | {stats['already_seen']} | "
+                f"{stats['new']} | {sent} |\\n"
+            )
+
+
 # Ideas are hypotheses for manual prospect research, not verified shortcomings.
 SECTOR_IDEAS = {
     'Oto yıkama': {
@@ -229,12 +273,15 @@ def live(env=None, opener=urlopen, output=print):
     state = Path(env.get('STATE_FILE', 'data/seen.json'))
     seen = read_seen(state)
     raw = get_osm(bbox_parse(env.get('SCAN_BBOX') or DEFAULT_BBOX), opener)
+    stats = discovery_stats(raw, seen)
     chosen = select_leads(raw, seen)
     sent = 0
-    for item in chosen:
-        send_telegram(format_telegram(item), token, chat_id, opener)
-        seen.add(item['id'])
-        save_seen(state, seen)
-        sent += 1
-    output(f'Gönderilen yeni fırsat: {sent}')
+    try:
+        for item in chosen:
+            send_telegram(format_telegram(item), token, chat_id, opener)
+            seen.add(item['id'])
+            save_seen(state, seen)
+            sent += 1
+    finally:
+        emit_discovery_summary(stats, sent, env, output)
     return sent
