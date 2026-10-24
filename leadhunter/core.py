@@ -33,6 +33,7 @@ def get_osm(bbox, opener=urlopen):
              f'nwr["shop"="hairdresser"]({box});'
              f'nwr["shop"="beauty"]({box}););out center tags 200;')
     payload = urlencode({'data': query}).encode()
+    had_empty_success = False
     for endpoint in OVERPASS_ENDPOINTS:
         req = Request(endpoint, data=payload, headers={
             'User-Agent': 'MusteriAvcisiAI/0.1 (small weekdays-only lead research)',
@@ -40,14 +41,26 @@ def get_osm(bbox, opener=urlopen):
         try:
             with opener(req, timeout=25) as response:
                 data = json.load(response)
-            return data['elements']
+            # Some mirrors send error remarks with HTTP 200; never count those
+            # responses as a successful empty discovery.
+            if not isinstance(data, dict) or data.get('remark'):
+                continue
+            elements = data.get('elements')
+            if not isinstance(elements, list):
+                continue
+            if elements:
+                return elements
+            had_empty_success = True
         except HTTPError as exc:
             # Try another instance only for temporary failures.
             if exc.code not in (408, 429, 500, 502, 503, 504):
                 raise RuntimeError(f'Overpass API HTTP {exc.code}') from None
-        except (TimeoutError, URLError, OSError):
+        except (TimeoutError, URLError, OSError, ValueError, TypeError):
             # Limited sequential fallbacks only; do not retry indefinitely.
             pass
+    if had_empty_success:
+        # Confirmed an empty set on at least one healthy public source.
+        return []
     raise RuntimeError('Overpass instances unavailable; no leads sent')
 
 
@@ -262,7 +275,11 @@ def send_telegram(message, token, chat_id, opener=urlopen):
         raise RuntimeError('Telegram API connection failed; credentials redacted') from None
     if not result.get('ok'):
         raise RuntimeError('Telegram API gönderimi başarısız')
-    return result.get('result', {}).get('message_id')
+    message = result.get('result') or {}
+    message_id = message.get('message_id') if isinstance(message, dict) else None
+    if type(message_id) is not int or message_id <= 0:
+        raise RuntimeError('Telegram API gönderim onayı eksik')
+    return message_id
 
 
 def live(env=None, opener=urlopen, output=print):
