@@ -71,3 +71,7 @@ gösterir. **Sıfır yeni fırsat** her zaman hata değildir: dar pilot bölge, 
 gönderimlerin tekrarını önleme veya o anda uygun yeni OSM kaydı bulunmaması mümkündür.
 Bu sayılar olmadan sıfırın kesin nedenini varsaymayın. Gerçek `schedule` çalışması
 gerçekleşmeden üretim zamanlamasını doğrulanmış saymayın.
+
+## Telegram üç buton denemesi
+
+Sahibin özel Telegram sohbetine bir kez sentetik bir fırsat gider: **✅ EVET / ❌ HAYIR / ⏳ BEKLET**. `Telegram Three-Button Demo` workflow'u yalnızca demo workflow dosyasına `main` push'u yapıldığında (veya elle tetiklenirse) mesaj yollar. `Telegram Three-Button Inbox` 15 dakikada bir `callback_query` güncellemelerine bakar, yalnızca bu özel demo mesajını değiştirir, seçim butonlarını kaldırır. GitHub schedule gecikebilir; **tepki anlık değildir**. Açık webhook varsa getUpdates çalışmaz ve iş güvenli biçimde hata verir. Public depoya sadece sayısal `data/telegram_demo_offset.json` cursor'u yazılır; kişisel veri veya seçenek değeri yazılmaz. **Gerçek işletmeye veya başka hesaba mail/mesaj gitmez.**
