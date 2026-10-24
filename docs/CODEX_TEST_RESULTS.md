@@ -1,50 +1,48 @@
-# Müşteri Avcısı AI — Test ve Teslim Raporu
+# Müşteri Avcısı AI — Üretim Doğrulama ve Teslim Raporu
 
-**Sonuç: PARTIAL**  
-**Tarih:** 24 Ekim 2026  
-**Depo:** https://github.com/emirhankaya985-cloud/musteri-avcisi-ai  
-**Doğrulanan kaynak commit:** `5576bf7b82423780667b09cb13891b5cf42bb06a`
+**Güncelleme:** 24 Ekim 2026, Türkiye saati  
+**Proje:** https://github.com/emirhankaya985-cloud/musteri-avcisi-ai  
+**Uygulayıcı kararı:** **PARTIAL** — offline test ve gerçek canlı Telegram keşfi **PASS**; gerçek GitHub `schedule` tetiklemesi **UNVERIFIED**.
 
-> Bu belge, ayrı sohbetten paylaşılan test özeti ve doğrulanmış GitHub Actions kanıtları esas alınarak **985 GitHub bağlantısıyla yeniden oluşturulmuştur**. Kullanıcının Windows bilgisayarındaki yerel `CODEX_TEST_RESULTS.md` dosyasının birebir kopyası değildir; yerel dosya bu ortamda açılmamıştır.
+> Bu rapor GitHub Actions üzerinde gerçekleşen işlerin kanıtlarını gösterir. Kullanıcı proje sahibi, ChatGPT kodu uygulayan çalışan, Codex bağımsız teknik yönetici ve son kabul denetçisidir. `push` kaynaklı canlı çalışma, `schedule` kanıtı değildir.
 
-## Kabul durumları
+## Doğrulanmış commitler
 
-| Kontrol | Durum | Kanıt / sınır |
+- **Canlı iş akışı kaynak commit:** `dc2b85f94cecab12f8f6e1214e34e93c482786b1`. Bu sürüm yeni Overpass failover düzeltmesini ve yalnızca Secret varlığını kontrol eden workflow adımını içerir.
+- **Canlı iş sonrası state commit:** `f350253fec93dab28044fccdfbeb8516545ddb2b` (`data/seen.json` güncellendi). Raporun kaydedilmesi bundan sonra ayrı dokümantasyon commiti oluşturur.
+- Önceki yönetici kabulüne esas `7d8f8f457d903fdf5962cf4811c420c5943ed17a` 46/46 PASS idi.
+
+## Nihai kanıt tablosu
+
+| Kontrol | Durum | Doğrudan kanıt |
 | --- | --- | --- |
-| `AGENTS.md` ve `docs/CODEX_TEST_HANDOFF.md` talimatlarının okunması | PASS (ayrı sohbet raporu) | Ayrı sohbetin beyanı |
-| `python tools/codex_acceptance.py` ve 39 birim/kabul testi | **PASS** | GitHub CI, 39 test; tüm offline kabul kapıları başarılı |
-| 🔴 web sitesi olmayan **OSM kaydı** için sektör bazlı premium site önerisi | PASS | Offline kabul testi |
-| 🟢 web adresi olan OSM kaydı için sektör bazlı otomasyon önerisi | PASS | Offline kabul testi |
-| Kişiselleştirilmiş, gönderilmeyen teklif taslakları ve HTML escaping | PASS | Offline kabul testi |
-| Yalnızca sahibinin Telegram sohbeti; en çok 5 fırsat, tekrar önleme | PASS (mock) | Çevrimdışı test; gerçek müşteri iletişimi yok |
-| Kısmi Telegram başarısızlığı ve OSM kimliklerini güvenli saklama | PASS (mock) | Çevrimdışı test |
-| Statik, responsive demo sayfası | PASS (ayrı sohbet raporu) | Ödeme / gerçek rezervasyon hizmeti değildir |
-| Son doğrulanmış canlı `Telegram Lead Digest` çalışması | **PASS — 0 yeni fırsat** | GitHub Actions sonucu `success`; 0 yeni fırsat, gerçek gönderim kanıtı değildir |
-| Pazartesi–Cuma 10:23 TRT zamanlama yapılandırması | PASS (yapılandırma) | `23 7 * * 1-5` UTC |
-| Gerçek GitHub `schedule` olayı ile otomatik çalıştırma | **UNVERIFIED** | İncelenen workflow run kayıtlarında `schedule` olayı gözlenmedi |
-| GitHub push / raporu public depoya kaydetme | **PASS (bu raporla)** | 985 GitHub bağlantısı `push:true` yetkisine sahip; GitHub üzerinden dosya oluşturuldu |
+| Offline kabul testleri | **PASS** | [#40071332679](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40071332679), 46/46 başarılı, güncel canlı workflow kaynak commitinde |
+| 🔴 premium web sitesi / 🟢 otomasyon sınıflandırması | **PASS (offline)** | 46/46 offline kabul, canlı workflow demo adımı başarılı |
+| Overpass boş yanıt/failover düzeltmesi | **PASS (canlı keşif)** | [Telegram Lead Digest #40071332670](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40071332670), `event=push`, `success` |
+| Ham OSM kayıtları | **65** | Aynı canlı workflow logları |
+| Geçerli kayıt / elenen / tekrar | **52 / 13 / 0** | Aynı canlı workflow logları |
+| Önceden görülen / yeni aday | **15 / 37** | Aynı canlı workflow logları |
+| Sahibin Telegram sohbetine yeni gönderim | **5** | `Gönderilen yeni fırsat: 5`; canlı iş başarılı ve pozitif `message_id` zorunlu |
+| Tekrar önleme state güncellemesi | **PASS** | `data/seen.json` yalnızca OSM kimlikleriyle 15'ten 20'ye yükseldi; commit `f350253f...` |
+| Telegram repository secrets çalışma ortamında var | **PASS (runtime presence)** | Canlı workflow içindeki `Verify owner Telegram secrets are configured (presence only)` adımı başarılı; değerler yazdırılmadı |
+| Secret metadata yetkili GitHub API ile listelendi | **NOT VERIFIED** | Mevcut GitHub bağlantısı secrets metadata endpointini sunmuyor; runtime kontrolü buna eşdeğer değildir |
+| Gerçek pazartesi-cuma saat 10:23 `event=schedule` | **UNVERIFIED** | `23 7 * * 1-5` yapılandırılmış; 24 Ekim 2026 Cumartesi itibarıyla schedule tetiklenmesi yok |
+| Public depo gizliliği | **PASS (görülebilen tracked dosyalar ve offline testler)** | CI ve yalnızca kamuya açık `seen_ids` listesi |
+| İşletmelere otomatik pazarlama iletisi | **YOK** | Canlı işlem yalnızca sahibin Telegram sohbetine iletir; işletme erişimi yalnızca manuel |
 
-## GitHub Actions kanıtları
+## Açık üretim kapısı: schedule
 
-- [Offline Tests #40066011134](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40066011134) — `success`; `Ran 39 tests`, `PASS: all OFFLINE Codex acceptance gates`. Commit: `5576bf7b82423780667b09cb13891b5cf42bb06a`.
-- [Telegram Lead Digest #40065577372](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40065577372) — `success`; `Website/automation recommendation preview validated`; `Gönderilen yeni fırsat: 0`. Commit: `4d77861f74c0cd42f09301c5c7701e04aa4ae791`.
-- Önceki canlı test [#40064705793](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40064705793) — `success` ve 5 fırsat; eski teklif biçiminde yapılmıştı, yeni premium format gönderimini kanıtlamaz.
+- Bir sonraki uygun tarih: **26 Ekim 2026 Pazartesi**, hedef **10:23 Europe/Istanbul (07:23 UTC)**. GitHub'ın gecikmesi veya atlaması mümkündür.
+- Gerçek `event=schedule` çalışmasında run ID, tetiklenme saati, kullanılan HEAD commit, sonuç, OSM sayaçları ve gönderilen yeni fırsat sayısı ayrıca doğrulanmalıdır.
+- Kullanıcı için 26 Ekim saat 11:00 civarında (esnek teslim) **tek seferlik otomatik kontrol** oluşturuldu. Kontrol `schedule` yoksa `UNVERIFIED` raporlayacak; başka bir canlı iş tetiklemeyecek.
+- `workflow_dispatch` veya `push` tetiklemeleri, zamanlama kanıtı olarak gösterilmemelidir.
 
-## GitHub 403 sorununun nedeni ve düzeltme
+## Güvenlik ve sınırlar
 
-Kullanıcının ayrı sohbetinde yerel Git `push` işlemi `emirhankaya-AFK` kimliğiyle denenmiş, `emirhankaya985-cloud` deposunda HTTP 403 dönmüştür. Bağlı hesap yetkileri kontrol edildi:
+- Secret değerleri okunmadı, loglanmadı veya repository'ye yazılmadı. Kullanılan isimler `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` ve isteğe bağlı `SCAN_BBOX` repository variable'ıdır.
+- `data/seen.json` yalnızca kamuya açık OSM node/way/relation kimlikleri içerir.
+- Tarama, OSM kaydında web sitesi olmadığı için işletmenin kesinlikle sitesi olmadığını iddia etmez; otomasyon ihtiyacını da kanıtlanmış saymaz.
+- İşletmelere otomatik e-posta, mesaj, DM veya SMS gönderilmez.
+- Windows üzerindeki yerel Git push kimlik doğrulaması bu teslim kapsamında değiştirilmedi; public depoya bağlı 985 hesabının GitHub üzerinden push yetkisi doğrulandı.
 
-- `emirhankaya-AFK` bağlantısının bu public depoda **pull:true / push:false** izni vardır.
-- `emirhankaya985-cloud` bağlantısının **admin:true / push:true** izni vardır.
-- Bu rapor, yerel bilgisayardaki kimlik doğrulamasını değiştirmeden, **985 GitHub bağlantısı** ile doğrudan `main` üzerinde kaydedilmiştir.
-- Yerelde gelecekte push yapılacaksa, Git kimlik doğrulamasının **985 hesabını** kullandığı doğrulanmalı; erişim tokenları raporlara veya Git geçmişine yazılmamalıdır.
-
-## Henüz kapanmayan kapı
-
-İlk başarılı ve gözlemlenebilir `schedule`-tetiklemeli Pazartesi–Cuma çalışmasından sonra gerçek çalışma saati, sonuç ve gönderilen yeni fırsat sayısı doğrulanmalıdır. OSM sunucuları geçici olarak zaman aşımına uğrayabilir; bu, 39 offline testin başarısını geçersiz kılmaz ancak gerçek zamanlı dağıtım güvencesi değildir.
-
-**Güvenlik:** Bu rapora token, müşteri listesi veya özel hesap bilgileri yazılmadı. Müşterilere otomatik tanıtım mesajı gönderilmedi; Telegram mesajları yalnızca hesabın sahibinin kendi sohbetine yöneliktir.
-
-## Sistem ne yapar?
-
-Küçük bir pilot bölgede OpenStreetMap işletmelerini araştırır; OSM web sitesi alanı boşsa 🔴 **premium web sitesi fırsatı**, doluysa 🟢 **otomasyon fırsatı** olarak sınıflandırır. Her işletmeye özel, **manuel inceleme için** teklif taslağı üretir. Hafta içi saat 10:23 TRT için ayarlanmış GitHub Actions, yeni fırsatları yalnızca kullanıcıya Telegram üzerinden bildirmeyi amaçlar. İşletmelere otomatik mesaj atmaz.
+**Codex için kısa sonuç:** 46/46 offline PASS, güncel düzeltmenin ilk canlı OSM denemesi PASS, 65 ham OSM kaydı ve 5 sahibine Telegram bildirimi, tekrar state'i 20 OSM ID, secrets runtime varlığı PASS; yalnızca gerçek `schedule` kanıtı ve doğrudan secret metadata okuması bekleniyor. Son kabul kararı Codex'e aittir.
