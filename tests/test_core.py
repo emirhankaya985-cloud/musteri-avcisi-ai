@@ -248,6 +248,7 @@ class CoreTests(unittest.TestCase):
             self.assertEqual(lines[1], 'Gönderilen yeni fırsat: 1')
             result = summary.read_text(encoding='utf-8')
             self.assertIn('Telegram gönderimi', result)
+            self.assertIn('\n| Ham |', result)
             self.assertNotIn('Test & Wash', result)
             self.assertNotIn('123', result)
 

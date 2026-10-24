@@ -111,12 +111,12 @@ def emit_discovery_summary(stats, sent, env, output):
     if summary_path:
         with open(summary_path, 'a', encoding='utf-8') as handle:
             handle.write(
-                '\\n### Müşteri Avcısı AI — OSM tarama özeti\\n'
-                '| Ham | Geçerli | Elenen | Tekrar | Önceden görülen | Yeni aday | Telegram gönderimi |\\n'
-                '| ---: | ---: | ---: | ---: | ---: | ---: | ---: |\\n'
+                '\n### Müşteri Avcısı AI — OSM tarama özeti\n'
+                '| Ham | Geçerli | Elenen | Tekrar | Önceden görülen | Yeni aday | Telegram gönderimi |\n'
+                '| ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n'
                 f"| {stats['fetched']} | {stats['eligible']} | {stats['rejected']} | "
                 f"{stats['duplicates']} | {stats['already_seen']} | "
-                f"{stats['new']} | {sent} |\\n"
+                f"{stats['new']} | {sent} |\n"
             )
 
 
