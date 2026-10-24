@@ -27,6 +27,16 @@ jobs:
           python-version: '3.12'
       - name: Run offline tests
         run: python -m unittest discover -s tests -v
+      - name: Validate red website and green automation preview (no external messages)
+        run: |
+          python -m leadhunter demo
+          python - <<'PY'
+          from pathlib import Path
+          preview = Path('dist/telegram-demo.txt').read_text(encoding='utf-8')
+          assert '🔴 WEB SİTESİ FIRSATI' in preview
+          assert '🟢 OTOMASYON FIRSATI' in preview
+          print('Website/automation recommendation preview validated')
+          PY
       - name: Find opportunities and send Telegram report
         env:
           TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN }}
