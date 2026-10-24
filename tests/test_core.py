@@ -226,5 +226,52 @@ class CoreTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'TELEGRAM'):
             live(env={})
 
+    def test_discovery_stats_explains_zero_new_opportunities(self):
+        from leadhunter.core import discovery_stats
+        copy = dict(self.osm)
+        invalid = {'type': 'node', 'id': 99, 'tags': {'amenity': 'car_wash'}}
+        stats = discovery_stats([self.osm, copy, invalid], {'node/42'})
+        self.assertEqual(stats, {
+            'fetched': 3, 'eligible': 1, 'rejected': 1,
+            'duplicates': 1, 'already_seen': 1, 'new': 0,
+        })
+
+    def test_discovery_stats_prints_safe_counts_to_summary(self):
+        from leadhunter.core import emit_discovery_summary
+        from leadhunter.core import discovery_stats
+        with tempfile.TemporaryDirectory() as d:
+            summary = Path(d) / 'summary.md'
+            lines = []
+            stats = discovery_stats([self.osm], set())
+            emit_discovery_summary(stats, 1, {'GITHUB_STEP_SUMMARY': str(summary)}, lines.append)
+            self.assertIn('1 yeni aday', lines[0])
+            self.assertEqual(lines[1], 'Gönderilen yeni fırsat: 1')
+            result = summary.read_text(encoding='utf-8')
+            self.assertIn('Telegram gönderimi', result)
+            self.assertIn('\n| Ham |', result)
+            self.assertNotIn('Test & Wash', result)
+            self.assertNotIn('123', result)
+
+    def test_partial_failure_still_reports_confirmed_send_count(self):
+        from urllib.error import HTTPError
+        lines = []
+        sends = []
+        rows = [self.osm, {'type':'node', 'id':43, 'tags':{'name':'Second', 'amenity':'car_wash'}}]
+        def fake_open(req, timeout=None):
+            if req.full_url.startswith('https://api.telegram.org/'):
+                sends.append(1)
+                if len(sends) > 1:
+                    raise HTTPError(req.full_url, 500, 'failure', {}, None)
+                return io.BytesIO(b'{"ok": true, "result": {"message_id": 4}}')
+            return io.BytesIO(json.dumps({'elements': rows}).encode())
+        with tempfile.TemporaryDirectory() as d:
+            state = Path(d) / 'seen.json'
+            env = {'TELEGRAM_BOT_TOKEN':'fake-test-token',
+                   'TELEGRAM_CHAT_ID':'test-owner', 'STATE_FILE':str(state)}
+            with self.assertRaisesRegex(RuntimeError, 'Telegram API HTTP 500'):
+                live(env=env, opener=fake_open, output=lines.append)
+            self.assertIn('Gönderilen yeni fırsat: 1', lines)
+            self.assertEqual(len(read_seen(state)), 1)
+
 if __name__ == '__main__':
     unittest.main()

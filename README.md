@@ -62,3 +62,12 @@ Demo `dist/telegram-demo.txt` dosyasını üretir. Sentetik örnekler kullanır;
 Veri kaynağı: [© OpenStreetMap contributors, ODbL](https://www.openstreetmap.org/copyright).
 
 **Veri kaynağı dayanıklılığı:** Overpass açık kaynak servisleri geçici olarak kullanılamayabilir; uygulama en çok üç farklı sunucuyu sırayla dener ve veri alamazsa güvenli biçimde hata verir. Bu durumda kimseye müşteri teklifi gönderilmez; GitHub Actions kırmızı kalır.
+
+## Fırsat keşfi sayaçları
+
+Her canlı tarama kişisel iletişim bilgisi yazmadan ham kayıt, geçerli kayıt, elenen, tekrar,
+önceden görülen ve yeni aday sayılarını raporlar. GitHub Actions iş özeti aynı sayaçları
+gösterir. **Sıfır yeni fırsat** her zaman hata değildir: dar pilot bölge, önceki
+gönderimlerin tekrarını önleme veya o anda uygun yeni OSM kaydı bulunmaması mümkündür.
+Bu sayılar olmadan sıfırın kesin nedenini varsaymayın. Gerçek `schedule` çalışması
+gerçekleşmeden üretim zamanlamasını doğrulanmış saymayın.
