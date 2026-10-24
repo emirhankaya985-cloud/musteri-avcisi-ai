@@ -273,5 +273,42 @@ class CoreTests(unittest.TestCase):
             self.assertIn('Gönderilen yeni fırsat: 1', lines)
             self.assertEqual(len(read_seen(state)), 1)
 
+
+    def test_empty_overpass_result_falls_back_to_another_provider(self):
+        from leadhunter.core import get_osm
+        calls = []
+        def fake_open(req, timeout=None):
+            calls.append(req.full_url)
+            data = {'elements': []} if len(calls) == 1 else {'elements': [self.osm]}
+            return io.BytesIO(json.dumps(data).encode())
+        self.assertEqual(get_osm((40.98, 29, 41, 29.02), fake_open), [self.osm])
+        self.assertEqual(len(calls), 2)
+
+    def test_overpass_200_error_remark_is_not_empty_success(self):
+        from leadhunter.core import get_osm
+        calls = []
+        def fake_open(req, timeout=None):
+            calls.append(req.full_url)
+            data = {'remark': 'runtime error: timeout', 'elements': []} if len(calls) == 1 else {'elements': [self.osm]}
+            return io.BytesIO(json.dumps(data).encode())
+        self.assertEqual(get_osm((40.98, 29, 41, 29.02), fake_open), [self.osm])
+        self.assertEqual(len(calls), 2)
+
+    def test_all_overpass_sources_truly_empty_return_no_leads(self):
+        from leadhunter.core import get_osm, OVERPASS_ENDPOINTS
+        calls = []
+        def fake_open(req, timeout=None):
+            calls.append(req.full_url)
+            return io.BytesIO(b'{"elements": []}')
+        self.assertEqual(get_osm((40.98, 29, 41, 29.02), fake_open), [])
+        self.assertEqual(len(calls), len(OVERPASS_ENDPOINTS))
+
+    def test_telegram_requires_positive_message_id(self):
+        from leadhunter.core import send_telegram
+        def fake_open(req, timeout=None):
+            return io.BytesIO(b'{"ok": true, "result": {}}')
+        with self.assertRaisesRegex(RuntimeError, 'gönderim onayı eksik'):
+            send_telegram('test', 'fake-token', 'owner', opener=fake_open)
+
 if __name__ == '__main__':
     unittest.main()
