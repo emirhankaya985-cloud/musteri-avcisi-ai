@@ -1,6 +1,10 @@
 name: Telegram Three-Button Inbox
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/telegram-buttons-inbox.yml'
   schedule:
     - cron: '*/15 * * * *'
 permissions:
