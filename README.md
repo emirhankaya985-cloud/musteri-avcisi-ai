@@ -7,6 +7,10 @@
 - Kadıköy'deki küçük bir pilot alanda OpenStreetMap verilerinde işletme kayıtlarını inceler.
 - Her çalıştırmada en fazla **5 yeni işletme** için **yalnızca hesabın sahibine** Telegram fırsat mesajı gönderir.
 - OSM'de eksik web sitesi kaydı, gerçek dünyada sitenin kesin yokluğu demek değildir.
+- 🔴 **WEB SİTESİ FIRSATI:** OSM kaydında web adresi yoksa sektörüne uygun site fikri gösterir. Bu **doğrulanmış web sitesi eksikliği değildir**; önce kontrol et.
+- 🟢 **OTOMASYON FIRSATI:** OSM'de web adresi kayıtlıysa iş koluna göre randevu/talep otomasyonu fikri gösterir. İşletmenin bu çözüme ihtiyaç duyduğu **kanıtlanmış değildir**.
+- Her işletme için **isim, sektör, website kaydı, telefon ve adres bilgisine göre** gerekçe, öneri ve manuel iletişim taslağı kişiselleştirilir. Otomatik satış mesajı gönderilmez.
+
 - `data/seen.json` yalnızca herkese açık OSM nesne kimliklerini tutar; başarılı Telegram gönderiminden sonra güncellenir.
 - **Potansiyel müşteriye otomatik e-posta, DM veya başka ileti göndermez.** Mesajdaki teklif yalnızca kullanıcı tarafından manuel değerlendirilecek bir taslaktır.
 

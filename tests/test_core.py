@@ -30,6 +30,68 @@ class CoreTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'Overpass instances unavailable'):
             get_osm((40.98, 29, 41, 29.02), fail)
 
+    def test_red_website_when_osm_website_missing(self):
+        from leadhunter.core import recommend
+        lead = lead_from_osm(self.osm)
+        result = recommend(lead)
+        self.assertEqual(result['focus'], 'website')
+        self.assertIn('🔴 WEB SİTESİ', format_telegram(lead))
+        self.assertIn('manuel doğrula', result['evidence'])
+        self.assertNotIn('kesinlikle', result['evidence'])
+
+    def test_green_automation_when_osm_website_recorded(self):
+        from leadhunter.core import recommend
+        self.osm['tags']['website'] = 'https://example.com'
+        lead = lead_from_osm(self.osm)
+        result = recommend(lead)
+        self.assertEqual(result['focus'], 'automation')
+        self.assertIn('🟢 OTOMASYON', format_telegram(lead))
+        self.assertIn('mevcut sistemleri bilinmiyor', result['evidence'])
+
+    def test_vertical_specific_website_offers(self):
+        from leadhunter.core import recommend
+        ideas = []
+        for field, value in [('amenity', 'car_wash'), ('shop', 'hairdresser'),
+                             ('shop', 'beauty')]:
+            tags = {'name': 'Örnek', field: value}
+            result = lead_from_osm({'type': 'node', 'id': 12, 'tags': tags})
+            ideas.append(recommend(result)['idea'])
+        self.assertEqual(len(set(ideas)), 3)
+
+    def test_vertical_specific_automation_offers(self):
+        from leadhunter.core import recommend
+        ideas = []
+        for field, value in [('amenity', 'car_wash'), ('shop', 'hairdresser'),
+                             ('shop', 'beauty')]:
+            tags = {'name': 'Örnek', field: value, 'website': 'https://example.com'}
+            result = lead_from_osm({'type': 'node', 'id': 12, 'tags': tags})
+            ideas.append(recommend(result)['idea'])
+        self.assertEqual(len(set(ideas)), 3)
+
+    def test_offer_changes_with_business_identity_and_signals(self):
+        lead = lead_from_osm(self.osm)
+        text1 = offer(lead)
+        self.osm['tags']['name'] = 'Yeni Kuaför'
+        self.osm['tags']['shop'] = 'hairdresser'
+        self.osm['tags'].pop('amenity')
+        self.osm['tags']['website'] = 'https://example.com'
+        text2 = offer(lead_from_osm(self.osm))
+        self.assertNotEqual(text1, text2)
+        self.assertIn('Test & Wash', text1)
+        self.assertIn('Yeni Kuaför', text2)
+
+    def test_recommendation_does_not_change_dedupe_or_autosend(self):
+        lead = lead_from_osm(self.osm)
+        self.assertEqual(select_leads([self.osm], {lead['id']}), [])
+        self.assertIn('manuel kullanım', format_telegram(lead))
+
+    def test_escaped_customized_output(self):
+        self.osm['tags']['name'] = '<Firma & Özel>'
+        lead = lead_from_osm(self.osm)
+        message = format_telegram(lead)
+        self.assertIn('&lt;Firma &amp; Özel&gt;', message)
+        self.assertNotIn('<Firma & Özel>', message)
+
     def test_bbox(self):
         self.assertEqual(len(bbox_parse('40.98,29.00,41,29.02')), 4)
         with self.assertRaises(ValueError): bbox_parse('1,2,3')
