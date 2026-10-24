@@ -1,0 +1,10 @@
+.env
+.env.*
+__pycache__/
+*.pyc
+dist/
+*.pem
+# Never commit private CRM/recipient records
+data/approved_recipients.json
+data/mail_sent.json
+data/*.private.json

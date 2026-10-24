@@ -1,0 +1,39 @@
+name: Telegram Lead Digest
+on:
+  # Start automatically when the repository changes from private to public.
+  public:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 7 * * 1-5' # weekdays 10:23 TRT (UTC+3)
+permissions:
+  contents: write
+concurrency:
+  group: telegram-lead-digest
+  cancel-in-progress: false
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run offline tests
+        run: python -m unittest discover -s tests -v
+      - name: Find opportunities and send Telegram report
+        env:
+          TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{secrets.TELEGRAM_CHAT_ID }}
+          SCAN_BBOX: ${{vars.SCAN_BBOX }}
+        run: python -m leadhunter live
+      - name: Commit seen IDs (also after partial send failure)
+        if: always()
+        run: |
+          if ! git diff --quiet -- data/seen.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/seen.json
+            git commit -m "chore: remember delivered Telegram leads"
+            git push
+          fi

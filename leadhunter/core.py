@@ -1,0 +1,143 @@
+"""Discover small sets of businesses via OpenStreetMap and report only to owner."""
+import html
+import json
+import os
+from pathlib import Path
+from urllib.parse import urlencode
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+OVERPASS = 'https://overpass-api.de/api/interpreter'
+DEFAULT_BBOX = '40.982,29.015,41.008,29.055'
+CATEGORIES = {'car_wash': 'Oto yıkama', 'hairdresser': 'Kuaför/berber', 'beauty': 'Güzellik salonu'}
+
+
+def bbox_parse(s):
+    p = [float(v.strip()) for v in s.split(',')]
+    if len(p) != 4 or not (-90 <= p[0] < p[2] <= 90 and -180 <= p[1] < p[3] <= 180):
+        raise ValueError('SCAN_BBOX güney,batı,kuzey,doğu şeklinde olmalı')
+    if p[2] - p[0] > .2 or p[3] - p[1] > .2:
+        raise ValueError('Kamu sunucusuna aşırı geniş alan sorgulanamaz')
+    return tuple(p)
+
+
+def get_osm(bbox, opener=urlopen):
+    box = ','.join(str(v) for v in bbox)
+    query = ('[out:json][timeout:25];('
+             f'nwr["amenity"="car_wash"]({box});'
+             f'nwr["shop"="hairdresser"]({box});'
+             f'nwr["shop"="beauty"]({box}););out center tags 200;')
+    req = Request(OVERPASS, data=urlencode({'data': query}).encode(), headers={
+        'User-Agent': 'MusteriAvcisiAI/0.1 (small weekdays-only lead research)',
+        'Content-Type': 'application/x-www-form-urlencoded'})
+    with opener(req, timeout=45) as response:
+        data = json.load(response)
+    return data['elements']
+
+
+def lead_from_osm(row):
+    tags = row.get('tags') or {}
+    name = str(tags.get('name') or '').strip()
+    typ, oid = row.get('type'), row.get('id')
+    category = CATEGORIES.get(tags.get('amenity')) or CATEGORIES.get(tags.get('shop'))
+    if not name or not category or typ not in ('node', 'way', 'relation') or not isinstance(oid, int):
+        return None
+    website = str(tags.get('website') or tags.get('contact:website') or '').strip()
+    phone = str(tags.get('contact:phone') or tags.get('phone') or '').strip()
+    address = ' '.join(str(tags.get(t) or '') for t in
+                       ('addr:street', 'addr:housenumber', 'addr:district')).strip()
+    return {'id': f'{typ}/{oid}', 'name': name[:100], 'category': category,
+            'website': website[:200], 'phone': phone[:80], 'address': address[:150],
+            'score': 45 + (30 if not website else 0) + (15 if phone else 0) + (10 if address else 0)}
+
+
+def select_leads(raw, already_seen, maximum=5):
+    unique = {}
+    for row in raw:
+        lead = lead_from_osm(row)
+        if lead and lead['id'] not in already_seen:
+            unique[lead['id']] = lead
+    return sorted(unique.values(), key=lambda x: (-x['score'], x['id']))[:maximum]
+
+
+def offer(lead):
+    return (f"Merhaba, {lead['name']} için mobil uyumlu tanıtım sitesi ve WhatsApp üzerinden "
+            'randevu talep sayfası hazırlama konusunda yardımcı olabilirim. '
+            'İsterseniz örnek bir tasarım paylaşabilirim. İyi çalışmalar.')
+
+
+def format_telegram(lead, demo=False):
+    h = html.escape
+    intro = '🧪 DEMO — GERÇEK İŞLETME DEĞİL\n' if demo else ''
+    site = ('⚠️ OSM kaydında web sitesi belirtilmemiş; ayrıca doğrula'
+            if not lead['website'] else '✅ OSM kaydında web sitesi var')
+    lines = [intro + '🎯 <b>YENİ MÜŞTERİ FIRSATI</b>',
+             f"🏪 <b>{h(lead['name'])}</b>",
+             f"🏷️ {h(lead['category'])} | Öncelik skoru: {lead['score']}/100",
+             f'🌐 {site}']
+    if lead['phone']:
+        lines.append(f"☎️ OSM telefon kaydı: {h(lead['phone'])}")
+    if lead['address']:
+        lines.append(f"📍 {h(lead['address'])}")
+    if lead['website']:
+        lines.append(f"🔗 Kayıtlı site: {h(lead['website'])}")
+    lines += [f"🗺️ <a href=\"https://www.openstreetmap.org/{h(lead['id'])}\">OSM kaydı</a>",
+              '\n✉️ <b>Manuel gönderilecek teklif taslağı:</b>',
+              f"<blockquote>{h(offer(lead))}</blockquote>",
+              '\n© OpenStreetMap contributors — ODbL. Kayıtlar eksik/eski olabilir.']
+    return '\n'.join(lines)
+
+
+def read_seen(path):
+    if not path.exists():
+        return set()
+    data = json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(data, dict) or not isinstance(data.get('seen_ids', []), list):
+        raise ValueError('Bozuk seen.json')
+    return set(data.get('seen_ids', []))
+
+
+def save_seen(path, seen):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix('.tmp')
+    tmp.write_text(json.dumps({'seen_ids': sorted(seen)}, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    tmp.replace(path)
+
+
+def send_telegram(message, token, chat_id, opener=urlopen):
+    if len(message) > 4096:
+        raise ValueError('Telegram sınırı aşıldı')
+    body = json.dumps({'chat_id': chat_id, 'text': message, 'parse_mode': 'HTML',
+                       'disable_web_page_preview': True}).encode()
+    request = Request(f'https://api.telegram.org/bot{token}/sendMessage', data=body,
+                      headers={'Content-Type': 'application/json'}, method='POST')
+    try:
+        with opener(request, timeout=30) as response:
+            result = json.load(response)
+    except HTTPError as exc:
+        # urllib's exception contains the full bot-token URL: never expose it in CI logs.
+        raise RuntimeError(f'Telegram API HTTP {exc.code}; credentials redacted') from None
+    except URLError:
+        raise RuntimeError('Telegram API connection failed; credentials redacted') from None
+    if not result.get('ok'):
+        raise RuntimeError('Telegram API gönderimi başarısız')
+    return result.get('result', {}).get('message_id')
+
+
+def live(env=None, opener=urlopen, output=print):
+    env = os.environ if env is None else env
+    token, chat_id = env.get('TELEGRAM_BOT_TOKEN'), env.get('TELEGRAM_CHAT_ID')
+    if not token or not chat_id:
+        raise RuntimeError('TELEGRAM_BOT_TOKEN ve TELEGRAM_CHAT_ID eksik')
+    state = Path(env.get('STATE_FILE', 'data/seen.json'))
+    seen = read_seen(state)
+    raw = get_osm(bbox_parse(env.get('SCAN_BBOX') or DEFAULT_BBOX), opener)
+    chosen = select_leads(raw, seen)
+    sent = 0
+    for item in chosen:
+        send_telegram(format_telegram(item), token, chat_id, opener)
+        seen.add(item['id'])
+        save_seen(state, seen)
+        sent += 1
+    output(f'Gönderilen yeni fırsat: {sent}')
+    return sent
