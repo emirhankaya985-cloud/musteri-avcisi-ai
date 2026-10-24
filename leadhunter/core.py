@@ -11,6 +11,7 @@ from urllib.request import Request, urlopen
 OVERPASS_ENDPOINTS = (
     'https://overpass.private.coffee/api/interpreter',
     'https://overpass-api.de/api/interpreter',
+    'https://overpass.osm.ch/api/interpreter',
 )
 DEFAULT_BBOX = '40.982,29.015,41.008,29.055'
 CATEGORIES = {'car_wash': 'Oto yıkama', 'hairdresser': 'Kuaför/berber', 'beauty': 'Güzellik salonu'}
@@ -37,7 +38,7 @@ def get_osm(bbox, opener=urlopen):
             'User-Agent': 'MusteriAvcisiAI/0.1 (small weekdays-only lead research)',
             'Content-Type': 'application/x-www-form-urlencoded'})
         try:
-            with opener(req, timeout=40) as response:
+            with opener(req, timeout=25) as response:
                 data = json.load(response)
             return data['elements']
         except HTTPError as exc:
@@ -45,7 +46,7 @@ def get_osm(bbox, opener=urlopen):
             if exc.code not in (408, 429, 500, 502, 503, 504):
                 raise RuntimeError(f'Overpass API HTTP {exc.code}') from None
         except (TimeoutError, URLError, OSError):
-            # One fallback only: public services must not be hammered.
+            # Limited sequential fallbacks only; do not retry indefinitely.
             pass
     raise RuntimeError('Overpass instances unavailable; no leads sent')
 

@@ -23,7 +23,7 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         self.assertNotEqual(calls[0], calls[1])
 
-    def test_overpass_both_unavailable_fails_safely(self):
+    def test_overpass_all_unavailable_fails_safely(self):
         from leadhunter.core import get_osm
         def fail(_request, timeout=None):
             raise TimeoutError('timeout')
@@ -91,6 +91,18 @@ class CoreTests(unittest.TestCase):
         message = format_telegram(lead)
         self.assertIn('&lt;Firma &amp; Özel&gt;', message)
         self.assertNotIn('<Firma & Özel>', message)
+
+    def test_overpass_three_independent_endpoints_no_busy_loop(self):
+        from leadhunter.core import get_osm, OVERPASS_ENDPOINTS
+        calls = []
+        def fail(req, timeout=None):
+            calls.append((req.full_url, timeout))
+            raise TimeoutError('busy')
+        with self.assertRaisesRegex(RuntimeError, 'Overpass instances unavailable'):
+            get_osm((40.98, 29, 41, 29.02), fail)
+        self.assertEqual(len(calls), len(OVERPASS_ENDPOINTS))
+        self.assertEqual(len({url for url, _ in calls}), 3)
+        self.assertTrue(all(timeout <= 25 for _, timeout in calls))
 
     def test_bbox(self):
         self.assertEqual(len(bbox_parse('40.98,29.00,41,29.02')), 4)

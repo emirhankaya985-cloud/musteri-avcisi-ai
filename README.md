@@ -48,3 +48,5 @@ Demo `dist/telegram-demo.txt` dosyasını üretir. Sentetik örnekler kullanır;
 - OSM kayıtlarını manuel kontrol et; izinsiz ticari ileti göndermeyi otomatikleştirme.
 
 Veri kaynağı: [© OpenStreetMap contributors, ODbL](https://www.openstreetmap.org/copyright).
+
+**Veri kaynağı dayanıklılığı:** Overpass açık kaynak servisleri geçici olarak kullanılamayabilir; uygulama en çok üç farklı sunucuyu sırayla dener ve veri alamazsa güvenli biçimde hata verir. Bu durumda kimseye müşteri teklifi gönderilmez; GitHub Actions kırmızı kalır.
