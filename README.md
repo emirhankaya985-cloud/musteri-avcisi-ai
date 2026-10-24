@@ -16,6 +16,16 @@
 - `data/seen.json` yalnızca herkese açık OSM nesne kimliklerini tutar; başarılı Telegram gönderiminden sonra güncellenir.
 - **Potansiyel müşteriye otomatik e-posta, DM veya başka ileti göndermez.** Mesajdaki teklif yalnızca kullanıcı tarafından manuel değerlendirilecek bir taslaktır.
 
+## Codex test ve devralma
+
+Codex için depo kökünde [AGENTS.md](AGENTS.md) ve [test/kabul yönergesi](docs/CODEX_TEST_HANDOFF.md) hazırdır. Offline doğrulama tek komut:
+
+```bash
+python tools/codex_acceptance.py
+```
+
+Bu komut token istemez, gerçek işletmelere mesaj atmaz. Canlı Telegram çalıştırması ve zamanlanmış `schedule` olayı ayrı GitHub kanıtlarıyla doğrulanmalıdır.
+
 ## Çalıştırma
 
 ```bash
