@@ -40,6 +40,16 @@ jobs:
           assert 'Sonraki adım:' in preview
           print('Website/automation recommendation preview validated')
           PY
+      - name: Verify owner Telegram secrets are configured (presence only)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::error::Owner Telegram repository secrets are missing."
+            exit 1
+          fi
+          echo "Owner Telegram secrets are configured (values not displayed)."
       - name: Find opportunities and send Telegram report
         env:
           TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN }}
