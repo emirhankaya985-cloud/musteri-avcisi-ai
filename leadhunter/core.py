@@ -258,11 +258,14 @@ def save_seen(path, seen):
     tmp.replace(path)
 
 
-def send_telegram(message, token, chat_id, opener=urlopen):
+def send_telegram(message, token, chat_id, opener=urlopen, reply_markup=None):
     if len(message) > 4096:
         raise ValueError('Telegram sınırı aşıldı')
-    body = json.dumps({'chat_id': chat_id, 'text': message, 'parse_mode': 'HTML',
-                       'disable_web_page_preview': True}).encode()
+    payload = {'chat_id': chat_id, 'text': message, 'parse_mode': 'HTML',
+               'disable_web_page_preview': True}
+    if reply_markup is not None:
+        payload['reply_markup'] = reply_markup
+    body = json.dumps(payload).encode()
     request = Request(f'https://api.telegram.org/bot{token}/sendMessage', data=body,
                       headers={'Content-Type': 'application/json'}, method='POST')
     try:
@@ -291,14 +294,51 @@ def live(env=None, opener=urlopen, output=print):
     seen = read_seen(state)
     raw = get_osm(bbox_parse(env.get('SCAN_BBOX') or DEFAULT_BBOX), opener)
     stats = discovery_stats(raw, seen)
-    chosen = select_leads(raw, seen)
+    from .review_messages import compact_telegram, button_markup
+    from .review_flow import prioritized_leads
+    from .review_private import ReviewStore, connect_private_database
+
+    database_url = env.get('REVIEW_DATABASE_URL')
     sent = 0
+    conn = None
     try:
+        if database_url:
+            # Fail closed: do not consume / send new leads if the private DB is down.
+            conn = connect_private_database(database_url)
+            store = ReviewStore(conn)
+            statuses = store.statuses()
+            eligible = []
+            for item in raw:
+                lead = lead_from_osm(item)
+                if lead and lead['id'] not in seen:
+                    eligible.append(lead)
+            # A previous SMTP-independent Telegram failure can leave a
+            # registered 'review' row without a confirmed owner notification.
+            # If the public seen file has no delivery for that ID, retry it.
+            selection_statuses = {
+                lid: value for lid, value in statuses.items()
+                if value != 'review' or lid in seen
+            }
+            chosen = prioritized_leads(
+                selection_statuses, eligible, deferred_fallback=store.deferred(),
+                maximum=5)
+        else:
+            # No secrets installed: keep owner-only, without live decision buttons.
+            chosen = select_leads(raw, seen)
+            store = None
         for item in chosen:
-            send_telegram(format_telegram(item), token, chat_id, opener)
+            if store:
+                store.register(item)  # private persistence before Telegram send
+            message_id = send_telegram(
+                compact_telegram(item), token, chat_id, opener,
+                reply_markup=button_markup(item['id']) if store else None)
+            if store:
+                store.presented(item['id'], message_id)
             seen.add(item['id'])
             save_seen(state, seen)
             sent += 1
     finally:
+        if conn is not None:
+            conn.close()
         emit_discovery_summary(stats, sent, env, output)
     return sent

@@ -3,12 +3,8 @@ on:
   # Start automatically when the repository changes from private to public.
   public:
   workflow_dispatch:
-  # Smoke test on workflow modifications; source failover retries prevent transient OSM timeouts.
-  # This does not run for normal lead-state commits or general code changes.
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/lead-digest.yml'
+  # Production opportunities are sent only on schedule or explicit owner dispatch.
+  # Do not automatically send new leads merely because workflow code changed.
   schedule:
     - cron: '23 7 * * 1-5' # weekdays 10:23 TRT (UTC+3)
 permissions:
@@ -50,11 +46,14 @@ jobs:
             exit 1
           fi
           echo "Owner Telegram secrets are configured (values not displayed)."
+      - name: Install free Postgres driver when private review is enabled
+        run: python -m pip install 'psycopg[binary]==3.2.12'
       - name: Find opportunities and send Telegram report
         env:
           TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{secrets.TELEGRAM_CHAT_ID }}
           SCAN_BBOX: ${{vars.SCAN_BBOX }}
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
         run: python -m leadhunter live
       - name: Commit seen IDs (also after partial send failure)
         if: always()
