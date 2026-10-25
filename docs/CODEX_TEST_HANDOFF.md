@@ -33,7 +33,7 @@ Review the synthetic content in `dist/telegram-demo.txt`. That output is only a 
 | 5 | Owner Telegram only, up to 5, stable de-duplication on re-run | Mock Telegram API + isolated state |
 | 6 | Failed send isn't marked seen; partial success is persisted | Mock failure unit test |
 | 7 | Overpass timeout/non-success handled without infinite requests | Core + fallback tests |
-| 8 | Repository has no `.env`, real recipients/CRM/sent-mail ledgers, embedded tokens, Gmail mailer | Tracked-file scan + Git tree |
+| 8 | Repository has no `.env`, real recipients/CRM/sent-mail ledgers, embedded tokens, unattended customer-email sender (an owner-to-self Gmail smoke test is permitted with GitHub Secrets) | Tracked-file scan + Git tree |
 | 9 | Demo `demo-site/index.html` opens responsively and is labelled demo; not a live reservation/payment system | Local browser/static audit |
 | 10 | `Offline Tests` workflow completes successful for HEAD | GitHub Actions run URL + SHA |
 | 11 | `Telegram Lead Digest` real API, if safely/explicitly tested, reports success and delivered count | GitHub Actions log and `data/seen.json` delta |

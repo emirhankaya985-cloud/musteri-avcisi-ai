@@ -1,0 +1,29 @@
+name: Gmail Owner-Only Self-Test
+on:
+  workflow_dispatch:
+    inputs:
+      send_to_myself:
+        description: 'Send exactly one test email FROM and TO my own Gmail?'
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Dry run (safe; no email, no Secrets)
+        run: python -m leadhunter.gmail_selftest dry-run
+      - name: Send exactly one owner-to-owner SMTP message
+        if: ${{ inputs.send_to_myself == true }}
+        env:
+          GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GMAIL_SELF_TEST_APPROVED: YES_ONE_EMAIL_TO_MYSELF
+        run: python -m leadhunter.gmail_selftest send-to-self

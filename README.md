@@ -52,7 +52,7 @@ Demo `dist/telegram-demo.txt` dosyasını üretir. Sentetik örnekler kullanır;
 
 ## Güvenlik
 
-- Bu public depoda eski Git geçmişi, `.env`, gerçek müşteri e-postaları, CRM kayıtları, SMTP / Gmail gönderim kodu veya token bulunmamalı.
+- Bu public depoda eski Git geçmişi, `.env`, gerçek müşteri e-postaları, CRM kayıtları, kontrolsüz otomatik müşteri e-postası gönderimi veya token bulunmamalı.
 - GitHub Secrets eski hesaptan otomatik taşınmaz; yeni public depoda ayrıca tanımlanması gerekir.
 - Kodun `contents: write` izni yalnızca başarılı Telegram gönderimlerinin kamuya açık OSM kimliklerini kaydetmek için kullanılır.
 - Telegram başarısızsa iş akışı kırmızı görünür; başarısız adım başarı olarak kabul edilmez.
@@ -75,3 +75,9 @@ gerçekleşmeden üretim zamanlamasını doğrulanmış saymayın.
 ## Telegram üç buton denemesi
 
 Sahibin özel Telegram sohbetine bir kez sentetik bir fırsat gider: **✅ EVET / ❌ HAYIR / ⏳ BEKLET**. `Telegram Three-Button Demo` workflow'u yalnızca demo workflow dosyasına `main` push'u yapıldığında (veya elle tetiklenirse) mesaj yollar. `Telegram Three-Button Inbox` 15 dakikada bir `callback_query` güncellemelerine bakar, yalnızca bu özel demo mesajını değiştirir, seçim butonlarını kaldırır. GitHub schedule gecikebilir; **tepki anlık değildir**. Açık webhook varsa getUpdates çalışmaz ve iş güvenli biçimde hata verir. Public depoya sadece sayısal `data/telegram_demo_offset.json` cursor'u yazılır; kişisel veri veya seçenek değeri yazılmaz. **Gerçek işletmeye veya başka hesaba mail/mesaj gitmez.**
+
+## Gmail test altyapısı
+
+Ayrı, ücretsiz Gmail hesabını test etmek için güvenli ve **kendine gönderimle sınırlı** SMTP altyapısı eklendi. Gerçek müşterilere e-posta göndermez; Telegram Evet/Hayır/Beklet ile henüz bağlı değildir.
+
+Kurulum, gerekli iki GitHub Secret ve test çalışma bağlantısı: [docs/GMAIL_SETUP.md](docs/GMAIL_SETUP.md).
