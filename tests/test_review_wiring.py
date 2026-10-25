@@ -117,6 +117,18 @@ class DecisionWiringTests(unittest.TestCase):
             v=json.loads(p.read_text())
             self.assertEqual(v,{"seen_ids":["node/42"]})
 
+    def test_pre_registered_unsent_review_can_be_retried(self):
+        from leadhunter.review_flow import prioritized_leads
+        statuses = {"node/42": "review"}
+        seen = set()
+        filtered = {lead_id: status for lead_id, status in statuses.items()
+                    if status != "review" or lead_id in seen}
+        self.assertEqual(prioritized_leads(filtered, [self.lead])[0]["id"], "node/42")
+        seen.add("node/42")
+        filtered = {lead_id: status for lead_id, status in statuses.items()
+                    if status != "review" or lead_id in seen}
+        self.assertEqual(prioritized_leads(filtered, [self.lead]), [])
+
 
 if __name__=="__main__":
     unittest.main()

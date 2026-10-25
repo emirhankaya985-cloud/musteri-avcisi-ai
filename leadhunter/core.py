@@ -312,8 +312,16 @@ def live(env=None, opener=urlopen, output=print):
                 lead = lead_from_osm(item)
                 if lead and lead['id'] not in seen:
                     eligible.append(lead)
+            # A previous SMTP-independent Telegram failure can leave a
+            # registered 'review' row without a confirmed owner notification.
+            # If the public seen file has no delivery for that ID, retry it.
+            selection_statuses = {
+                lid: value for lid, value in statuses.items()
+                if value != 'review' or lid in seen
+            }
             chosen = prioritized_leads(
-                statuses, eligible, deferred_fallback=store.deferred(), maximum=5)
+                selection_statuses, eligible, deferred_fallback=store.deferred(),
+                maximum=5)
         else:
             # No secrets installed: keep owner-only, without live decision buttons.
             chosen = select_leads(raw, seen)
