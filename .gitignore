@@ -8,3 +8,10 @@ dist/
 data/approved_recipients.json
 data/mail_sent.json
 data/*.private.json
+
+# Keep downloaded email, real recipients and any local credentials private
+*.eml
+*.mbox
+*.credentials.json
+smtp-secret*.json
+data/gmail*.json
