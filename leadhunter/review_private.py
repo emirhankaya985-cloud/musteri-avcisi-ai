@@ -16,7 +16,7 @@ def connect_private_database(url):
         raise RuntimeError("Private review database must require SSL")
     try:
         import psycopg
-        return psycopg.connect(url, connect_timeout=15)
+        return psycopg.connect(url, connect_timeout=15, autocommit=True)
     except Exception:
         # Database exception strings may embed passwords and customer data.
         raise RuntimeError("Private review database connection failed; details redacted") from None
@@ -36,7 +36,9 @@ class ReviewStore:
 
     def statuses(self):
         return {lead_id: state for lead_id, state in
-                self._read("SELECT osm_id,status FROM owner_leads")}
+                self._read("SELECT osm_id,status FROM owner_leads ORDER BY "
+                           "CASE WHEN status='deferred' THEN 0 ELSE 1 END, "
+                           "updated_at,osm_id")}
 
     def deferred(self):
         rows = self._read(

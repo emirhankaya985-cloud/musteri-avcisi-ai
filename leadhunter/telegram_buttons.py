@@ -101,13 +101,6 @@ def poll(env=None, opener=urlopen, output=print):
         raise RuntimeError("Webhook configured; cannot use getUpdates polling")
     # A broken private DB must not cause live decisions to be irreversibly consumed.
     # Open it before getUpdates; Telegram updates are confirmed only on next offset.
-    updates = api(token, "getUpdates", {
-        "offset": offset, "limit": 100, "timeout": 0,
-        "allowed_updates": ["callback_query"],
-    }, opener=opener)
-    if not isinstance(updates, list):
-        raise RuntimeError("Invalid Telegram updates")
-    from .review_messages import parse_callback
     from .review_private import connect_private_database, ReviewStore
     review_store = None
     review_conn = None
@@ -116,6 +109,12 @@ def poll(env=None, opener=urlopen, output=print):
         review_store = ReviewStore(review_conn)
     count = 0
     try:
+        updates = api(token, "getUpdates", {
+            "offset": offset, "limit": 100, "timeout": 0,
+            "allowed_updates": ["callback_query"],
+        }, opener=opener)
+        if not isinstance(updates, list):
+            raise RuntimeError("Invalid Telegram updates")
         for update in updates:
             uid = update.get("update_id") if isinstance(update, dict) else None
             if type(uid) is not int or uid < offset:

@@ -3,12 +3,8 @@ on:
   # Start automatically when the repository changes from private to public.
   public:
   workflow_dispatch:
-  # Smoke test on workflow modifications; source failover retries prevent transient OSM timeouts.
-  # This does not run for normal lead-state commits or general code changes.
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/lead-digest.yml'
+  # Production opportunities are sent only on schedule or explicit owner dispatch.
+  # Do not automatically send new leads merely because workflow code changed.
   schedule:
     - cron: '23 7 * * 1-5' # weekdays 10:23 TRT (UTC+3)
 permissions:

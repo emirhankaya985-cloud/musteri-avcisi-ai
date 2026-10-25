@@ -26,5 +26,5 @@ Bu veritabanı **Müşteri Avcısı AI için ayrıdır**, diğer projelerin tabl
 3. **Bu URL'yi sohbet, issue, PR veya GitHub koduna yazma.** `sslmode=require` parametresini tut.
 4. GitHub Actions'da iki workflow'un sadece runtime env üzerinden kullanılır; sırf test için canlı digest'i tekrar tekrar çalıştırma.
 
-Bu Secret olmadan 3 butonlu gerçek üretim akışına `PASS` denilemez. Kod offline test edilse bile gerçek DB erişimi/Telegram karar geçişi canlı doğrulama ister.
+Main dalına alınan bu değişiklik kendi başına canlı digest başlatmaz. Bu Secret olmadan 3 butonlu gerçek üretim akışına `PASS` denilemez. Kod offline test edilse bile gerçek DB erişimi/Telegram karar geçişi canlı doğrulama ister.
 
