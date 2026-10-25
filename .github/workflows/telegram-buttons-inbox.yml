@@ -21,8 +21,15 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Install free Postgres driver for owner review
-        run: python -m pip install 'psycopg[binary]==3.2.12'
+      - name: Install free Postgres driver only when private review is enabled
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: |
+          if [ -n "$REVIEW_DATABASE_URL" ]; then
+            python -m pip install 'psycopg[binary]==3.2.12'
+          else
+            echo "Optional private review database is not configured; no install needed."
+          fi
       - name: Process owner-only demo choices
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

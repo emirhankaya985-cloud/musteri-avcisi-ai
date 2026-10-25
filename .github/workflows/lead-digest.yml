@@ -46,8 +46,15 @@ jobs:
             exit 1
           fi
           echo "Owner Telegram secrets are configured (values not displayed)."
-      - name: Install free Postgres driver when private review is enabled
-        run: python -m pip install 'psycopg[binary]==3.2.12'
+      - name: Install free Postgres driver only when private review is enabled
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: |
+          if [ -n "$REVIEW_DATABASE_URL" ]; then
+            python -m pip install 'psycopg[binary]==3.2.12'
+          else
+            echo "Optional private review database is not configured; no install needed."
+          fi
       - name: Find opportunities and send Telegram report
         env:
           TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN }}
