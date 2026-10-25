@@ -1,4 +1,17 @@
-# Müşteri Avcısı AI — Üretim Doğrulama ve Teslim Raporu
+# 25 Ekim 2026 — Üç butonlu gerçek işletme karar sistemi
+
+**Güncel ürün kararı: PARTIAL.** Kod/CI PASS; Neon veritabanı oluşturma ve boş şema kontrolü PASS; gerçek işletme callback'lerinin Neon üzerinde canlı uçtan uca çalışması **UNVERIFIED** (GitHub Secret henüz yapılandırılmadı); Gmail müşteri gönderimi **KAPALI**. Bu bölüm eski 24 Ekim canlı tarama kanıtını geçersiz kılmaz.
+
+- **main SHA:** `a818ff2f4750495a9b1856fd9de9c97a976b53ef`.
+- **Offline acceptance:** 87/87 PASS, [CI #40223759121](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40223759121), completed success.
+- **Telegram callback inbox:** [#40223759123](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40223759123), completed success; no live decisions processed in this run.
+- **Neon:** private separate project `misty-field-02930645`, `owner_leads` table created; non-sensitive SELECT count returned 0 total/deferred/rejected. Credentials not logged or stored in public source.
+- **New UX:** concise 🟣 website / 🔵 automation alerts; ✅ Evet sets `email_pending` without sending mail, ❌ Hayır sets `rejected`, ⏳ Beklet sets `deferred` and causes it to be prioritized in the next scan, including repeated holds.
+- **Activation gate:** GitHub Actions repo secret `REVIEW_DATABASE_URL` is **NOT VERIFIED CONFIGURED**, since connected GitHub API cannot manage secret values. Without the secret, existing owner-only short Telegram alerts continue but actual lead-specific decision buttons are not enabled.
+- **Runtime:** no extra live customer scan was triggered by changes; weekday 10:23 TRT schedule retained. No marketing emails or messages to businesses have been sent.
+- **Gmail:** code prepared previously, but actual Gmail account credentials and owner-to-self SMTP test are pending; leave email as the final integration stage.
+
+## Prior 24 Ekim 2026 verification report (historical)
 
 **Güncelleme:** 24 Ekim 2026, Türkiye saati  
 **Proje:** https://github.com/emirhankaya985-cloud/musteri-avcisi-ai  
