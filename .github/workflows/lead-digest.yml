@@ -50,11 +50,14 @@ jobs:
             exit 1
           fi
           echo "Owner Telegram secrets are configured (values not displayed)."
+      - name: Install free Postgres driver when private review is enabled
+        run: python -m pip install 'psycopg[binary]==3.2.12'
       - name: Find opportunities and send Telegram report
         env:
           TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{secrets.TELEGRAM_CHAT_ID }}
           SCAN_BBOX: ${{vars.SCAN_BBOX }}
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
         run: python -m leadhunter live
       - name: Commit seen IDs (also after partial send failure)
         if: always()

@@ -81,3 +81,7 @@ Sahibin özel Telegram sohbetine bir kez sentetik bir fırsat gider: **✅ EVET 
 Ayrı, ücretsiz Gmail hesabını test etmek için güvenli ve **kendine gönderimle sınırlı** SMTP altyapısı eklendi. Gerçek müşterilere e-posta göndermez; Telegram Evet/Hayır/Beklet ile henüz bağlı değildir.
 
 Kurulum, gerekli iki GitHub Secret ve test çalışma bağlantısı: [docs/GMAIL_SETUP.md](docs/GMAIL_SETUP.md).
+
+## Üç buton ve özel CRM kararları
+
+Gerçek işletmeler için **🟣 Premium Web** / **🔵 Otomasyon** kısa bildirim şablonları eklendi. `REVIEW_DATABASE_URL` GitHub Secret tanımlandıktan sonra Telegram'da ✅ Evet / ❌ Hayır / ⏳ Beklet görünür ve durumlar özel Neon veritabanında tutulur. Secret yoksa bot yalnızca yeni kısa fırsat bildirimlerini gönderir; gerçek karar butonları etkin değildir. Gmail'den işletmelere e-posta gönderimi hâlâ kapalıdır. Ayrıntı: [docs/PRIVATE_REVIEW_SETUP.md](docs/PRIVATE_REVIEW_SETUP.md).
