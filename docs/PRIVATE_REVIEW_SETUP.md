@@ -34,3 +34,7 @@ Main dalına alınan bu değişiklik kendi başına canlı digest başlatmaz. Bu
 `leadhunter/review_smoke.py` gerçek özel PostgreSQL bağlantısında üç test işletmesiyle Evet/Hayır/Beklet geçişlerini, yanlış Telegram mesaj kimliğinin reddini, reddedilen kaydın yeniden etkinleştirilememesini ve ertelenen kaydın öne alınmasını kontrol eder. Bu üç kayıt tek açık PostgreSQL transaction içinde sınanır ve kasıtlı rollback uygulanır; kalıcı CRM/test kaydı bırakılmaz. **Gerçek Telegram veya Gmail mesajı gönderilmez.**
 
 Bu doğrulama yalnızca `telegram-buttons-inbox.yml` workflow'unun güvenli push veya manuel tetiklenmesi sırasında gerçekleşir; 15 dakikalık normal callback taramalarında tekrar çalışmaz. Logda `PASS: Private Neon YES/NO/LATER` görülmeden gerçek veritabanı karar entegrasyonunu doğrulanmış sayma.
+
+## Daha önce gönderilen işletmeleri bir kez inceleme
+
+Özel Neon bağlantısı etkinleştirildiğinde, eski `data/seen.json` içinde bulunan ancak henüz `owner_leads` tablosunda bulunmayan işletmeler yeni `✅ Evet / ❌ Hayır / ⏳ Beklet` mesajlarına **yalnızca bir kez** alınabilir. Öncelik: bekletilenler → yeni işletmeler → daha önce butonsuz gönderilenler. Bir işletme ilk kez kayıt edildiğinde `review` durumunda kalır ve aynı işletme ikinci kez gereksiz yere bildirilmez. Hayır/Evet kararları terminal olarak korunur; Beklet bilerek yeniden gösterilir. Her taramada toplam sınır 5 işletmedir.

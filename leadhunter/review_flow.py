@@ -36,23 +36,37 @@ def mark_sent(statuses, lead_id, *, delivered):
     return updated
 
 
-def prioritized_leads(statuses, discovered, *, deferred_fallback=(), maximum=5):
-    """Include held leads first on every scan, excluding all other decisions.
+def prioritized_leads(statuses, discovered, *, deferred_fallback=(),
+                      legacy_fallback=(), maximum=5):
+    """Return held leads, fresh leads, then never-reviewed legacy seen leads.
 
-    deferred_fallback can supply previously seen lead data loaded from private
-    storage if OSM does not return it in the current scan.
+    Legacy fallback is opt-in by the caller and is intentionally at the back:
+    old Telegram reports are shown ONE TIME with actionable buttons, never
+    re-presented after their private review status exists.
     """
     if type(maximum) is not int or maximum < 0:
         raise ValueError("Invalid maximum")
     pool = {}
-    for lead in list(discovered) + list(deferred_fallback):
-        lead_id = lead.get("id")
-        if isinstance(lead_id, str) and OSM_ID.fullmatch(lead_id):
-            pool.setdefault(lead_id, lead)
+    def identities(leads):
+        result = []
+        for lead in leads:
+            lead_id = lead.get("id")
+            if isinstance(lead_id, str) and OSM_ID.fullmatch(lead_id):
+                pool.setdefault(lead_id, lead)
+                if lead_id not in result:
+                    result.append(lead_id)
+        return result
+
+    fresh_ids = identities(discovered)
+    identities(deferred_fallback)
+    legacy_ids = identities(legacy_fallback)
     held = [lid for lid, status in statuses.items()
             if status == "deferred" and lid in pool]
-    fresh = [lid for lid in pool if lid not in statuses]
-    return [pool[lid] for lid in (held + fresh)[:maximum]]
+    fresh = [lid for lid in fresh_ids if lid not in statuses and lid not in held]
+    legacy = [lid for lid in legacy_ids if lid not in statuses
+              and lid not in held and lid not in fresh]
+    # De-duplicate and preserve the exact priority ordering.
+    return [pool[lid] for lid in (held + fresh + legacy)[:maximum]]
 
 
 def email_ready(statuses, lead_id, *, recipient_verified=False,

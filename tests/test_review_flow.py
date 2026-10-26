@@ -71,6 +71,26 @@ class ReviewFlowTests(unittest.TestCase):
         result = prioritized_leads({}, [self.a, self.a, self.b, self.c], maximum=2)
         self.assertEqual([x["id"] for x in result], ["node/42", "way/43"])
 
+    def test_legacy_seen_leads_receive_buttons_only_once(self):
+        result = prioritized_leads({}, [], legacy_fallback=[self.a, self.b])
+        self.assertEqual([x['id'] for x in result], ['node/42', 'way/43'])
+        recorded = {'node/42': 'review', 'way/43': 'rejected'}
+        self.assertEqual(prioritized_leads(recorded, [], legacy_fallback=[self.a, self.b]), [])
+
+    def test_priority_deferred_new_then_legacy(self):
+        states = {'relation/44': 'deferred'}
+        result = prioritized_leads(states, [self.b], deferred_fallback=[self.c],
+                                   legacy_fallback=[self.a], maximum=3)
+        self.assertEqual([x['id'] for x in result],
+                         ['relation/44', 'way/43', 'node/42'])
+
+    def test_legacy_dedupe_and_never_resurface_approved(self):
+        states = {'node/42': 'email_pending'}
+        self.assertEqual(prioritized_leads(states, [], legacy_fallback=[self.a]), [])
+        self.assertEqual([x['id'] for x in prioritized_leads(
+            {}, [self.b], legacy_fallback=[self.b, self.c])],
+            ['way/43', 'relation/44'])
+
     def test_no_input_mutation(self):
         original = {"node/42": "deferred"}
         state = decide(original, "way/43", "no")
