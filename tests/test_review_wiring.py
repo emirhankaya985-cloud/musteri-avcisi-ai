@@ -129,6 +129,56 @@ class DecisionWiringTests(unittest.TestCase):
                     if status != "review" or lead_id in seen}
         self.assertEqual(prioritized_leads(filtered, [self.lead]), [])
 
+    def test_live_with_private_db_prioritizes_new_and_legacy_once(self):
+        from unittest.mock import patch
+        new_id, old_id = 'node/43', 'node/42'
+        events, telegram = [], []
+        class FakeConn:
+            def close(self):
+                events.append('close')
+        class FakeReview:
+            def __init__(self):
+                self.records = {}
+            def statuses(self):
+                return dict(self.records)
+            def deferred(self):
+                return []
+            def register(self, item):
+                self.records[item['id']] = 'review'
+            def presented(self, lead_id, message_id):
+                events.append(('presented', lead_id, message_id))
+        db = FakeReview()
+        records = [
+            {"type":"node","id":42,
+             "tags":{"name":"Eski İşletme", "shop":"hairdresser"}},
+            {"type":"node","id":43,
+             "tags":{"name":"Yeni İşletme", "shop":"beauty"}},
+        ]
+        def opener(req, timeout=None):
+            if req.full_url.startswith("https://api.telegram.org/"):
+                telegram.append(json.loads(req.data))
+                return io.BytesIO(json.dumps(
+                    {"ok":True,"result":{"message_id":len(telegram)}}).encode())
+            return io.BytesIO(json.dumps({"elements":records}).encode())
+        with tempfile.TemporaryDirectory() as d:
+            state = Path(d) / "seen.json"
+            state.write_text(json.dumps({"seen_ids":[old_id]}))
+            env = {"TELEGRAM_BOT_TOKEN":"fixture",
+                   "TELEGRAM_CHAT_ID":"123","STATE_FILE":str(state),
+                   "REVIEW_DATABASE_URL":"postgresql://fixture/?sslmode=require"}
+            with patch("leadhunter.review_private.connect_private_database",
+                       return_value=FakeConn()), patch(
+                       "leadhunter.review_private.ReviewStore",return_value=db):
+                self.assertEqual(live(env, opener, lambda _:None), 2)
+                self.assertEqual(live(env, opener, lambda _:None), 0)
+        self.assertEqual(len(telegram),2)
+        self.assertIn("✅ Evet", str(telegram[0]['reply_markup']))
+        self.assertEqual([payload['reply_markup']['inline_keyboard'][0][0]['callback_data']
+                          for payload in telegram],
+                         ['lead:v1:yes:node/43','lead:v1:yes:node/42'])
+        self.assertIn(('presented', old_id, 2), events)
+        self.assertEqual(set(db.records), {new_id, old_id})
+
 
 if __name__=="__main__":
     unittest.main()

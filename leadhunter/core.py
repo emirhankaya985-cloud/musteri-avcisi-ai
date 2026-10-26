@@ -308,10 +308,19 @@ def live(env=None, opener=urlopen, output=print):
             store = ReviewStore(conn)
             statuses = store.statuses()
             eligible = []
+            legacy = []
             for item in raw:
                 lead = lead_from_osm(item)
-                if lead and lead['id'] not in seen:
+                if not lead:
+                    continue
+                if lead['id'] not in seen:
                     eligible.append(lead)
+                elif lead['id'] not in statuses:
+                    # Before private review was enabled, owner digests used
+                    # plain Telegram messages. Offer actionable buttons once.
+                    legacy.append(lead)
+            eligible.sort(key=lambda x: (-x['score'], x['id']))
+            legacy.sort(key=lambda x: (-x['score'], x['id']))
             # A previous SMTP-independent Telegram failure can leave a
             # registered 'review' row without a confirmed owner notification.
             # If the public seen file has no delivery for that ID, retry it.
@@ -321,7 +330,7 @@ def live(env=None, opener=urlopen, output=print):
             }
             chosen = prioritized_leads(
                 selection_statuses, eligible, deferred_fallback=store.deferred(),
-                maximum=5)
+                legacy_fallback=legacy, maximum=5)
         else:
             # No secrets installed: keep owner-only, without live decision buttons.
             chosen = select_leads(raw, seen)
