@@ -8,10 +8,11 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 # Public Overpass instances can be temporarily busy; keep requests low volume.
+# All mirrors must cover Turkey (Swiss-only Overpass created false empty results).
 OVERPASS_ENDPOINTS = (
     'https://overpass.private.coffee/api/interpreter',
     'https://overpass-api.de/api/interpreter',
-    'https://overpass.osm.ch/api/interpreter',
+    'https://lz4.overpass-api.de/api/interpreter',
 )
 DEFAULT_BBOX = '40.982,29.015,41.008,29.055'
 CATEGORIES = {'car_wash': 'Oto yıkama', 'hairdresser': 'Kuaför/berber', 'beauty': 'Güzellik salonu'}
@@ -53,7 +54,7 @@ def get_osm(bbox, opener=urlopen):
             had_empty_success = True
         except HTTPError as exc:
             # Try another instance only for temporary failures.
-            if exc.code not in (408, 429, 500, 502, 503, 504):
+            if exc.code not in (401, 403, 408, 429, 500, 502, 503, 504):
                 raise RuntimeError(f'Overpass API HTTP {exc.code}') from None
         except (TimeoutError, URLError, OSError, ValueError, TypeError):
             # Limited sequential fallbacks only; do not retry indefinitely.
@@ -292,7 +293,13 @@ def live(env=None, opener=urlopen, output=print):
         raise RuntimeError('TELEGRAM_BOT_TOKEN ve TELEGRAM_CHAT_ID eksik')
     state = Path(env.get('STATE_FILE', 'data/seen.json'))
     seen = read_seen(state)
-    raw = get_osm(bbox_parse(env.get('SCAN_BBOX') or DEFAULT_BBOX), opener)
+    configured_bbox = (env.get('SCAN_BBOX') or DEFAULT_BBOX).strip()
+    raw = get_osm(bbox_parse(configured_bbox), opener)
+    if not raw and seen and configured_bbox == DEFAULT_BBOX:
+        # There are previously confirmed OSM objects in this same area.
+        # A suddenly empty feed is more likely a stale or regional mirror.
+        # Never silently claim "zero opportunities" in this situation.
+        raise RuntimeError('OSM source inconsistent with previously seen records; retry later')
     stats = discovery_stats(raw, seen)
     from .review_messages import compact_telegram, button_markup
     from .review_flow import prioritized_leads

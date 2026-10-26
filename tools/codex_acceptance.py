@@ -51,7 +51,8 @@ def verify_config() -> None:
     assert "cron: '23 7 * * 1-5'" in digest
     assert "secrets.TELEGRAM_BOT_TOKEN" in digest
     assert "secrets.TELEGRAM_CHAT_ID" in digest
-    assert "python -m leadhunter live" in digest
+    assert "python -m leadhunter.daily_scan" in digest
+    assert "cron: '53 8 * * 1-5'" in digest
     assert "contents: write" in digest
     print("PASS: CI, owner secrets and weekdays 10:23 TRT cron configured")
     print("NOTE: cron config is NOT proof that a scheduled run happened")
