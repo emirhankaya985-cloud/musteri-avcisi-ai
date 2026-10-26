@@ -1,0 +1,55 @@
+name: OSM Main API Read-Only Probe (One Time)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/osm-main-api-probe.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Check small direct OpenStreetMap API queries
+        run: |
+          python - <<'PY'
+          import json
+          from urllib.request import Request, urlopen
+          from urllib.parse import urlencode
+          from urllib.error import HTTPError
+          from pathlib import Path
+          from xml.etree import ElementTree as ET
+          base = 'https://api.openstreetmap.org/api/0.6'
+          ids = json.loads(Path('data/seen.json').read_text())['seen_ids']
+          node_ids = [x.split('/')[1] for x in ids if x.startswith('node/')][:3]
+          cases = [('tiny_map_json', base + '/map.json?' + urlencode(
+              {'bbox':'29.03,40.99,29.033,40.993'})),
+              ('known_nodes_json', base + '/nodes.json?' + urlencode(
+              {'nodes':','.join(node_ids)}))]
+          for name, url in cases:
+              req = Request(url, headers={'User-Agent':
+                 'MusteriAvcisiAI/0.1 (owner-only weekly research, OSM attribution)'})
+              try:
+                  with urlopen(req, timeout=18) as response:
+                      raw = response.read(5_000_001)
+                      media = response.headers.get('Content-Type','')
+                  if len(raw) > 5_000_000:
+                      print(name + ': too_large_for_safe_probe')
+                      continue
+                  obj = json.loads(raw)
+                  rows = obj.get('elements',[])
+                  valid = sum(bool(x.get('tags',{}).get('name')) and (
+                      x.get('tags',{}).get('shop') in ('hairdresser','beauty') or
+                      x.get('tags',{}).get('amenity') == 'car_wash')
+                      for x in rows)
+                  print(name + ': http_200 count=' + str(len(rows)) +
+                        ' matching_named_leads=' + str(valid) +
+                        ' mime=' + media.split(';')[0])
+              except Exception as exc:
+                  print(name + ': error_type=' + type(exc).__name__)
+          PY
