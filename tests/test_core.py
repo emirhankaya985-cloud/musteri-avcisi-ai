@@ -310,5 +310,33 @@ class CoreTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'gönderim onayı eksik'):
             send_telegram('test', 'fake-token', 'owner', opener=fake_open)
 
+    def test_sources_global_not_swiss_only(self):
+        from leadhunter.core import OVERPASS_ENDPOINTS
+        self.assertEqual(len(OVERPASS_ENDPOINTS),3)
+        self.assertNotIn('overpass.osm.ch', ''.join(OVERPASS_ENDPOINTS))
+        self.assertTrue(all(host.startswith('https://') for host in OVERPASS_ENDPOINTS))
+
+    def test_overpass_403_falls_back_to_another_source(self):
+        from leadhunter.core import get_osm
+        count = []
+        def fake(req, timeout=None):
+            count.append(1)
+            if len(count)==1:
+                raise HTTPError(req.full_url,403,'denied',{},None)
+            return io.BytesIO(json.dumps({'elements':[self.osm]}).encode())
+        self.assertEqual(get_osm((40.98,29,41,29.02),fake),[self.osm])
+        self.assertEqual(len(count),2)
+
+    def test_previous_osm_businesses_empty_default_feed_is_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/"seen.json"
+            save_seen(p,{'node/42'})
+            def fake(req, timeout=None):
+                return io.BytesIO(b'{"elements":[]}')
+            env={'STATE_FILE':str(p),'TELEGRAM_BOT_TOKEN':'fixture',
+                 'TELEGRAM_CHAT_ID':'123'}
+            with self.assertRaisesRegex(RuntimeError, 'OSM source inconsistent'):
+                live(env,opener=fake,output=lambda *_:None)
+
 if __name__ == '__main__':
     unittest.main()

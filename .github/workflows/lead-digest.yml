@@ -6,7 +6,8 @@ on:
   # Production opportunities are sent only on schedule or explicit owner dispatch.
   # Do not automatically send new leads merely because workflow code changed.
   schedule:
-    - cron: '23 7 * * 1-5' # weekdays 10:23 TRT (UTC+3)
+    - cron: '23 7 * * 1-5' # primary 10:23 TRT
+    - cron: '53 8 * * 1-5' # backup 11:53 TRT; skips if already delivered that day
 permissions:
   contents: write
 concurrency:
@@ -61,14 +62,18 @@ jobs:
           TELEGRAM_CHAT_ID: ${{secrets.TELEGRAM_CHAT_ID }}
           SCAN_BBOX: ${{vars.SCAN_BBOX }}
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
-        run: python -m leadhunter live
+          DIGEST_DAILY_GUARD: ${{ github.event_name == 'schedule' }}
+        run: python -m leadhunter.daily_scan
       - name: Commit seen IDs (also after partial send failure)
         if: always()
         run: |
-          if ! git diff --quiet -- data/seen.json; then
+          git add data/seen.json
+          if [ -f data/last_digest_day.json ]; then
+            git add data/last_digest_day.json
+          fi
+          if ! git diff --cached --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add data/seen.json
             git commit -m "chore: remember delivered Telegram leads"
             git push
           fi

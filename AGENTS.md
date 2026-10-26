@@ -12,7 +12,7 @@ Research a small OSM business sample and send **only the owner's private Telegra
 - Never write production customer data to `data/seen.json`: public OSM object IDs only.
 - Do not trigger `Telegram Lead Digest` repeatedly merely to validate code; a live run sends messages to the owner and mutates `data/seen.json`.
 - Do not claim site is hosted, emails are sent, customers contacted, cron fired on time, or paid conversions happened without evidence.
-- Do not silently alter production scheduling (weekdays 10:23 Europe/Istanbul = 07:23 UTC), secret names, public repository visibility, or the no-auto-outreach policy.
+- Do not silently alter production scheduling, secret names, public repository visibility, or the no-auto-outreach policy. Weekdays 10:23 TRT (07:23 UTC) remains primary; one backup at 11:53 TRT (08:53 UTC) skips when same-day owner messages were already sent. This backup was explicitly disclosed to the owner after the missed 26 October scan.
 - Do not merge regressions or leave failed CI; if repo policies require a PR, use a branch/PR and verify it.
 
 ## Offline validation — first
