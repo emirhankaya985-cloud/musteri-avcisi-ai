@@ -1,3 +1,18 @@
+# 26 Ekim 2026 — Canlı tarama kusuru ve düzeltme kabulü
+
+**KARAR: PARTIAL.** Kod PASS; Neon test PASS; gerçek OSM keşfi şu anda FAIL (dış kaynaklar erişilemiyor); gerçek işletme buton tıklaması UNVERIFIED; Gmail kullanıcı isteğiyle EN SON.
+
+- Doğrulanan kod SHA: `661f0672da3a27b4ce407b118914555a2ba7348d`.
+- **105/105 test PASS:** [main CI #40289987122](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40289987122).
+- **Gerçek canlı tarama FAIL:** [Owner-Only Acceptance #40289987173](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40289987173). Log `RuntimeError: Overpass instances unavailable; no leads sent`. `Owner scan failure alert: Telegram delivery accepted` kanıtı var. Gerçek işletme bildirimi 0; hiçbir müşteri iletişimi/e-posta gönderilmedi.
+- **Kök neden:** [OSM endpoint compare #40288959691](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40288959691) iki küresel sunucudan TimeoutError, İsviçreye özel aynadan boş sonuç, dördüncü sunucudan HTTPError verdi. [Ek küresel aynalar #40289332351](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40289332351) HTTP/bağlantı/zaman aşımı hataları verdi. Eski kod bölgesel İsviçre aynasının 0 kaydını yanlışlıkla başarı sayıyordu.
+- **Düzeltme:** İsviçre bölgesel aynası kaldırıldı, yalnız global kaynakları dener. HTTP 401/403/429 sorunları tüm kaynakları denemeyi engellemez. Geçmiş OSM kimliklerinin olduğu pilot kutu beklenmedik biçimde boş dönerse **FAIL** olur. Kaynak hatası sahibin Telegram sohbetine güvenli hata bildirimiyle raporlanır.
+- **Zamanlama:** 10:23 TRT hafta içi birincil kaldı; 11:53 TRT ek kurtarma slotu konfigüre edildi. Aynı gün fırsat teslim edildiğinde yalnız tarih içeren `data/last_digest_day.json` tekrar teslimi engeller. Bu yeni yedek cronun gerçek tetiklenmesi **UNVERIFIED**; ücretsiz GitHub cron/dış OSM hizmetleri %100 SLA sağlamaz.
+- **Neon:** Önceki [gerçek transactional kabul #40281670003](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40281670003) Evet/Hayır/Beklet, öncelik ve rollback için PASS. Son kontrol `owner_leads` satırları 0; gerçek işletme kararı henüz kaydedilmedi.
+- **Gmail:** Devre dışı; yalnız owner-to-self test kodu hazırlanmış, aktif alıcıya gönderim yapılmadı.
+
+## Tarihsel raporlar
+
 # 26 Ekim 2026 — Güncel teknik kabul
 
 **Ürün kararı: PARTIAL** (Gmail bilinçli olarak son aşamaya bırakıldı ve gerçek işletme Telegram tıklaması henüz gözlenmedi). **Kod + CI + Neon işlemsel Evet/Hayır/Beklet testi: PASS.**
