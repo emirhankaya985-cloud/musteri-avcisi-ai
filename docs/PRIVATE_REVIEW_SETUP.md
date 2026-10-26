@@ -28,3 +28,9 @@ Bu veritabanı **Müşteri Avcısı AI için ayrıdır**, diğer projelerin tabl
 
 Main dalına alınan bu değişiklik kendi başına canlı digest başlatmaz. Bu Secret olmadan 3 butonlu gerçek üretim akışına `PASS` denilemez. Kod offline test edilse bile gerçek DB erişimi/Telegram karar geçişi canlı doğrulama ister.
 
+
+## Gerçek Neon kararı için geçici işlemsel kabul testi
+
+`leadhunter/review_smoke.py` gerçek özel PostgreSQL bağlantısında üç test işletmesiyle Evet/Hayır/Beklet geçişlerini, yanlış Telegram mesaj kimliğinin reddini, reddedilen kaydın yeniden etkinleştirilememesini ve ertelenen kaydın öne alınmasını kontrol eder. Bu üç kayıt tek açık PostgreSQL transaction içinde sınanır ve kasıtlı rollback uygulanır; kalıcı CRM/test kaydı bırakılmaz. **Gerçek Telegram veya Gmail mesajı gönderilmez.**
+
+Bu doğrulama yalnızca `telegram-buttons-inbox.yml` workflow'unun güvenli push veya manuel tetiklenmesi sırasında gerçekleşir; 15 dakikalık normal callback taramalarında tekrar çalışmaz. Logda `PASS: Private Neon YES/NO/LATER` görülmeden gerçek veritabanı karar entegrasyonunu doğrulanmış sayma.

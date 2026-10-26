@@ -30,6 +30,11 @@ jobs:
           else
             echo "Optional private review database is not configured; no install needed."
           fi
+      - name: Verify private Neon decisions and rollback all synthetic records
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: python -m leadhunter.review_smoke
       - name: Process owner-only demo choices
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
