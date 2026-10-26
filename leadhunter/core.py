@@ -294,7 +294,27 @@ def live(env=None, opener=urlopen, output=print):
     state = Path(env.get('STATE_FILE', 'data/seen.json'))
     seen = read_seen(state)
     configured_bbox = (env.get('SCAN_BBOX') or DEFAULT_BBOX).strip()
-    raw = get_osm(bbox_parse(configured_bbox), opener)
+    bbox = bbox_parse(configured_bbox)
+    source_mode = env.get('OSM_SOURCE_MODE', 'auto')
+    if source_mode not in ('auto', 'direct', 'overpass'):
+        raise ValueError('Invalid OSM_SOURCE_MODE')
+    if source_mode == 'direct':
+        from .osm_direct import get_osm_direct
+        raw = get_osm_direct(bbox, seen_ids=seen, opener=opener)
+        output('Kaynak: doğrudan OSM API (sınırlı örneklem)')
+    else:
+        try:
+            raw = get_osm(bbox, opener)
+        except RuntimeError:
+            if source_mode == 'overpass':
+                raise
+            from .osm_direct import get_osm_direct
+            raw = get_osm_direct(bbox, seen_ids=seen, opener=opener)
+            output('Kaynak: Overpass yerine doğrudan OSM API (sınırlı örneklem)')
+        if not raw and seen and configured_bbox == DEFAULT_BBOX and source_mode == 'auto':
+            from .osm_direct import get_osm_direct
+            raw = get_osm_direct(bbox, seen_ids=seen, opener=opener)
+            output('Kaynak: boş Overpass yerine doğrulanmış OSM API')
     if not raw and seen and configured_bbox == DEFAULT_BBOX:
         # There are previously confirmed OSM objects in this same area.
         # A suddenly empty feed is more likely a stale or regional mirror.

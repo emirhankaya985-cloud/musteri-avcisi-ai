@@ -179,6 +179,48 @@ class DecisionWiringTests(unittest.TestCase):
         self.assertIn(('presented', old_id, 2), events)
         self.assertEqual(set(db.records), {new_id, old_id})
 
+    def test_live_direct_mode_delivers_private_buttons_with_old_osm_ids(self):
+        from unittest.mock import patch
+        from datetime import date
+        calls = []
+        class DB:
+            def close(self):
+                pass
+        class Review:
+            def __init__(self):
+                self.known={}
+            def statuses(self):
+                return dict(self.known)
+            def deferred(self):
+                return []
+            def register(self, lead):
+                self.known[lead['id']]='review'
+            def presented(self, osm_id, message_id):
+                calls.append(('saved',osm_id,message_id))
+        review=Review()
+        def opener(req,timeout=None):
+            if 'api.telegram.org' in req.full_url:
+                calls.append(('telegram',json.loads(req.data)))
+                return io.BytesIO(b'{"ok":true,"result":{"message_id":77}}')
+            if '/nodes.json?' in req.full_url:
+                return io.BytesIO(b'{"elements":[{"type":"node","id":42,"tags":{"name":"Old Salon","shop":"hairdresser"}}]}')
+            if '/map.json?' in req.full_url:
+                return io.BytesIO(b'{"elements":[]}')
+            return io.BytesIO(b'{"elements":[]}')
+        with tempfile.TemporaryDirectory() as td:
+            p=Path(td)/'seen.json'
+            p.write_text(json.dumps({'seen_ids':['node/42']}))
+            env={'TELEGRAM_BOT_TOKEN':'fixture','TELEGRAM_CHAT_ID':'123',
+                 'STATE_FILE':str(p),'REVIEW_DATABASE_URL':'postgresql://fake/?sslmode=require',
+                 'OSM_SOURCE_MODE':'direct'}
+            with patch('leadhunter.review_private.connect_private_database',return_value=DB()), patch(
+                 'leadhunter.review_private.ReviewStore',return_value=review):
+                self.assertEqual(live(env,opener,lambda *_:None),1)
+        tg=[z[1] for z in calls if z[0]=='telegram']
+        self.assertEqual(len(tg),1)
+        self.assertIn('lead:v1:yes:node/42',str(tg[0]['reply_markup']))
+        self.assertIn(('saved','node/42',77),calls)
+
 
 if __name__=="__main__":
     unittest.main()

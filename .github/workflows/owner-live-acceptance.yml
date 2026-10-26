@@ -38,6 +38,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
           SCAN_BBOX: ${{ vars.SCAN_BBOX }}
+          OSM_SOURCE_MODE: direct
         run: python -m leadhunter.daily_scan
       - name: Commit only public OSM seen IDs after confirmed owner messages
         if: always()
