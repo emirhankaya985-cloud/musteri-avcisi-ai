@@ -1,3 +1,20 @@
+# 26 Ekim 2026 — Doğrudan OSM API kurtarması ve gerçek Telegram teslimatı
+
+**KABUL: KOD/CI PASS; GERÇEK SAHİBE TELEGRAM TESLİMATI + NEON KAYDI PASS; ÜÇ BUTONDAN SAHİP TIKLAMASI UNVERIFIED; GMAIL BEKLİYOR.**
+
+- **Üretim commit:** `c2f5c3daa1f8bbbdd1e9936a8cce793e0f793989` (PR #16).
+- **Son ana dal CI:** [Offline Tests #40343666382](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40343666382) — **115/115 PASS**.
+- **Bağımsız, ücretsiz API kanıtı:** [OSM Main API probe #40342859590](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40342859590) — küçük harita sorgusunda 2.665 öğe; public listeden 3/3 mevcut işletme kimliği doğru okundu.
+- **Gerçek sahibi Telegram teslimatı:** [Owner-Only Live Acceptance #40343666406](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40343666406) — **SUCCESS**. Log: `Kaynak: doğrudan OSM API (sınırlı örneklem)`, `OSM tarama: 20 ham kayıt; 20 geçerli; 20 önce görülmüş; 0 yeni aday`, `Gönderilen yeni fırsat: 5`. Bu beş işletme eski public OSM kimliklerinden yeniden butonlu incelemeye alınmıştır; sıfır yeni keşfi beş yeni müşteri olarak göstermeyin.
+- **Neon canlı doğrulama:** `owner_leads` statü `review` sayısı **5**, bunların **5/5** tanesinde `telegram_message_id` kayıtlı. Özel gerçek işletme detayları public repoda veya bu raporda yoktur.
+- **Önceki dış kaynak arızası:** [Owner-Only #40289987173](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40289987173) Overpass `unavailable` ile FAIL olmuş ve Telegram'a genel hata bildirimi kabul edilmiştir. Artık Overpass başarısız olursa düşük hacimli resmi OSM 0.6 JSON okuma API yedeği kullanılabilir.
+- **Yedek kaynak kapsamı:** mevcut public görülen OSM ID'leri ve en fazla iki adet 0.005 × 0.005 derecelik döşeme; Kadıköy kutusunun **tam** taraması değildir. © OpenStreetMap contributors / ODbL, https://www.openstreetmap.org/copyright .
+- **Gerçek buton kabul boşluğu:** Sahibin Telegram'da ✅ Evet / ❌ Hayır / ⏳ Beklet eyleminin özel Neon veritabanına canlı yazılması hâlâ **UNVERIFIED**. Bunun bağımsız kod + Neon transaction rollback testi [#40281670003](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40281670003) PASS.
+- **Günlük cron:** 10:23 ve 11:53 TRT konfigüre edildi. 26 Ekim gerçek `schedule` olayları #40290452442 ve #40299449157 FAIL (Overpass kaynakları); yeni yedek API kodu henüz `schedule` kaynaklı bir run ile doğrulanmadı. `push` kaynaklı owner-only kabul, schedule kanıtı değildir.
+- **Gmail:** owner-to-self testi ve gerçek Gmail bağlantısı en son yapılacak. İşletmelere e-posta veya DM **gönderilmedi**.
+
+## Önceki raporlar (tarihsel)
+
 # 26 Ekim 2026 — Canlı tarama kusuru ve düzeltme kabulü
 
 **KARAR: PARTIAL.** Kod PASS; Neon test PASS; gerçek OSM keşfi şu anda FAIL (dış kaynaklar erişilemiyor); gerçek işletme buton tıklaması UNVERIFIED; Gmail kullanıcı isteğiyle EN SON.
