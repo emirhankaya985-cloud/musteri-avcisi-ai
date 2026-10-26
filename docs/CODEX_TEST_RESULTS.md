@@ -1,3 +1,18 @@
+# 26 Ekim 2026 — Güncel teknik kabul
+
+**Ürün kararı: PARTIAL** (Gmail bilinçli olarak son aşamaya bırakıldı ve gerçek işletme Telegram tıklaması henüz gözlenmedi). **Kod + CI + Neon işlemsel Evet/Hayır/Beklet testi: PASS.**
+
+- **Doğrulanan kod commit:** `06132c0e94d883997f566ade5fd21db8cbafa30d` (PR #8 ve PR #9 merge).
+- **95/95 çevrimdışı kabul testi:** [Offline Tests #40282042045](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40282042045) — SUCCESS, `main` dalı.
+- **Gerçek özel Neon işlemsel doğrulaması:** [Telegram Three-Button Inbox #40281670003](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40281670003) — SUCCESS; log: `PASS: Private Neon YES/NO/LATER + deferred priority; temporary records rolled back; no emails or Telegram sent`. Geçici üç test satırı bilinçli rollback ile kaldırıldı, tablodaki kayıt sayısı son kontrolde **0**.
+- **GitHub Secrets:** `REVIEW_DATABASE_URL` runtime'da bulundu ve gerçek Neon SSL bağlantısı kullanılarak işlemler başarıyla yürütüldü. Gizli bağlantı adresi kaydedilmedi veya raporlanmadı.
+- **Telegram kararları:** ✅ Evet → `email_pending` (email göndermez); ❌ Hayır → `rejected`; ⏳ Beklet → `deferred` ve sonraki taramada ilk sırada. Gecikmiş/yanlış mesaj ID'si reddediliyor. Eski `data/seen.json` içindeki işletmeler karar tablosunda yoksa yeni butonlarla en fazla bir defa yeniden incelemeye alınabilir; öncelik bekletilen → yeni → geçmiş.
+- **Gerçek işletme Telegram bildirimi:** GÜNCEL SÜRÜMDE HENÜZ GÖZLENMEDİ. 26 Ekim saat 10:23 TRT zamanlanmış `Telegram Lead Digest` sonucuna ve en az bir gerçek buton etkileşimine bakılarak ayrı doğrulanmalıdır. 15 dakikalık callback job'ının success olması gerçek fırsat mesajı kanıtı değildir.
+- **E-posta:** Gmail bağlantısı ve gerçek owner-to-self SMTP testi bilinçli olarak bekletiliyor; işletmelere hiçbir e-posta / soğuk iletişim gönderilmedi.
+- **Kurallar:** Public GitHub'da yalnızca herkese açık OSM kimlikleri tutulabilir; özel kararlar ve işletme kayıtları Neon'da kalır. Özel Secret, CRM veya mesaj geçmişi repoya yazılmamalı. Günlük cron ve sınırlı sahibi Telegram mesajları korunuyor.
+
+## Önceki raporlar (tarihsel)
+
 # 25 Ekim 2026 — Üç butonlu gerçek işletme karar sistemi
 
 **Güncel ürün kararı: PARTIAL.** Kod/CI PASS; Neon veritabanı oluşturma ve boş şema kontrolü PASS; gerçek işletme callback'lerinin Neon üzerinde canlı uçtan uca çalışması **UNVERIFIED** (GitHub Secret henüz yapılandırılmadı); Gmail müşteri gönderimi **KAPALI**. Bu bölüm eski 24 Ekim canlı tarama kanıtını geçersiz kılmaz.
