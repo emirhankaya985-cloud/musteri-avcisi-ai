@@ -38,3 +38,9 @@ Bu doğrulama yalnızca `telegram-buttons-inbox.yml` workflow'unun güvenli push
 ## Daha önce gönderilen işletmeleri bir kez inceleme
 
 Özel Neon bağlantısı etkinleştirildiğinde, eski `data/seen.json` içinde bulunan ancak henüz `owner_leads` tablosunda bulunmayan işletmeler yeni `✅ Evet / ❌ Hayır / ⏳ Beklet` mesajlarına **yalnızca bir kez** alınabilir. Öncelik: bekletilenler → yeni işletmeler → daha önce butonsuz gönderilenler. Bir işletme ilk kez kayıt edildiğinde `review` durumunda kalır ve aynı işletme ikinci kez gereksiz yere bildirilmez. Hayır/Evet kararları terminal olarak korunur; Beklet bilerek yeniden gösterilir. Her taramada toplam sınır 5 işletmedir.
+
+## Bir defalık canlı sahibi Telegram kabul testi
+
+`.github/workflows/owner-live-acceptance.yml` dosyası yalnızca ana dala ilk eklendiğinde (bu dosya için `push` tetikleyici) bir gerçek OSM taraması yapar ve sonuçları **yalnızca depoda tanımlı sahibin özel Telegram sohbetine** gönderir; işletmelere mesaj veya e-posta göndermez. Aynı `telegram-lead-digest` eşzamanlama grubunu kullanır ve mevcut 10:23 hafta içi zamanlamasını değiştirmez. İşletme limiti, açık OSM ID state'i ve Neon karar veri tabanı mevcut `leadhunter.core.live` kurallarıyla aynıdır. Bu dosyada gelecekte değişiklik yapılırsa yeni bir test tetiklenebileceğinden yalnızca bilinçli olarak düzenlenmelidir.
+
+Bir defalık testin GitHub Actions loglarında `OSM tarama:`, `Gönderilen yeni fırsat:` ve başarı veya gerçek hata gösterimi aranmalıdır. Çalışması gerçek müşteri talebi veya satış anlamına gelmez. Neon kayıtlarının gerçek canlı taramadan sonra artması ve en az bir sahibin buton tıklaması ile ayrı karar kaydı da kabul gerektirir.
