@@ -1,0 +1,41 @@
+name: OSM Empty-Results Diagnostic (One Time)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/osm-source-diagnostic.yml'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Inspect OSM source counts without messaging
+        env:
+          SCAN_BBOX: ${{ vars.SCAN_BBOX }}
+        run: |
+          python - <<'PY'
+          import os
+          import json
+          import time
+          from leadhunter.core import DEFAULT_BBOX, bbox_parse, get_osm, lead_from_osm, OVERPASS_ENDPOINTS
+          configured = (os.environ.get('SCAN_BBOX') or DEFAULT_BBOX).strip()
+          print('Source-count audit (public OSM only, no Telegram, no Gmail)', flush=True)
+          print('Effective bounding box:', configured, flush=True)
+          print('Default bounding box:', DEFAULT_BBOX, flush=True)
+          print('Public Overpass candidates:', len(OVERPASS_ENDPOINTS), flush=True)
+          for label, value in [('effective', configured), ('default', DEFAULT_BBOX)]:
+              if label == 'default' and value == configured:
+                  continue
+              try:
+                  raw = get_osm(bbox_parse(value))
+                  valid = [lead_from_osm(x) for x in raw]
+                  print(f'{label}: raw={len(raw)}, valid={sum(x is not None for x in valid)}', flush=True)
+              except Exception as exc:
+                  print(f'{label}: failure={type(exc).__name__} (no credentials)', flush=True)
+          PY
