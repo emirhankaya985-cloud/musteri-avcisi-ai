@@ -1,0 +1,51 @@
+name: Owner-Only Live Acceptance (One Time)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/owner-live-acceptance.yml'
+permissions:
+  contents: write
+concurrency:
+  group: telegram-lead-digest
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Offline acceptance first (no external communication)
+        run: python tools/codex_acceptance.py
+      - name: Validate the exact required owner-only secrets
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: |
+          test -n "$TELEGRAM_BOT_TOKEN" || { echo "::error::Missing owner Telegram bot secret"; exit 1; }
+          test -n "$TELEGRAM_CHAT_ID" || { echo "::error::Missing owner Telegram chat ID"; exit 1; }
+          test -n "$REVIEW_DATABASE_URL" || { echo "::error::Missing private Neon connection URL"; exit 1; }
+          echo "Private owner-only Telegram and Neon connection credentials are present."
+      - name: Install private Postgres driver
+        run: python -m pip install 'psycopg[binary]==3.2.12'
+      - name: One deliberate live discovery and Telegram delivery to owner only
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+          SCAN_BBOX: ${{ vars.SCAN_BBOX }}
+        run: python -m leadhunter live
+      - name: Commit only public OSM seen IDs after confirmed owner messages
+        if: always()
+        run: |
+          if ! git diff --quiet -- data/seen.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/seen.json
+            git commit -m "chore: record owner-only acceptance lead IDs"
+            git push
+          fi

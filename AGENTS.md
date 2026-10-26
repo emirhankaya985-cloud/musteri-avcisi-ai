@@ -8,7 +8,7 @@ Research a small OSM business sample and send **only the owner's private Telegra
 ## Boundaries (mandatory)
 - Never send marketing email, SMS, Telegram DM, WhatsApp or any cold outreach to businesses. No bulk sending or automated follow-ups.
 - Never copy credentials, personal/customer contact lists, CRM data, recipient approvals, sent-mail history, or source repo Git history into this repository.
-- Only use `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` as GitHub Actions **repository secrets** for the owner's digest. Do not print or request their values in issues, prompts or logs.
+- Use `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and optional private `REVIEW_DATABASE_URL` only as GitHub Actions **repository secrets** for the owner's digest and review. A separate Gmail owner-only smoke uses independent Gmail Secrets and never performs business outreach. Do not print or request secret values in issues, prompts, logs or public files.
 - Never write production customer data to `data/seen.json`: public OSM object IDs only.
 - Do not trigger `Telegram Lead Digest` repeatedly merely to validate code; a live run sends messages to the owner and mutates `data/seen.json`.
 - Do not claim site is hosted, emails are sent, customers contacted, cron fired on time, or paid conversions happened without evidence.
