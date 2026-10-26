@@ -1,0 +1,52 @@
+name: OSM Query Endpoint Comparison (One Time)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/osm-query-endpoint-audit.yml'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Compare small public Overpass count queries without messaging
+        run: |
+          python - <<'PY'
+          import json
+          from concurrent.futures import ThreadPoolExecutor
+          from urllib.request import Request, urlopen
+          from urllib.parse import urlencode
+          from leadhunter.core import DEFAULT_BBOX
+          endpoints = (
+            'https://overpass.private.coffee/api/interpreter',
+            'https://overpass-api.de/api/interpreter',
+            'https://overpass.osm.ch/api/interpreter',
+            'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+          )
+          def fetch(args):
+              idx, url = args
+              q = f'[out:json][timeout:15];nwr["shop"="hairdresser"]({DEFAULT_BBOX});out count;'
+              req = Request(url, data=urlencode({'data':q}).encode(), headers={
+                  'User-Agent':'MusteriAvcisiAI/0.1 (owner only diagnostic)',
+                  'Content-Type':'application/x-www-form-urlencoded'}, method='POST')
+              try:
+                  with urlopen(req, timeout=20) as response:
+                      obj = json.load(response)
+                  el = obj.get('elements', []) if isinstance(obj, dict) else []
+                  tags = el[0].get('tags',{}) if el else {}
+                  return {'index':idx, 'http':200, 'count_total':tags.get('total'),
+                          'remark': bool(obj.get('remark')), 'elements':len(el)}
+              except Exception as exc:
+                  return {'index':idx, 'error_type':type(exc).__name__}
+          with ThreadPoolExecutor(max_workers=4) as pool:
+              out=list(pool.map(fetch, enumerate(endpoints)))
+          print('OSM count diagnostics; public summary only, no secrets')
+          for row in out:
+              print(json.dumps(row, sort_keys=True))
+          PY
