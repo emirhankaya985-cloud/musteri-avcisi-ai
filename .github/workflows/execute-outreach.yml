@@ -23,14 +23,9 @@ jobs:
         run: python tools/codex_acceptance.py
       - name: Install private storage driver
         run: python -m pip install 'psycopg[binary]==3.2.12'
-      - name: Verify actual Gmail SMTP with one owner-to-self email
-        env:
-          GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          GMAIL_SELF_TEST_APPROVED: YES_ONE_EMAIL_TO_MYSELF
-        run: python -m leadhunter.gmail_selftest send-to-self
       - name: Send existing and current business offers and report exact content privately
         env:
+          MAIL_BATCH_LIMIT: '15'
           AUTO_MAIL_ENABLED: 'true'
           MAIL_DRAFT_MODE: template
           GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}

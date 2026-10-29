@@ -121,7 +121,7 @@ def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, max_tiles=MAX
         {"type": row.get("type"), "id": row.get("id"),
          "tags": {key: value for key, value in (row.get("tags") or {}).items()
                   if key in ("name", "shop", "amenity", "website", "contact:website",
-                             "contact:phone", "phone", "addr:street",
+                             "contact:phone", "phone", "email", "contact:email", "addr:street",
                              "addr:housenumber", "addr:district")}}
         for row in found.values()
         if isinstance(row.get("tags"), dict)

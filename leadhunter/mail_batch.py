@@ -36,6 +36,9 @@ class BacklogStore(AutoMailStore):
 def run(env=None, opener=urlopen, output=print):
     env=os.environ if env is None else env
     check_config(env)
+    limit = int(env.get("MAIL_BATCH_LIMIT", "15"))
+    if not 1 <= limit <= 15:
+        raise RuntimeError("Mail catch-up limit must be between 1 and 15")
     token,owner=env.get('TELEGRAM_BOT_TOKEN'),env.get('TELEGRAM_CHAT_ID')
     if not token or not owner or not str(owner).isdigit():
         raise RuntimeError('Private owner Telegram configuration missing')
@@ -52,13 +55,20 @@ def run(env=None, opener=urlopen, output=print):
         fresh={lead['id']:lead for row in raw if (lead:=lead_from_osm(row))}
         combined={lead['id']:{**lead,**fresh.get(lead['id'],{})} for lead in old}
         seen=read_seen(Path(env.get('STATE_FILE','data/seen.json')))
-        for lead in select_leads(raw,seen,maximum=5):
+        for lead in select_leads(raw,seen,maximum=200):
             combined.setdefault(lead['id'],lead)
         output(f'OWNER_CATCHUP: previous={len(old)}; current_plus_previous={len(combined)}')
         total=0
         while store.pending_reports():
             total+=flush_reports(store,env,opener)
+        attempted = 0
         for lead in combined.values():
+            from .outreach import valid_recipient
+            if not valid_recipient(str(lead.get("email") or "").strip().lower()):
+                continue
+            if attempted >= limit:
+                break
+            attempted += 1
             store.reopen_unsent(lead)
             deliver(lead,store,env,opener)
             total+=flush_reports(store,env,opener)

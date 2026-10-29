@@ -90,7 +90,7 @@ class DirectApiTests(unittest.TestCase):
         rows=get_osm_direct(self.BOX,{"node/42"},opener,max_tiles=0)
         self.assertEqual(len(rows),1)
         self.assertNotIn("user",rows[0])
-        self.assertNotIn("contact:email",rows[0]["tags"])
+        self.assertEqual(rows[0]["tags"]["contact:email"],"personal@example.com")
 
     def test_invalid_tile_limit_is_rejected(self):
         for value in (-1,3,1.5):
