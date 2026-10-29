@@ -1,4 +1,5 @@
 name: Owner Requested Mail Catch-up
+# Discover published contacts on recorded business sites before the bounded batch.
 on:
   workflow_dispatch:
   push:

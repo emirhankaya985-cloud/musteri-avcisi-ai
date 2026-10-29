@@ -61,8 +61,12 @@ def run(env=None, opener=urlopen, output=print):
         total=0
         while store.pending_reports():
             total+=flush_reports(store,env,opener)
+        from .contact_email import discover_email
         attempted = 0
-        for lead in combined.values():
+        for lead in list(combined.values())[:30]:
+            if attempted >= limit:
+                break
+            lead = discover_email(lead)
             from .outreach import valid_recipient
             if not valid_recipient(str(lead.get("email") or "").strip().lower()):
                 continue

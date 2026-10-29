@@ -122,10 +122,13 @@ class AutoMailStore:
             return None
         if data.get('_auto_mail'):
             return data['_auto_mail']
+        from .contact_email import discover_email
+        lead = discover_email(lead)
         recipient = str(lead.get('email') or '').strip().lower()
         if valid_recipient(recipient):
             record = compose_mail(lead,env,opener)
-            record.update(recipient=recipient,state='draft')
+            record.update(recipient=recipient,state='draft',
+                          recipient_source=lead.get('email_source') or 'OSM business contact tag')
         else:
             record = {'state':'skipped'}
         record['id'] = hashlib.sha256(('automatic:'+lead['id']).encode()).hexdigest()[:24]
