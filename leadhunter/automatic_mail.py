@@ -17,10 +17,46 @@ def check_config(env):
     if not env.get('REVIEW_DATABASE_URL'):
         raise RuntimeError('Automatic mail requires private storage')
     sender_credentials(env)
-    if not all(env.get(k) for k in ('MAIL_AI_API_KEY','MAIL_AI_MODEL','MAIL_AI_URL')):
-        raise RuntimeError('AI mail configuration missing; no business email sent')
-    if not env['MAIL_AI_URL'].startswith('https://'):
-        raise RuntimeError('AI mail endpoint must use HTTPS')
+    mode = env.get('MAIL_DRAFT_MODE', 'template')
+    if mode not in ('template', 'ai'):
+        raise RuntimeError('Invalid mail draft mode')
+    if mode == 'ai':
+        if not all(env.get(k) for k in ('MAIL_AI_API_KEY','MAIL_AI_MODEL','MAIL_AI_URL')):
+            raise RuntimeError('AI mail configuration missing; no business email sent')
+        if not env['MAIL_AI_URL'].startswith('https://'):
+            raise RuntimeError('AI mail endpoint must use HTTPS')
+
+
+def template_mail(lead):
+    from .core import recommend
+    name = ' '.join(str(lead.get('name') or 'İşletmeniz').split())[:100]
+    rec = recommend(lead)
+    if rec['focus'] == 'website':
+        subject = f'{name} için web sitesi tasarım önerisi'
+        proposal = (f"{name} için {rec['premium_scope']} içeren, işletmenizin kimliğine "
+                    'uygun bir web sitesi hazırlayabilirim. Ziyaretçilerin hizmetlerinizi '
+                    'inceleyip size kolayca ulaşabileceği sade bir yapı düşünüyorum.')
+    else:
+        subject = f'{name} için randevu ve talep takibi önerisi'
+        proposal = (f"{name} için değerlendirilebilecek bir çalışma: {rec['idea']}. "
+                    'Önce mevcut işleyişinizi öğrenip yalnızca ihtiyaç duyduğunuz '
+                    'adımlara uygun bir çözüm hazırlamak isterim.')
+    return {'subject':subject,'body':
+            f'Merhaba {name} ekibi,\n\n'
+            'Ben Emirhan Kaya. Faultline Studio adıyla web geliştirme ve iş süreçlerini '
+            'kolaylaştıran yazılım çözümleri üzerine çalışıyorum.\n\n'
+            + proposal + '\n\n'
+            'İlginizi çekerse size özel kısa bir örnek hazırlayıp paylaşabilirim. '
+            'Böyle bir çalışmayı değerlendirmek ister misiniz?\n\n'
+            'Bu konuda tekrar iletişim kurulmasını istemiyorsanız yanıtınızda '
+            'belirtmeniz yeterli.\n\n'
+            'İyi çalışmalar,\nEmirhan Kaya\nFaultline Studio'}
+
+
+def compose_mail(lead, env, opener):
+    if env.get('MAIL_DRAFT_MODE', 'template') == 'ai':
+        return draft_mail(lead, env, opener)
+    return template_mail(lead)
 
 
 def report_text(lead, record):
@@ -88,7 +124,7 @@ class AutoMailStore:
             return data['_auto_mail']
         recipient = str(lead.get('email') or '').strip().lower()
         if valid_recipient(recipient):
-            record = draft_mail(lead,env,opener)
+            record = compose_mail(lead,env,opener)
             record.update(recipient=recipient,state='draft')
         else:
             record = {'state':'skipped'}

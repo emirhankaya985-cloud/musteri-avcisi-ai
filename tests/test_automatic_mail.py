@@ -29,7 +29,7 @@ class MemoryStore:
 
 class AutomaticMailTests(unittest.TestCase):
     def setUp(self):
-        self.env={'AUTO_MAIL_ENABLED':'true','REVIEW_DATABASE_URL':'postgresql://fixture/?sslmode=require',
+        self.env={'MAIL_DRAFT_MODE':'ai','AUTO_MAIL_ENABLED':'true','REVIEW_DATABASE_URL':'postgresql://fixture/?sslmode=require',
                   'GMAIL_SENDER_ADDRESS':'sender@gmail.com','GMAIL_APP_PASSWORD':'abcdefghijklmnop',
                   'MAIL_AI_API_KEY':'fixture','MAIL_AI_MODEL':'fixture','MAIL_AI_URL':'https://example.invalid',
                   'TELEGRAM_BOT_TOKEN':'fixture','TELEGRAM_CHAT_ID':'123'}

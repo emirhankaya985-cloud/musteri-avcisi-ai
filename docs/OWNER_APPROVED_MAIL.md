@@ -1,3 +1,11 @@
+## Son istek: API olmadan şimdi gönderim
+
+29 Ekim 2026: Kullanıcı AI/API bağlantısını sonraya bıraktı ve önceki+güncel adaylara şimdi mail istedi. `MAIL_DRAFT_MODE=template` varsayılandır; sektör ve işletme adına göre hazırlanmış konu/tam gövde kullanılır. AI çağrısı veya anahtarı gerekmez. Daha sonra `MAIL_DRAFT_MODE=ai` seçilirse AI ayarları zorunludur.
+
+`Owner Requested Mail Catch-up` iş akışı mevcut Gmail secrets ile önce sahibine gerçek bir SMTP test maili gönderir; başarısızsa işletmelere geçmez. Ardından özel kayıttaki eski review/email_pending adaylarını güncel OSM verisiyle eşleyip, en fazla 5 yeni adayı ekler. Reddedilmiş/bekletilmiş/sent/SMTP sonucu belirsiz kayıtlar korunur. İşletme e-postaları tahmin edilmez. Kaynağı olmayanlar atlanır ve özel Telegram raporuna yazılır. İş akışı yalnızca workflow_dispatch veya execute-outreach.yml değişikliğini içeren `[run-owner-outreach-20261029]` işaretli owner-requested commit ile çalışır. Bu marker sıradan kod push'larında yoktur.
+
+Önceki aşağıdaki AI-zorunlu açıklamaları yalnızca ai moduna aittir. Günlük tarama saatleri korunur ve hazır metinlerle çalışır.
+
 # Otomatik işletme e-postası — 29 Ekim 2026
 
 Kullanıcı doğrudan gönderim ve sonrasında Telegram'da tam metin/sonuç istedi; önceki tekil Telegram onayı bu otomatik yol için kaldırıldı.
