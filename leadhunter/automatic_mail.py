@@ -6,6 +6,7 @@ SMTP acceptance is not evidence of inbox delivery. Never retry uncertain mail.
 import hashlib
 import html
 import json
+from functools import wraps
 from .outreach import draft_mail, send_mail, valid_recipient
 from .gmail_selftest import sender_credentials
 
@@ -39,10 +40,21 @@ def report_text(lead, record):
     return '\n'.join(lines)
 
 
+def private_operation(method):
+    @wraps(method)
+    def wrapped(*args, **kwargs):
+        try:
+            return method(*args, **kwargs)
+        except Exception:
+            raise RuntimeError('Private automatic mail operation failed; details redacted') from None
+    return wrapped
+
+
 class AutoMailStore:
     def __init__(self, review):
         self.db = review.db
 
+    @private_operation
     def load(self, lead_id):
         with self.db.cursor() as cur:
             cur.execute('SELECT lead_data,status FROM owner_leads WHERE osm_id=%s',(lead_id,))
@@ -52,6 +64,7 @@ class AutoMailStore:
         data = json.loads(row[0]) if isinstance(row[0],str) else row[0]
         return data, row[1]
 
+    @private_operation
     def actionable(self, lead_id):
         existing = self.load(lead_id)
         if not existing:
@@ -62,6 +75,7 @@ class AutoMailStore:
         return (data.get('_auto_mail', {}).get('state', 'draft') == 'draft'
                 and data.get('_mail', {}).get('state') not in ('sending','accepted'))
 
+    @private_operation
     def prepare(self, lead, env, opener):
         # Private registration is immutable once a mail record exists.
         with self.db.cursor() as cur:
@@ -86,6 +100,7 @@ class AutoMailStore:
         data,status = self.load(lead['id'])
         return data.get('_auto_mail')
 
+    @private_operation
     def claim(self, lead_id):
         # Serialize recipient comparison + claiming across concurrent workers.
         with self.db.transaction():
@@ -112,6 +127,7 @@ class AutoMailStore:
         # Caller may use SMTP only AFTER the claim transaction commits.
         return record if record['state']=='sending' else None
 
+    @private_operation
     def finish(self, lead_id, state):
         with self.db.cursor() as cur:
             cur.execute("UPDATE owner_leads SET lead_data=jsonb_set(lead_data,'{_auto_mail,state}',%s::jsonb), "
@@ -119,6 +135,7 @@ class AutoMailStore:
                         "WHERE osm_id=%s AND lead_data->'_auto_mail'->>'state'='sending'",
                         (json.dumps(state),state,lead_id))
 
+    @private_operation
     def pending_reports(self):
         with self.db.cursor() as cur:
             cur.execute("SELECT osm_id,lead_data FROM owner_leads WHERE "
@@ -127,6 +144,7 @@ class AutoMailStore:
             rows = cur.fetchall()
         return [(lid,json.loads(data) if isinstance(data,str) else data) for lid,data in rows]
 
+    @private_operation
     def reported(self, lead_id, message_id):
         with self.db.cursor() as cur:
             cur.execute("UPDATE owner_leads SET lead_data=jsonb_set(lead_data,'{_auto_mail,telegram_reported}',%s::jsonb) "

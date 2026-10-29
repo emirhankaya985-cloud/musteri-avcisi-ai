@@ -34,3 +34,25 @@ jobs:
         run: python -m compileall -q leadhunter tests tools
       - name: Codex acceptance suite (offline, no secrets)
         run: python tools/codex_acceptance.py
+      - name: Check automatic mail configuration without contacting businesses
+        if: github.event_name == 'push'
+        env:
+          AUTO_MAIL_ENABLED: 'true'
+          GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+          MAIL_AI_API_KEY: ${{ secrets.MAIL_AI_API_KEY || secrets.NVIDIA_API_KEY }}
+          MAIL_AI_MODEL: ${{ vars.MAIL_AI_MODEL || 'nvidia/nemotron-3.5-super-vl-120b-a12b' }}
+          MAIL_AI_URL: ${{ vars.MAIL_AI_URL || 'https://integrate.api.nvidia.com/v1/chat/completions' }}
+        run: |
+          python - <<'PYCODE'
+          import os
+          from leadhunter.automatic_mail import check_config
+          try:
+              check_config(os.environ)
+          except RuntimeError as error:
+              print('MAIL_RUNTIME_BLOCKED: ' + str(error))
+              print('Offline tests remain independent; production sending is blocked.')
+          else:
+              print('MAIL_RUNTIME_CONFIGURED: presence/format only; no SMTP, AI or business contact performed')
+          PYCODE
