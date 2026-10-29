@@ -40,6 +40,12 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+          OWNER_APPROVED_MAIL_ENABLED: ${{ vars.OWNER_APPROVED_MAIL_ENABLED }}
+          GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          MAIL_AI_API_KEY: ${{ secrets.MAIL_AI_API_KEY }}
+          MAIL_AI_MODEL: ${{ vars.MAIL_AI_MODEL }}
+          MAIL_AI_URL: ${{ vars.MAIL_AI_URL }}
         run: python -m leadhunter.telegram_buttons poll
       - name: Store only numeric update offset
         run: |

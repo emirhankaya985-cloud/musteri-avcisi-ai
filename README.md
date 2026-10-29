@@ -1,3 +1,5 @@
+> **29 Ekim 2026 güncellemesi:** Kullanıcı isteğiyle otomatik kişisel işletme maili ve gönderim sonrası Telegram tam metin raporu eklendi. Önceki yalnızca taslak açıklamaları bu yeni yol için geçerli değildir. Kurulum ve sınırlar: [Otomatik mail](docs/OWNER_APPROVED_MAIL.md).
+
 # 🎯 Müşteri Avcısı AI — Public Telegram Lead Hunter
 
 **Dağıtım:** [emirhankaya985-cloud/musteri-avcisi-ai](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai) — kaynak private repodan **izin listeli yeni Git geçmişiyle** aktarıldı. Eski Git geçmişi ve müşteri CRM kayıtları aktarılmadı.

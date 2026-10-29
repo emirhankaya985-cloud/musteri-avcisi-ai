@@ -13,7 +13,7 @@ ALERT = (
     "🔴 Müşteri Avcısı AI — HATA\n"
     "Bugünkü işletme taraması tamamlanamadı. Kaynak/API veya bağlantı "
     "hatası olabilir. Yeni müşteri bildirimi doğrulanmadı.\n"
-    "İşletmelere e-posta veya mesaj gönderilmedi.\n"
+    "Gönderim ayrıntıları özel kayıtlardan kontrol edilmeli; tekrar göndermeyin.\n"
     "GitHub Actions: https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions"
 )
 

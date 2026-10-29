@@ -78,6 +78,7 @@ def lead_from_osm(row):
                        ('addr:street', 'addr:housenumber', 'addr:district')).strip()
     return {'id': f'{typ}/{oid}', 'name': name[:100], 'category': category,
             'website': website[:200], 'phone': phone[:80], 'address': address[:150],
+            'email': str(tags.get('contact:email') or tags.get('email') or '').strip()[:254],
             'score': 45 + (30 if not website else 0) + (15 if phone else 0) + (10 if address else 0)}
 
 
@@ -288,6 +289,10 @@ def send_telegram(message, token, chat_id, opener=urlopen, reply_markup=None):
 
 def live(env=None, opener=urlopen, output=print):
     env = os.environ if env is None else env
+    automatic = env.get('AUTO_MAIL_ENABLED') == 'true'
+    if automatic:
+        from .automatic_mail import check_config
+        check_config(env)
     token, chat_id = env.get('TELEGRAM_BOT_TOKEN'), env.get('TELEGRAM_CHAT_ID')
     if not token or not chat_id:
         raise RuntimeError('TELEGRAM_BOT_TOKEN ve TELEGRAM_CHAT_ID eksik')
@@ -334,13 +339,17 @@ def live(env=None, opener=urlopen, output=print):
             conn = connect_private_database(database_url)
             store = ReviewStore(conn)
             statuses = store.statuses()
+            if automatic:
+                from .automatic_mail import AutoMailStore, flush_reports
+                auto_store = AutoMailStore(store)
+                sent += flush_reports(auto_store, env, opener)
             eligible = []
             legacy = []
             for item in raw:
                 lead = lead_from_osm(item)
                 if not lead:
                     continue
-                if lead['id'] not in seen:
+                if automatic or lead['id'] not in seen:
                     eligible.append(lead)
                 elif lead['id'] not in statuses:
                     # Before private review was enabled, owner digests used
@@ -355,14 +364,37 @@ def live(env=None, opener=urlopen, output=print):
                 lid: value for lid, value in statuses.items()
                 if value != 'review' or lid in seen
             }
-            chosen = prioritized_leads(
-                selection_statuses, eligible, deferred_fallback=store.deferred(),
-                legacy_fallback=legacy, maximum=5)
+            if automatic:
+                # Exclude declined/held/sent and preserve old decisions. Existing
+                # review rows can be resumed after a pre-SMTP or report failure.
+                chosen = []
+                selected_ids = set()
+                for lead in eligible:
+                    if (statuses.get(lead['id']) in (None, 'review')
+                            and lead['id'] not in selected_ids and auto_store.actionable(lead['id'])):
+                        chosen.append(lead)
+                        selected_ids.add(lead['id'])
+                    if len(chosen) == 5:
+                        break
+            else:
+                chosen = prioritized_leads(
+                    selection_statuses, eligible, deferred_fallback=store.deferred(),
+                    legacy_fallback=legacy, maximum=5)
         else:
             # No secrets installed: keep owner-only, without live decision buttons.
             chosen = select_leads(raw, seen)
             store = None
         for item in chosen:
+            if automatic:
+                from .automatic_mail import deliver, flush_reports
+                try:
+                    deliver(item, auto_store, env, opener)
+                    sent += flush_reports(auto_store, env, opener)
+                except Exception:
+                    raise RuntimeError('Automatic mail processing failed; private details redacted') from None
+                seen.add(item['id'])
+                save_seen(state, seen)
+                continue
             if store:
                 store.register(item)  # private persistence before Telegram send
             message_id = send_telegram(

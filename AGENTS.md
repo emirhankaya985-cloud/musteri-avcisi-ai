@@ -3,10 +3,10 @@
 This repository is **public**. Read `docs/CODEX_TEST_HANDOFF.md` before editing or testing.
 
 ## Goal
-Research a small OSM business sample and send **only the owner's private Telegram chat** up to five new opportunities per run. Classify missing OSM website metadata as 🔴 proposed premium website lead; recorded website metadata as 🟢 proposed automation lead. These are research hypotheses, **not verified business needs**. Produce tailored, **unsent** outreach drafts for optional manual review.
+Research a small OSM business sample and send **only the owner's private Telegram chat** up to five new opportunities per run. Classify missing OSM website metadata as 🔴 proposed premium website lead; recorded website metadata as 🟢 proposed automation lead. These are research hypotheses, **not verified business needs**. Produce tailored outreach drafts for owner review; the optional separately approved mail path is documented in docs/OWNER_APPROVED_MAIL.md.
 
 ## Boundaries (mandatory)
-- Never send marketing email, SMS, Telegram DM, WhatsApp or any cold outreach to businesses. No bulk sending or automated follow-ups.
+- Owner explicitly requested AI-written full mail plus Telegram preview and a separate single-mail Send approval on 2026-10-28. This supersedes the old no-business-mail scope only for that owner-approved path. On 2026-10-29 the owner explicitly superseded per-mail approval: automatically send one personalized mail per newly researched business (maximum five per scan), then privately report exact mail content/result on Telegram. No repeated follow-ups. Missing AI/SMTP/private-storage configuration must fail visibly before sending.
 - Never copy credentials, personal/customer contact lists, CRM data, recipient approvals, sent-mail history, or source repo Git history into this repository.
 - Use `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and optional private `REVIEW_DATABASE_URL` only as GitHub Actions **repository secrets** for the owner's digest and review. A separate Gmail owner-only smoke uses independent Gmail Secrets and never performs business outreach. Do not print or request secret values in issues, prompts, logs or public files.
 - Never write production customer data to `data/seen.json`: public OSM object IDs only.

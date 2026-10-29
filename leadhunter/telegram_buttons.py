@@ -120,6 +120,12 @@ def poll(env=None, opener=urlopen, output=print):
             if type(uid) is not int or uid < offset:
                 continue
             handled = process_update(update, token, owner, opener=opener)
+            if not handled and review_store and env.get('OWNER_APPROVED_MAIL_ENABLED') == 'true':
+                from .outreach import handle_mail_callback
+                try:
+                    handled = handle_mail_callback(update, token, owner, review_store, env, opener)
+                except Exception:
+                    raise RuntimeError('Owner mail operation failed; sensitive details redacted') from None
             if not handled and review_store:
                 handled = process_review_callback(
                     update, token, owner, review_store, opener=opener)

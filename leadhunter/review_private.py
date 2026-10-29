@@ -59,7 +59,8 @@ class ReviewStore:
                         "VALUES (%s, %s::jsonb, 'review') "
                         "ON CONFLICT (osm_id) DO UPDATE SET "
                         "lead_data=EXCLUDED.lead_data,updated_at=now() "
-                        "WHERE owner_leads.status IN ('review','deferred')",
+                        "WHERE owner_leads.status IN ('review','deferred') "
+                        "AND NOT (owner_leads.lead_data ? '_auto_mail')",
                         (lead_id, json.dumps(lead, ensure_ascii=False)))
         except Exception:
             raise RuntimeError("Private lead registration failed; details redacted") from None
