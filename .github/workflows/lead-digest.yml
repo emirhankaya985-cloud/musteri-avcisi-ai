@@ -56,6 +56,12 @@ jobs:
           else
             echo "Optional private review database is not configured; no install needed."
           fi
+      - name: Recover pending full-text owner reports before source access (no SMTP)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: python -m leadhunter.report_recovery
       - name: Find opportunities and send Telegram report
         env:
           TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN }}

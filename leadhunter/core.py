@@ -121,7 +121,10 @@ def emit_discovery_summary(stats, sent, env, output):
         f"{stats['new']} yeni aday"
     )
     output(summary)
-    output(f'Gönderilen yeni fırsat: {sent}')
+    label = 'Telegram mail sonuç raporu' if env.get('AUTO_MAIL_ENABLED') == 'true' else 'Gönderilen yeni fırsat'
+    output(f'{label}: {sent}')
+    if env.get('AUTO_MAIL_ENABLED') == 'true':
+        output('Bu sayaç SMTP kabulü veya yeni işletme sayısı değildir.')
     summary_path = env.get('GITHUB_STEP_SUMMARY')
     if summary_path:
         with open(summary_path, 'a', encoding='utf-8') as handle:

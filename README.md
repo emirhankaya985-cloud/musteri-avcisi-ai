@@ -1,89 +1,42 @@
-> **29 Ekim 2026 güncellemesi:** Kullanıcı isteğiyle otomatik kişisel işletme maili ve gönderim sonrası Telegram tam metin raporu eklendi. Önceki yalnızca taslak açıklamaları bu yeni yol için geçerli değildir. Kurulum ve sınırlar: [Otomatik mail](docs/OWNER_APPROVED_MAIL.md).
+# Müşteri Avcısı AI
 
-# 🎯 Müşteri Avcısı AI — Public Telegram Lead Hunter
+Kadıköy pilot alanında OSM işletme kayıtlarını inceler; uygun yeni adaylara sahibin daha önce yetkilendirdiği kapsamda bir tanışma e-postası gönderir ve sonucu sahibinin özel Telegram sohbetine tam metinle raporlar. Mevcut web sitesi veya otomasyon ihtiyacı kesin olarak varsayılmaz.
 
-**Dağıtım:** [emirhankaya985-cloud/musteri-avcisi-ai](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai) — kaynak private repodan **izin listeli yeni Git geçmişiyle** aktarıldı. Eski Git geçmişi ve müşteri CRM kayıtları aktarılmadı.
+## Otonom akış
 
-## Ne yapar?
+- Hafta içi **10:23 TRT**, yedek **11:53 TRT**: `Telegram Lead Digest`.
+- Önce bekleyen özel Telegram mail raporları kurtarılır. Bu adım SMTP kullanmaz; OSM erişimine bağlı değildir. Rapor hatası veya 100 kayıttan büyük kalan kuyruk yeni taramayı durdurur.
+- Her taramada en fazla **5** uygun aday işlenir. Reddedilmiş/bekletilmiş, gönderilmiş veya SMTP sonucu belirsiz kayıtlar otomatik tekrar gönderilmez.
+- Varsayılan `MAIL_DRAFT_MODE=template`: AI anahtarı gerektirmez. AI modu isteğe bağlıdır.
+- Yalnızca kaynakta yayımlanmış geçerli adresler kullanılır; alıcı adresi tahmin edilmez.
+- SMTP'den önce özel veritabanına gönderim talebi kaydedilir. İşletme kimliği ve alıcı adresi kontrolü PostgreSQL kilidi altında yapılır. Otomatik takip maili yoktur.
+- SMTP kabulü **gelen kutusuna teslim değildir**. Alıcı, konu, tam gövde ve sonuç Telegram'a aktarılır; her parça API makbuzuyla doğrulanır. Telegram hatası maili yeniden göndermeyi gerektirmez.
+- Eski rapor kurtarması ve yeni tarama ayrı adımlardır. `Telegram mail sonuç raporu` sayacı SMTP kabul veya yeni işletme sayısı değildir.
 
-- Kadıköy'deki küçük bir pilot alanda OpenStreetMap verilerinde işletme kayıtlarını inceler.
-- Her çalıştırmada en fazla **5 yeni işletme** için **yalnızca hesabın sahibine** Telegram fırsat mesajı gönderir.
-- OSM'de eksik web sitesi kaydı, gerçek dünyada sitenin kesin yokluğu demek değildir.
-- 🔴 **WEB SİTESİ FIRSATI:** OSM kaydında web adresi yoksa sektörüne uygun site fikri gösterir. Bu **doğrulanmış web sitesi eksikliği değildir**; önce kontrol et.
-- 🎨 **PREMIUM WEB SİTESİ TEKLİFİ:** Kırmızı fırsatlar için sektöre özgü tasarım kapsamı (ör. galeri, mobil randevu, hizmet katalogları, hızlı mobil deneyim) ve işletme adına göre düzenlenmiş kısa bir tanışma mesajı hazırlanır. Gerçek ihtiyaç ve mevcut web sitesi önceden manuel doğrulanmalıdır.
-- 📩 **İLETİŞİM KONTROLÜ:** İşletmeye otomatik mesaj atılmaz. Kullanıcı uygun/yasal iletişim kanalını ve ilgiyi kontrol eder, tek ve saygılı bir tanışma teklifi gönderip göndermemeye kendisi karar verir. Yanıt yoksa ısrarlı takip yapılmaz.
-- 🟢 **OTOMASYON FIRSATI:** OSM'de web adresi kayıtlıysa iş koluna göre randevu/talep otomasyonu fikri gösterir. İşletmenin bu çözüme ihtiyaç duyduğu **kanıtlanmış değildir**.
-- Her işletme için **isim, sektör, website kaydı, telefon ve adres bilgisine göre** gerekçe, öneri ve manuel iletişim taslağı kişiselleştirilir. Otomatik satış mesajı gönderilmez.
+Ayrı `Owner Verified Business Mail Batch`, yalnızca açık owner dispatch ile özel `OWNER_MAIL_BATCH_JSON` secret'ındaki en fazla 15 araştırılmış kaydı işler. Günlük tarama bu batch'i kendiliğinden tekrar çalıştırmaz. Ayrıntılar: [mail ayarları](docs/OWNER_APPROVED_MAIL.md).
 
-- `data/seen.json` yalnızca herkese açık OSM nesne kimliklerini tutar; başarılı Telegram gönderiminden sonra güncellenir.
-- **Potansiyel müşteriye otomatik e-posta, DM veya başka ileti göndermez.** Mesajdaki teklif yalnızca kullanıcı tarafından manuel değerlendirilecek bir taslaktır.
+## Kurulum ve özel veriler
 
-## Codex test ve devralma
+Repository Secrets: `GMAIL_SENDER_ADDRESS`, `GMAIL_APP_PASSWORD`, `REVIEW_DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. Postgres SSL zorunludur. Şema ve opsiyonel karar butonları: [özel review kurulumu](docs/PRIVATE_REVIEW_SETUP.md). Web kimlikleri için [migration](migrations/001_verified_website_leads.sql) gerekir.
 
-Codex için depo kökünde [AGENTS.md](AGENTS.md) ve [test/kabul yönergesi](docs/CODEX_TEST_HANDOFF.md) hazırdır. Offline doğrulama tek komut:
+Alıcılar, mail gövdeleri ve gönderim geçmişi özel veritabanında kalır. Public dosyalara yalnızca OSM kimlikleri ve günlük tarih yazılır. Telegram kabulünden sonra veritabanı işaretlemesi yapılamazsa bildirim tekrarlanabilir; mail tekrarı kapalıdır. Secrets ve gerçek müşteri verileri loglara/artifact'lara eklenmez.
+
+## Doğrulama ve sınırlar
 
 ```bash
 python tools/codex_acceptance.py
 ```
 
-Bu komut token istemez, gerçek işletmelere mesaj atmaz. Canlı Telegram çalıştırması ve zamanlanmış `schedule` olayı ayrı GitHub kanıtlarıyla doğrulanmalıdır.
+Offline testler sentetik veri ve mock servisler kullanır. CI ayrıca geçici PostgreSQL üzerinde aynı işletme, aynı alıcıya eşzamanlı claim ve belirsiz gönderim sonrası tekrar engelini sınar; gerçek işletmelere mesaj göndermez.
 
-## Çalıştırma
+30 Ekim 2026 kanıtları:
 
-```bash
-python -m unittest discover -s tests -v
-python -m leadhunter demo
-```
+- [Güncel main offline CI: 150 test başarılı](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40918211203).
+- [Gerçek schedule](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/41025477031) ve [yedek schedule](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/41034390631): başarılı; ikisi de 20 eski kayıt, 0 yeni aday, 0 bildirim.
+- [29 Ekim özel batch](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40917655884): 15 yeni SMTP kabulü, 0 belirsiz; tam metin raporlama yolu başarıyla tamamlandı. Gelen kutusu teslimi kanıtlanmadı.
 
-Demo `dist/telegram-demo.txt` dosyasını üretir. Sentetik örnekler kullanır; gerçek mesaj yollamaz.
+GitHub schedule gecikebilir/atlanabilir; dakik çalışma garantisi yoktur. Sonraki gerçek başarılı `schedule` olayı ve canlı Telegram gönderimi ayrı kanıtlarla değerlendirilir. Yeni rapor kurtarma adımının canlı sonucu henüz gözlemlenmedi. Dar örneklemde sıfır yeni aday normal olabilir; sistem yeni müşteri veya satış garantilemez.
 
-## GitHub Actions kurulumu — yeni hesapta gerekli
+Üç butonlu inbox yalnızca sahibin kararlarını işler. Gmail owner-only test yalnızca sahibine gider. `demo-site/index.html` statik örnektir; gerçek rezervasyon veya ödeme hizmeti değildir. Ek ücretli hizmet/abonelik oluşturulmaz.
 
-1. [Hedef depo Actions Secrets](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/settings/secrets/actions) bölümüne yalnızca **Repository secrets** olarak şu ikisini tanımla:
-   - `TELEGRAM_BOT_TOKEN` — Telegram BotFather bot tokenı
-   - `TELEGRAM_CHAT_ID` — sadece kendi özel Telegram sohbetinin sayısal chat ID'si
-2. Telegram botuna özel sohbetten `/start` veya `/chatid` gönderdiğinden emin ol. ID'yi bulmak için kodda `tools/get_chat_id.py` bulunur; bunu kendi cihazında çalıştırabilirsin. **Chat ID'yi public Actions loglarına yazma.**
-3. [Offline Tests](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/workflows/ci.yml) başarılı olmalı.
-4. [Telegram Lead Digest](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/workflows/lead-digest.yml) → `Run workflow` ile canlı test yapabilirsin. İş akışı değiştiğinde `main` push'u da tek seferlik canlı smoke testini tetikler.
-
-### Zamanlama
-
-`23 7 * * 1-5` = **Pazartesi–Cuma 07:23 UTC / 10:23 Türkiye saati (UTC+3)**. GitHub zamanlanmış çalıştırmaları gecikebilir veya zaman zaman atlayabilir. Bir sonraki gerçek `schedule` tetiklemesi başarıyla sonuçlanmadan otomatik yayın doğrulandı demeyin.
-
-İsteğe bağlı `SCAN_BBOX` repository variable'ı yalnızca küçük pilot alanlar için ayarlanabilir; varsayılan `40.982,29.015,41.008,29.055`.
-
-## Güvenlik
-
-- Bu public depoda eski Git geçmişi, `.env`, gerçek müşteri e-postaları, CRM kayıtları, kontrolsüz otomatik müşteri e-postası gönderimi veya token bulunmamalı.
-- GitHub Secrets eski hesaptan otomatik taşınmaz; yeni public depoda ayrıca tanımlanması gerekir.
-- Kodun `contents: write` izni yalnızca başarılı Telegram gönderimlerinin kamuya açık OSM kimliklerini kaydetmek için kullanılır.
-- Telegram başarısızsa iş akışı kırmızı görünür; başarısız adım başarı olarak kabul edilmez.
-- Demo web sitesi `demo-site/index.html` dosyasında; ödeme/gerçek rezervasyon backend'i içermez.
-- OSM kayıtlarını manuel kontrol et; izinsiz ticari ileti göndermeyi otomatikleştirme.
-
-Veri kaynağı: [© OpenStreetMap contributors, ODbL](https://www.openstreetmap.org/copyright).
-
-**Veri kaynağı dayanıklılığı:** Overpass açık kaynak servisleri geçici olarak kullanılamayabilir; uygulama en çok üç farklı sunucuyu sırayla dener ve veri alamazsa güvenli biçimde hata verir. Bu durumda kimseye müşteri teklifi gönderilmez; GitHub Actions kırmızı kalır.
-
-## Fırsat keşfi sayaçları
-
-Her canlı tarama kişisel iletişim bilgisi yazmadan ham kayıt, geçerli kayıt, elenen, tekrar,
-önceden görülen ve yeni aday sayılarını raporlar. GitHub Actions iş özeti aynı sayaçları
-gösterir. **Sıfır yeni fırsat** her zaman hata değildir: dar pilot bölge, önceki
-gönderimlerin tekrarını önleme veya o anda uygun yeni OSM kaydı bulunmaması mümkündür.
-Bu sayılar olmadan sıfırın kesin nedenini varsaymayın. Gerçek `schedule` çalışması
-gerçekleşmeden üretim zamanlamasını doğrulanmış saymayın.
-
-## Telegram üç buton denemesi
-
-Sahibin özel Telegram sohbetine bir kez sentetik bir fırsat gider: **✅ EVET / ❌ HAYIR / ⏳ BEKLET**. `Telegram Three-Button Demo` workflow'u yalnızca demo workflow dosyasına `main` push'u yapıldığında (veya elle tetiklenirse) mesaj yollar. `Telegram Three-Button Inbox` 15 dakikada bir `callback_query` güncellemelerine bakar, yalnızca bu özel demo mesajını değiştirir, seçim butonlarını kaldırır. GitHub schedule gecikebilir; **tepki anlık değildir**. Açık webhook varsa getUpdates çalışmaz ve iş güvenli biçimde hata verir. Public depoya sadece sayısal `data/telegram_demo_offset.json` cursor'u yazılır; kişisel veri veya seçenek değeri yazılmaz. **Gerçek işletmeye veya başka hesaba mail/mesaj gitmez.**
-
-## Gmail test altyapısı
-
-Ayrı, ücretsiz Gmail hesabını test etmek için güvenli ve **kendine gönderimle sınırlı** SMTP altyapısı eklendi. Gerçek müşterilere e-posta göndermez; Telegram Evet/Hayır/Beklet ile henüz bağlı değildir.
-
-Kurulum, gerekli iki GitHub Secret ve test çalışma bağlantısı: [docs/GMAIL_SETUP.md](docs/GMAIL_SETUP.md).
-
-## Üç buton ve özel CRM kararları
-
-Gerçek işletmeler için **🟣 Premium Web** / **🔵 Otomasyon** kısa bildirim şablonları eklendi. `REVIEW_DATABASE_URL` GitHub Secret tanımlandıktan sonra Telegram'da ✅ Evet / ❌ Hayır / ⏳ Beklet görünür ve durumlar özel Neon veritabanında tutulur. Secret yoksa bot yalnızca yeni kısa fırsat bildirimlerini gönderir; gerçek karar butonları etkin değildir. Gmail'den işletmelere e-posta gönderimi hâlâ kapalıdır. Ayrıntı: [docs/PRIVATE_REVIEW_SETUP.md](docs/PRIVATE_REVIEW_SETUP.md).
+Kaynak: [OpenStreetMap contributors, ODbL](https://www.openstreetmap.org/copyright).
