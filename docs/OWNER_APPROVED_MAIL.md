@@ -29,4 +29,6 @@ Devre dışı bırakmak için workflow'daki `AUTO_MAIL_ENABLED` false yapılır.
 
 ## Doğrulama
 
-`python tools/codex_acceptance.py`: 135 offline test. AI, SMTP ve Telegram testleri mock kullanır; gerçek işletmelere test maili gönderilmedi. Üretim Postgres concurrency testi, canlı AI çağrısı ve gerçek otomatik işletme maili henüz kanıtlanmadı. Uzak CI sonucu teslim raporunda ayrı belirtilir.
+30 Ekim kontrolü: main CI 150 offline testi geçti (#40918211203). 29 Ekim özel batch #40917655884, 15 yeni SMTP kabulü ve başarılı Telegram tam metin raporlama yolu gösteriyor; gelen kutusuna teslim kanıtı yok. AI modu canlı doğrulanmadı. PostgreSQL concurrency kontrolü ayrı sentetik CI job'unda yapılır; üretim verisi kullanılmaz.
+
+Bekleyen Telegram raporları artık günlük workflow'da OSM taramasından önce ayrı `report_recovery` adımıyla denenir. Bu adım hiçbir işletmeye mail göndermez. Hata veya kalan rapor kuyruğu yeni taramayı durdurur; sonraki mevcut slotta yalnızca işaretlenmemiş raporlar yeniden denenir. Başarılı Telegram gönderiminden sonra DB işaretlemesi çökerse bildirim tekrarı mümkündür. Yeni adımın canlı sonucu henüz doğrulanmadı.
