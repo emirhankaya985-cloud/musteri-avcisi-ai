@@ -34,6 +34,10 @@ def compact_telegram(lead):
         lines.append("☎️ " + esc(str(lead["phone"])))
     if lead.get("address"):
         lines.append("📍 " + esc(str(lead["address"])))
+    if lead.get("email_check"):
+        from .mail_tracking import EMAIL_LABELS
+        label = EMAIL_LABELS.get(lead["email_check"], "E-posta kontrolü bilinmiyor")
+        lines.append("✉️ " + esc(label))
     lines += [
         f"🗺️ <a href=\"https://www.openstreetmap.org/{esc(lead['id'])}\">OSM kaydı</a>",
         "ℹ️ OSM verisi; gerçek ihtiyaç ayrıca doğrulanmalı.",
