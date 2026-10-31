@@ -6,6 +6,8 @@ SMTP acceptance is not evidence of inbox delivery. Never retry uncertain mail.
 import hashlib
 import html
 import json
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from functools import wraps
 from .outreach import draft_mail, send_mail, valid_recipient
 from .gmail_selftest import sender_credentials
@@ -17,6 +19,11 @@ def check_config(env):
     if not env.get('REVIEW_DATABASE_URL'):
         raise RuntimeError('Automatic mail requires private storage')
     sender_credentials(env)
+    if not env.get('REVIEW_DATABASE_URL','').startswith(('postgresql://','postgres://')):
+        raise RuntimeError('Automatic mail requires private PostgreSQL storage')
+    cap = str(env.get('AUTO_MAIL_DAILY_LIMIT', '5'))
+    if not cap.isdigit() or int(cap) < 1 or int(cap) > 5:
+        raise RuntimeError('Automatic daily mail quota must be 1..5')
     mode = env.get('MAIL_DRAFT_MODE', 'template')
     if mode not in ('template', 'ai'):
         raise RuntimeError('Invalid mail draft mode')
@@ -142,8 +149,14 @@ class AutoMailStore:
         return data.get('_auto_mail')
 
     @private_operation
-    def claim(self, lead_id):
-        # Serialize recipient comparison + claiming across concurrent workers.
+    def claim(self, lead_id, env=None):
+        # Serialize recipient, daily quota and reputation checks on the SAME
+        # committed PostgreSQL transaction; no public-file counters or resets.
+        env = {} if env is None else env
+        cap = str(env.get('AUTO_MAIL_DAILY_LIMIT','5'))
+        if not cap.isdigit() or not (1 <= int(cap) <= 5):
+            raise RuntimeError('Automatic daily quota must be 1..5')
+        local_day = datetime.now(ZoneInfo('Europe/Istanbul')).date().isoformat()
         with self.db.transaction():
             with self.db.cursor() as cur:
                 cur.execute('SELECT pg_advisory_xact_lock(789654321)')
@@ -175,7 +188,30 @@ class AutoMailStore:
                         (lead_id,))
                     duplicate = any(already_contacted(data, prior if isinstance(prior, dict)
                         else json.loads(prior)) for (prior,) in cur.fetchall())
-                record['state'] = 'duplicate' if duplicate else 'sending'
+                if duplicate:
+                    record['state'] = 'duplicate'
+                else:
+                    # Existing SMTP acceptances are not proof of delivery.
+                    # 3 failed notices among 15 prior acceptances currently
+                    # trigger this automatic fail-closed reputation circuit.
+                    cur.execute(
+                        "SELECT count(*) FILTER (WHERE "
+                        "lead_data->'_auto_mail'->>'state'='accepted'),"
+                        "count(*) FILTER (WHERE "
+                        "lead_data->'_auto_mail'->'delivery_feedback'->>'state'='failed'),"
+                        "count(*) FILTER (WHERE "
+                        "lead_data->'_auto_mail'->>'claimed_day'=%s AND "
+                        "lead_data->'_auto_mail'->>'state' IN ('sending','accepted','uncertain')) "
+                        "FROM owner_leads", (local_day,))
+                    accepted, failed, used = cur.fetchone()
+                    if int(accepted or 0) >= 10 and int(failed or 0) * 100 >= int(accepted) * 15:
+                        # Keep draft eligible for later after genuine remediation;
+                        # never consume a daily slot or fabricate a mail claim.
+                        return None
+                    if int(used or 0) >= int(cap):
+                        return None
+                    record['state'] = 'sending'
+                    record['claimed_day'] = local_day
                 cur.execute("UPDATE owner_leads SET lead_data=jsonb_set(lead_data,'{_auto_mail}',%s::jsonb),"
                             'updated_at=now() WHERE osm_id=%s',(json.dumps(record),lead_id))
         # Caller may use SMTP only AFTER the claim transaction commits.
@@ -209,7 +245,7 @@ def deliver(lead, store, env, opener, mail_sender=send_mail):
     record = store.prepare(lead,env,opener)
     if not record or record['state'] != 'draft':
         return
-    record = store.claim(lead['id'])
+    record = store.claim(lead['id'], env)
     if not record:
         return
     try:
