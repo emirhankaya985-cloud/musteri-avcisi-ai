@@ -48,13 +48,14 @@ def verify_config() -> None:
     ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     digest = (ROOT / ".github/workflows/lead-digest.yml").read_text(encoding="utf-8")
     assert "python tools/codex_acceptance.py" in ci
-    assert "cron: '23 7 * * 1-5'" in digest
+    assert "cron: '13 * * * *'" in digest
     assert "secrets.TELEGRAM_BOT_TOKEN" in digest
     assert "secrets.TELEGRAM_CHAT_ID" in digest
     assert "python -m leadhunter.daily_scan" in digest
-    assert "cron: '53 8 * * 1-5'" in digest
+    assert "DIGEST_DAILY_GUARD: 'false'" in digest
+    assert "AUTO_MAIL_ENABLED: 'false'" in digest
     assert "contents: write" in digest
-    print("PASS: CI, owner secrets and weekdays 10:23 TRT cron configured")
+    print("PASS: CI, owner secrets, hourly cron and mail-disabled guard configured")
     print("NOTE: cron config is NOT proof that a scheduled run happened")
 
 
