@@ -1,6 +1,10 @@
 name: Owner Gmail Delivery Watch (Read Only)
 on:
   workflow_dispatch:
+  # One-time live acceptance when this workflow changes on main.
+  push:
+    branches: [main]
+    paths: ['.github/workflows/gmail-delivery-watch.yml']
   schedule:
     - cron: '7 * * * *'
 permissions:
