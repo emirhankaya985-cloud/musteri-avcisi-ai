@@ -23,7 +23,7 @@ jobs:
           python-version: '3.12'
       - name: Install free private PostgreSQL driver
         run: python -m pip install 'psycopg[binary]==3.2.12'
-      - name: Read Gmail IMAP and store owner delivery feedback only
+      - name: Read Gmail IMAP and store owner delivery/reply feedback only
         env:
           GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
