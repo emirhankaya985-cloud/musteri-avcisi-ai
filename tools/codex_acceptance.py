@@ -53,7 +53,7 @@ def verify_config() -> None:
     assert "secrets.TELEGRAM_CHAT_ID" in digest
     assert "python -m leadhunter.daily_scan" in digest
     assert "DIGEST_DAILY_GUARD: 'false'" in digest
-    assert "AUTO_MAIL_ENABLED: 'true'" in digest
+    assert "AUTO_MAIL_ENABLED: 'false'" in digest
     assert "AUTO_MAIL_DAILY_LIMIT: '5'" in digest
     assert "secrets.GMAIL_APP_PASSWORD" in digest
     assert "contents: write" in digest
