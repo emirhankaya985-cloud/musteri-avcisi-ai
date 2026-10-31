@@ -129,6 +129,8 @@ def reconcile_mail(conn, notices):
                     continue
                 state = None
                 for evidence, candidate in notices:
+                    if candidate not in ("failed", "delayed"):
+                        continue  # Reply metadata cannot be a delivery failure.
                     # Trust only a message from an automated Gmail sender
                     # whose DSN evidence explicitly contains a frozen recipient.
                     if re.search(r"(?<![\w.+-])" + re.escape(recipient) + r"(?![\w.+-])", evidence):
