@@ -4,12 +4,12 @@ Kadıköy pilot alanında OSM işletme kayıtlarını inceler; uygun yeni adayla
 
 ## Otonom akış
 
-- **Haftanın 7 günü, saatte bir (yaklaşık XX:13 TRT):** `Telegram Lead Digest`. GitHub cron gecikebilir; her taramada yalnızca yeni fırsatlar özel Telegram sohbetine gönderilir. Önceden bildirilen OSM kimlikleri ve geçmişte mail atılmış işletmeler için tekrar bildirim/gönderim korumaları sürer. Günlük tek-tarama engeli saatlik araştırmada kullanılmaz; tarama otomatik mail göndermez.
+- **Haftanın 7 günü, saatte bir (yaklaşık XX:13 TRT):** `Telegram Lead Digest`. GitHub cron gecikebilir; her taramada yalnızca yeni fırsatlar özel Telegram sohbetine gönderilir. Önceden bildirilen OSM kimlikleri ve geçmişte mail atılmış işletmeler için tekrar bildirim/gönderim korumaları sürer. Günlük tek-tarama engeli saatlik araştırmada kullanılmaz; mail yalnızca sağlık kontrolleri ve mevzuata uygun alıcı doğrulaması geçerse gönderilir.
 - Önce bekleyen özel Telegram mail raporları kurtarılır. Bu adım SMTP kullanmaz; OSM erişimine bağlı değildir. Rapor hatası veya 100 kayıttan büyük kalan kuyruk yeni taramayı durdurur.
-- Her taramada en fazla **5** uygun yeni aday değerlendirilir. Saatlik fırsat taraması sadece Telegram bilgilendirmesi yapar; otomatik SMTP kapalıdır. Ayrı ve geçmişte yetkilendirilmiş mail akışları bu değişiklikle tetiklenmez. Reddedilmiş/bekletilmiş, gönderilmiş veya SMTP sonucu belirsiz kayıtlar otomatik tekrar gönderilmez.
+- Her taramada en fazla **5** uygun yeni aday değerlendirilir. Sahibin açık 1 Kasım 2026 talebi üzerine saatlik fırsat taramasına PostgreSQL'de **günlük en fazla 5** yeni tek-seferlik SMTP gönderimi bağlandı. Aynı işletme ve alıcı tekrar kontrol edilir; 10+ kabul kaydında başarısız teslimat bildirimleri %15'e ulaşırsa yeni mail gönderimi fail-closed durur. Mevcut 15 eski kabul ve 3 hata bu eşiği şu an tetikliyor. Hiçbir geçmiş claim veya ret kaydı sıfırlanmaz. Ayrı ve geçmişte yetkilendirilmiş mail akışları bu değişiklikle tetiklenmez. Reddedilmiş/bekletilmiş, gönderilmiş veya SMTP sonucu belirsiz kayıtlar otomatik tekrar gönderilmez.
 - Varsayılan `MAIL_DRAFT_MODE=template`: AI anahtarı gerektirmez. AI modu isteğe bağlıdır.
 - Yalnızca kaynakta yayımlanmış geçerli adresler kullanılır; alıcı adresi tahmin edilmez.
-- SMTP'den önce özel veritabanına gönderim talebi kaydedilir. İşletme kimliği ve alıcı adresi kontrolü PostgreSQL kilidi altında yapılır. Otomatik takip maili yoktur.
+- Her saat tarama yapılır, ancak otomatik mail için ayrıca PostgreSQL içinde **5/gün** kalıcı kota ve **%15 teslimat hatası** durdurma kuralı vardır. 3/15 eski hata nedeniyle bu mesaj yazılırken canlı sistem fail-closed durumdadır.\n- SMTP'den önce özel veritabanına gönderim talebi kaydedilir. İşletme kimliği ve alıcı adresi kontrolü PostgreSQL kilidi altında yapılır. Otomatik takip maili yoktur.
 - SMTP kabulü **gelen kutusuna teslim değildir**. Alıcı, konu, tam gövde ve sonuç Telegram'a aktarılır; her parça API makbuzuyla doğrulanır. Telegram hatası maili yeniden göndermeyi gerektirmez.
 - Eski rapor kurtarması ve yeni tarama ayrı adımlardır. `Telegram mail sonuç raporu` sayacı SMTP kabul veya yeni işletme sayısı değildir.
 
