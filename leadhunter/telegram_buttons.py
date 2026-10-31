@@ -87,7 +87,24 @@ def status_message(env):
     )
 
 
-def process_owner_command(update, token, owner, env, opener=urlopen):
+def mail_status_message(review_store):
+    """Never include customer names, email addresses or content in logs/messages."""
+    if review_store is None:
+        return "📮 Mail geçmişi: özel veritabanı bağlı değil; doğrulanamadı."
+    counts = review_store.mail_summary()
+    return (
+        "📮 Özel mail geçmişi\n"
+        f"🗂️ Toplam aday: {counts['total']}\n"
+        f"✅ SMTP kabul kaydı: {counts['accepted']}\n"
+        f"⚠️ Belirsiz/devam eden: {counts['uncertain']}\n"
+        f"⏭️ Adresi bulunamadığı için atlanan: {counts['skipped']}\n"
+        f"🔁 Tekrar engellenen: {counts['duplicate']}\n"
+        "ℹ️ SMTP kabulü teslim kanıtı değildir. Gmail gelen yanıtları "
+        "bu bot tarafından henüz otomatik okunmuyor."
+    )
+
+
+def process_owner_command(update, token, owner, env, opener=urlopen, review_store=None):
     """One existing polling consumer serves owner-only private Telegram commands."""
     import time
     message = update.get("message") or {}
@@ -99,17 +116,22 @@ def process_owner_command(update, token, owner, env, opener=urlopen):
             or str(sender.get("id")) != owner
             or sender.get("is_bot") is True
             or not isinstance(command, str)
-            or command not in ("/durum", "/yardim", "/start")):
+            or command not in ("/durum", "/eposta", "/yardim", "/start")):
         return False
     timestamp = message.get("date")
     if type(timestamp) is int and abs(time.time() - timestamp) > 3600:
         return False  # never replay a stale buffered command
     if command == "/durum":
         text = status_message(env)
+        if review_store is not None:
+            text += "\n\n" + mail_status_message(review_store)
+    elif command == "/eposta":
+        text = mail_status_message(review_store)
     else:
         text = (
             "🤖 Müşteri Avcısı AI — yalnızca sahip Telegram sohbeti\n"
             "🔎 /durum — otomasyon ve tarama durumunu göster.\n"
+            "📮 /eposta — özel veritabanındaki eski mail ve atlama sayılarını göster.\n"
             "✅ EVET / ❌ HAYIR / ⏳ BEKLET — fırsat mesajındaki "
             "butonlarla karar ver.\n"
             "ℹ️ Web paneli veya izlenecek site eklemeniz gerekmez.\n"
@@ -189,7 +211,7 @@ def poll(env=None, opener=urlopen, output=print):
             uid = update.get("update_id") if isinstance(update, dict) else None
             if type(uid) is not int or uid < offset:
                 continue
-            handled = process_owner_command(update, token, owner, env, opener=opener)
+            handled = process_owner_command(update, token, owner, env, opener=opener, review_store=review_store)
             if not handled:
                 handled = process_update(update, token, owner, opener=opener)
             if not handled and review_store and env.get('OWNER_APPROVED_MAIL_ENABLED') == 'true':
