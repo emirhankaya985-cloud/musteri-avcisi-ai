@@ -43,13 +43,15 @@ class ReviewStore:
             "count(*) FILTER (WHERE lead_data->'_auto_mail'->>'state' IN ('sending','uncertain') "
             "OR lead_data->'_mail'->>'state' IN ('sending','uncertain')), "
             "count(*) FILTER (WHERE lead_data->'_auto_mail'->>'state'='skipped'), "
-            "count(*) FILTER (WHERE lead_data->'_auto_mail'->>'state'='duplicate') "
+            "count(*) FILTER (WHERE lead_data->'_auto_mail'->>'state'='duplicate'), "
+            "count(*) FILTER (WHERE lead_data->'_auto_mail'->'delivery_feedback'->>'state'='failed'), "
+            "count(*) FILTER (WHERE lead_data->'_auto_mail'->'delivery_feedback'->>'state'='delayed') "
             "FROM owner_leads")
         if not rows:
             raise RuntimeError("Private mail history unavailable")
-        total, accepted, uncertain, skipped, duplicate = rows[0]
+        total, accepted, uncertain, skipped, duplicate, failed, delayed = rows[0]
         return dict(total=total, accepted=accepted, uncertain=uncertain,
-                    skipped=skipped, duplicate=duplicate)
+                    skipped=skipped, duplicate=duplicate, failed=failed, delayed=delayed)
 
     def already_contacted(self, lead):
         """Read old claimed mail identities before displaying a recycled lead."""
