@@ -94,7 +94,7 @@ def mail_status_message(review_store):
         f"📨 Gönderim referansıyla eşleşen yanıt: {counts.get('replied', 0)}\n"
         + ("🛑 Otomatik mail geçici DURAKLATILDI: yüksek teslimat hatası.\n"
            if counts.get('accepted',0) >= 10 and counts.get('failed',0)*100 >= counts['accepted']*15
-           else "📤 Otomatik mail günlük en fazla 5; mevcut limit ayrı PostgreSQL'de.\n")
+           else "📤 Mail taslakları Telegram üzerinden; canlı SMTP kapalı.\n")
         + "ℹ️ SMTP kabulü teslim kanıtı değildir. Yanıt metinleri okunup "
         "müşteriye otomatik cevap gönderilmez."
     )
