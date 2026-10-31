@@ -19,8 +19,6 @@ def check_config(env):
     if not env.get('REVIEW_DATABASE_URL'):
         raise RuntimeError('Automatic mail requires private storage')
     sender_credentials(env)
-    if not env.get('REVIEW_DATABASE_URL','').startswith(('postgresql://','postgres://')):
-        raise RuntimeError('Automatic mail requires private PostgreSQL storage')
     cap = str(env.get('AUTO_MAIL_DAILY_LIMIT', '5'))
     if not cap.isdigit() or int(cap) < 1 or int(cap) > 5:
         raise RuntimeError('Automatic daily mail quota must be 1..5')
