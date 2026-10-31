@@ -63,24 +63,14 @@ def status_message(env):
         count = len(read_seen(seen_path))
     except (OSError, ValueError, TypeError):
         count = None
-    day_path = Path(env.get("DIGEST_DAY_STATE_FILE", "data/last_digest_day.json"))
-    last = "Henüz doğrulanmış gün bilgisi yok"
-    try:
-        value = json.loads(day_path.read_text(encoding="utf-8"))
-        date = value.get("last_sent_date") if isinstance(value, dict) else None
-        if (isinstance(date, str) and len(date) == 10
-                and date[4] == "-" and date[7] == "-"
-                and date.replace("-", "").isdigit()):
-            last = date
-    except (OSError, ValueError, TypeError):
-        pass
     return (
         "🤖 Müşteri Avcısı AI — Telegram durumu\n\n"
         "📬 Sahibe özel fırsat bildirimi ve üç butonlu karar işleme açık.\n"
-        "📅 Tarama hedefi: hafta içi 10:23 TRT; 11:53 yedek.\n"
-        "🔄 Komut/karar kontrol hedefi: 15 dakikada bir; GitHub gecikebilir.\n"
-        f"🗂️ Eski OSM arşivinde görülen kayıt: {count if count is not None else 'okunamadı'}\n"
-        f"🗓️ Son günlük rapor işareti: {last}\n"
+        "📅 Fırsat taraması: haftanın 7 günü saatte bir, yaklaşık XX:13 TRT.\n"
+        "📮 Gmail gönderim ve yanıt kontrolü: saatte bir.\n"
+        "🔄 Komut/karar kontrolü: 15 dakikada bir; GitHub gecikebilir.\n"
+        f"🗂️ OSM arşivinde görülen kayıt: {count if count is not None else 'okunamadı'}\n"
+        "🆕 Yalnızca yeni fırsatlar bildirilir; aynı kayıt tekrar gönderilmez.\n"
         "✉️ Bu zamanlanmış fırsat taraması işletmelere otomatik mail göndermez.\n"
         "ℹ️ İşletmePilot'un ayrı CRM veritabanındaki müşteri sayısını bu komut "
         "doğrulamaz; bu botun kendi arşivini gösterir."
