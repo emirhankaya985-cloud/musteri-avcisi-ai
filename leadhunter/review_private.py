@@ -34,6 +34,38 @@ class ReviewStore:
         except Exception:
             raise RuntimeError("Private review database read failed; details redacted") from None
 
+    def mail_summary(self):
+        """Private database totals, never return addresses or message bodies."""
+        rows = self._read(
+            "SELECT count(*), "
+            "count(*) FILTER (WHERE lead_data->'_auto_mail'->>'state'='accepted' "
+            "OR lead_data->'_mail'->>'state'='accepted'), "
+            "count(*) FILTER (WHERE lead_data->'_auto_mail'->>'state' IN ('sending','uncertain') "
+            "OR lead_data->'_mail'->>'state' IN ('sending','uncertain')), "
+            "count(*) FILTER (WHERE lead_data->'_auto_mail'->>'state'='skipped'), "
+            "count(*) FILTER (WHERE lead_data->'_auto_mail'->>'state'='duplicate'), "
+            "count(*) FILTER (WHERE lead_data->'_auto_mail'->'delivery_feedback'->>'state'='failed'), "
+            "count(*) FILTER (WHERE lead_data->'_auto_mail'->'delivery_feedback'->>'state'='delayed') "
+            "FROM owner_leads")
+        if not rows:
+            raise RuntimeError("Private mail history unavailable")
+        total, accepted, uncertain, skipped, duplicate, failed, delayed = rows[0]
+        return dict(total=total, accepted=accepted, uncertain=uncertain,
+                    skipped=skipped, duplicate=duplicate, failed=failed, delayed=delayed)
+
+    def already_contacted(self, lead):
+        """Read old claimed mail identities before displaying a recycled lead."""
+        from .mail_tracking import already_contacted
+        rows = self._read(
+            "SELECT lead_data FROM owner_leads WHERE "
+            "lead_data->'_auto_mail'->>'state' IN ('sending','accepted','uncertain') "
+            "OR lead_data->'_mail'->>'state' IN ('sending','accepted','uncertain')")
+        for (data,) in rows:
+            value = json.loads(data) if isinstance(data, str) else data
+            if already_contacted(lead, value):
+                return True
+        return False
+
     def statuses(self):
         return {lead_id: state for lead_id, state in
                 self._read("SELECT osm_id,status FROM owner_leads ORDER BY "

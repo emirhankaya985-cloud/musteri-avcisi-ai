@@ -123,14 +123,16 @@ class AutoMailStore:
         if data.get('_auto_mail'):
             return data['_auto_mail']
         from .contact_email import discover_email
-        lead = discover_email(lead)
+        from .mail_tracking import assess_contact
+        lead = assess_contact(lead, discover=discover_email)
         recipient = str(lead.get('email') or '').strip().lower()
-        if valid_recipient(recipient):
+        if valid_recipient(recipient) and lead['email_check'] == 'mx_present':
             record = compose_mail(lead,env,opener)
             record.update(recipient=recipient,state='draft',
-                          recipient_source=lead.get('email_source') or 'OSM business contact tag')
+                          recipient_source=lead.get('email_source') or 'OSM business contact tag',
+                          email_check=lead['email_check'])
         else:
-            record = {'state':'skipped'}
+            record = {'state':'skipped', 'email_check':lead['email_check']}
         record['id'] = hashlib.sha256(('automatic:'+lead['id']).encode()).hexdigest()[:24]
         with self.db.cursor() as cur:
             cur.execute("UPDATE owner_leads SET lead_data=jsonb_set(lead_data,'{_auto_mail}',%s::jsonb) "
@@ -155,12 +157,25 @@ class AutoMailStore:
                     return None
                 recipient = record['recipient']
                 cur.execute("SELECT osm_id FROM owner_leads WHERE osm_id<>%s AND ("
-                            "(lower(lead_data->'_auto_mail'->>'recipient')=%s AND "
+                            "(lower(btrim(lead_data->'_auto_mail'->>'recipient'))=%s AND "
                             "lead_data->'_auto_mail'->>'state' IN ('sending','accepted','uncertain')) OR "
-                            "(lower(lead_data->'_mail'->>'recipient')=%s AND "
-                            "lead_data->'_mail'->>'state' IN ('sending','accepted'))) LIMIT 1",
+                            "(lower(btrim(lead_data->'_mail'->>'recipient'))=%s AND "
+                            "lead_data->'_mail'->>'state' IN ('sending','accepted','uncertain'))) LIMIT 1",
                             (lead_id,recipient,recipient))
-                record['state'] = 'duplicate' if cur.fetchone() else 'sending'
+                duplicate = bool(cur.fetchone())
+                if not duplicate:
+                    # Old records may use a different recipient and OSM ID for
+                    # the same real business. Hold a single advisory lock across
+                    # the comparison and update, including parallel runners.
+                    from .mail_tracking import already_contacted
+                    cur.execute(
+                        "SELECT lead_data FROM owner_leads WHERE osm_id<>%s AND ("
+                        "lead_data->'_auto_mail'->>'state' IN ('sending','accepted','uncertain') OR "
+                        "lead_data->'_mail'->>'state' IN ('sending','accepted','uncertain'))",
+                        (lead_id,))
+                    duplicate = any(already_contacted(data, prior if isinstance(prior, dict)
+                        else json.loads(prior)) for (prior,) in cur.fetchall())
+                record['state'] = 'duplicate' if duplicate else 'sending'
                 cur.execute("UPDATE owner_leads SET lead_data=jsonb_set(lead_data,'{_auto_mail}',%s::jsonb),"
                             'updated_at=now() WHERE osm_id=%s',(json.dumps(record),lead_id))
         # Caller may use SMTP only AFTER the claim transaction commits.

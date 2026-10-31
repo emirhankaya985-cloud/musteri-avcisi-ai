@@ -388,6 +388,17 @@ def live(env=None, opener=urlopen, output=print):
             chosen = select_leads(raw, seen)
             store = None
         for item in chosen:
+            if not automatic:
+                from .mail_tracking import assess_contact
+                from .contact_email import discover_email
+                item = assess_contact(item, discover=discover_email)
+                # The old private database is the single owner record of SMTP
+                # claims. Never present a re-discovered contacted business for
+                # another outreach, even if OSM created a new identifier.
+                if store and hasattr(store, 'already_contacted') and store.already_contacted(item):
+                    seen.add(item['id'])
+                    save_seen(state, seen)  # public OSM ID only; no contacts
+                    continue
             if automatic:
                 from .automatic_mail import deliver, flush_reports
                 try:
