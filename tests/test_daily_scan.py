@@ -35,6 +35,34 @@ class DailyScannerTests(unittest.TestCase):
                                             today="2026-10-26"),0)
             self.assertFalse(p.exists())
 
+    def test_hourly_scan_continues_same_day_without_resending_old_leads(self):
+        # A successful owner delivery no longer prevents hourly research.
+        # The real scanner's persisted seen IDs and private DB still dedupe.
+        with tempfile.TemporaryDirectory() as td:
+            day=Path(td)/"last_digest_day.json"
+            day.write_text('{"last_sent_date":"2026-11-01"}')
+            calls=[]
+            def fake_scan(**kw):
+                calls.append(1)
+                return 1 if len(calls)==1 else 0
+            env={"DIGEST_DAILY_GUARD":"false","DIGEST_DAY_STATE_FILE":str(day)}
+            self.assertEqual(daily_scan.run(env,handler=fake_scan,
+                                            today="2026-11-01",output=lambda *_: None),1)
+            self.assertEqual(daily_scan.run(env,handler=fake_scan,
+                                            today="2026-11-01",output=lambda *_: None),0)
+            self.assertEqual(len(calls),2)
+            self.assertEqual(json.loads(day.read_text()),{"last_sent_date":"2026-11-01"})
+
+    def test_production_hourly_workflow_never_enables_smtp(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/
+                ".github/workflows/lead-digest.yml").read_text(encoding="utf-8")
+        self.assertIn("cron: '13 * * * *'",source)
+        self.assertNotIn("cron: '23 7 * * 1-5'",source)
+        self.assertIn("AUTO_MAIL_ENABLED: 'false'",source)
+        self.assertIn("DIGEST_DAILY_GUARD: 'false'",source)
+        self.assertIn("concurrency:",source)
+
     def test_manual_run_bypasses_previous_date_without_modifying_it(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/"date.json"
