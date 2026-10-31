@@ -101,8 +101,9 @@ def mail_status_message(review_store):
         f"🔁 Tekrar engellenen: {counts['duplicate']}\n"
         f"🔴 Gmail başarısız teslimat: {counts.get('failed', 0)}\n"
         f"🟡 Gmail gecikme: {counts.get('delayed', 0)}\n"
-        "ℹ️ SMTP kabulü teslim kanıtı değildir. Gmail gelen yanıtları "
-        "bu bot tarafından henüz otomatik okunmuyor."
+        f"📨 Gönderim referansıyla eşleşen yanıt: {counts.get('replied', 0)}\n"
+        "ℹ️ SMTP kabulü teslim kanıtı değildir. Yanıt metinleri okunup "
+        "müşteriye otomatik cevap gönderilmez."
     )
 
 
