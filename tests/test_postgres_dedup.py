@@ -109,6 +109,40 @@ class PostgresDedupTests(unittest.TestCase):
         self.insert("node/92")
         self.assertIsNone(AutoMailStore(ReviewStore(self.db)).claim("node/92"))
 
+    def test_gmail_reply_reference_is_recorded_once_without_smtp_or_body(self):
+        import io
+        from leadhunter.mail_watch import reconcile_mail, deliver_pending
+        self.insert('node/192','accepted')
+        frozen_id='b'*24
+        self.db.execute(
+            "UPDATE owner_leads SET lead_data=jsonb_set(lead_data,"
+            "'{_auto_mail,id}',%s::jsonb) WHERE osm_id='node/192'",
+            (json.dumps(frozen_id),))
+        recipient="synthetic@example.invalid"
+        self.assertEqual(reconcile_mail(
+            self.db,[(recipient,"reply:<wrong-id@gmail.com>")]),(0,[]))
+        changed,pending=reconcile_mail(
+            self.db,[(recipient,"reply:<"+frozen_id+"@gmail.com>")])
+        self.assertEqual(changed,1)
+        self.assertEqual(pending,[("node/192","reply")])
+        messages=[]
+        def private_bot(req,timeout=None):
+            messages.append(json.loads(req.data))
+            return io.BytesIO(b'{"ok":true,"result":{"message_id":193}}')
+        env={"TELEGRAM_BOT_TOKEN":"fixture", "TELEGRAM_CHAT_ID":"123"}
+        self.assertEqual(deliver_pending(self.db,pending,env,private_bot),193)
+        self.assertEqual(len(messages),1)
+        self.assertIn("eşleşen yanıt: 1",messages[0]["text"])
+        self.assertNotIn(recipient,messages[0]["text"])
+        self.assertEqual(reconcile_mail(
+            self.db,[(recipient,"reply:<"+frozen_id+"@gmail.com>")]),(0,[]))
+        record=self.db.execute(
+            "SELECT lead_data->'_auto_mail' FROM owner_leads "
+            "WHERE osm_id='node/192'").fetchone()[0]
+        self.assertEqual(record["state"],"accepted")
+        self.assertEqual(record["reply_feedback"]["telegram_message_id"],193)
+        self.assertNotIn("delivery_feedback",record)
+
     def test_restart_after_uncertain_result_blocks_recipient(self):
         self.insert('node/1', 'uncertain'); self.insert('node/2')
         store = AutoMailStore(ReviewStore(self.db))
