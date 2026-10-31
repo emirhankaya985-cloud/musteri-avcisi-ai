@@ -76,6 +76,39 @@ class PostgresDedupTests(unittest.TestCase):
             "WHERE osm_id IN ('node/21','node/22')")]
         self.assertCountEqual(states, ["sending", "duplicate"])
 
+    def test_delivery_feedback_is_additive_idempotent_and_preserves_claim(self):
+        import io
+        from leadhunter.mail_watch import reconcile_mail, deliver_pending
+        self.insert("node/91", "accepted")
+        recipient="synthetic@example.invalid"
+        changed,pending=reconcile_mail(self.db, [(recipient,"delayed")])
+        self.assertEqual(changed,1)
+        self.assertEqual(len(pending),1)
+        changed,pending=reconcile_mail(self.db, [(recipient,"delayed")])
+        self.assertEqual(changed,0)
+        self.assertEqual(len(pending),1)
+        # A subsequent failure supersedes a temporary delivery delay.
+        changed,pending=reconcile_mail(self.db, [(recipient,"failed")])
+        self.assertEqual(changed,1)
+        self.assertEqual(pending, [("node/91","failed")])
+        responses=[]
+        def telegram(req,timeout=None):
+            responses.append(json.loads(req.data))
+            return io.BytesIO(b'{"ok":true,"result":{"message_id":117}}')
+        env={"TELEGRAM_BOT_TOKEN":"fake", "TELEGRAM_CHAT_ID":"123"}
+        self.assertEqual(deliver_pending(self.db,pending,env,telegram),117)
+        self.assertEqual(len(responses),1)
+        self.assertIn("Başarısız",responses[0]["text"])
+        changed,pending=reconcile_mail(self.db, [(recipient,"failed")])
+        self.assertEqual((changed,pending),(0,[]))
+        row=self.db.execute("SELECT lead_data->'_auto_mail' FROM owner_leads "
+                            "WHERE osm_id='node/91'").fetchone()[0]
+        self.assertEqual(row["state"],"accepted")
+        self.assertEqual(row["delivery_feedback"]["state"],"failed")
+        self.assertEqual(row["delivery_feedback"]["telegram_message_id"],117)
+        self.insert("node/92")
+        self.assertIsNone(AutoMailStore(ReviewStore(self.db)).claim("node/92"))
+
     def test_restart_after_uncertain_result_blocks_recipient(self):
         self.insert('node/1', 'uncertain'); self.insert('node/2')
         store = AutoMailStore(ReviewStore(self.db))
