@@ -3,11 +3,11 @@ on:
   # Start automatically when the repository changes from private to public.
   public:
   workflow_dispatch:
-  # Production opportunities are sent only on schedule or explicit owner dispatch.
-  # Do not automatically send new leads merely because workflow code changed.
+  # Owner-only opportunity research runs once every hour, every day.
+  # Avoid GitHub Actions' crowded :00 UTC trigger; actual starts may be delayed.
+  # Never start an extra scan merely because workflow code changed.
   schedule:
-    - cron: '23 7 * * 1-5' # primary 10:23 TRT
-    - cron: '53 8 * * 1-5' # backup 11:53 TRT; skips if already delivered that day
+    - cron: '13 * * * *' # once per hour, ~HH:13 TRT (GitHub cron uses UTC)
 permissions:
   contents: write
 concurrency:
@@ -73,7 +73,9 @@ jobs:
           # Telegram-only: opportunity discovery, owner messages and decisions; NEVER SMTP.
           AUTO_MAIL_ENABLED: 'false'
           MAIL_DRAFT_MODE: ${{ vars.MAIL_DRAFT_MODE || 'template' }}
-          DIGEST_DAILY_GUARD: ${{ github.event_name == 'schedule' }}
+          # Hourly checks must not be suppressed after one owner notification per day.
+          # Previously seen OSM IDs and private contacted businesses remain protected.
+          DIGEST_DAILY_GUARD: 'false'
         run: python -m leadhunter.daily_scan
       - name: Commit seen IDs (also after partial send failure)
         if: always()

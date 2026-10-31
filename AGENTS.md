@@ -12,7 +12,7 @@ Research a small OSM business sample and send **only the owner's private Telegra
 - Never write production customer data to `data/seen.json`: public OSM object IDs only.
 - Do not trigger `Telegram Lead Digest` repeatedly merely to validate code; a live run sends messages to the owner and mutates `data/seen.json`.
 - Do not claim site is hosted, emails are sent, customers contacted, cron fired on time, or paid conversions happened without evidence.
-- Do not silently alter production scheduling, secret names, public repository visibility, or the no-auto-outreach policy. Weekdays 10:23 TRT (07:23 UTC) remains primary; one backup at 11:53 TRT (08:53 UTC) skips when same-day owner messages were already sent. This backup was explicitly disclosed to the owner after the missed 26 October scan.
+- Do not silently alter production scheduling, secret names, public repository visibility, or the no-auto-outreach policy. The owner explicitly requested on 2026-11-01 **hourly scanning**: run `Telegram Lead Digest` on `13 * * * *`, with `DIGEST_DAILY_GUARD=false`, retaining public seen-ID and private recipient/business de-duplication. Scheduled `AUTO_MAIL_ENABLED` remains false. Gmail watch remains hourly, Telegram polling 15-minute; never configure a webhook on the existing polling bot.
 - Do not merge regressions or leave failed CI; if repo policies require a PR, use a branch/PR and verify it.
 
 ## Offline validation — first
@@ -39,7 +39,7 @@ The demo is written to `dist/telegram-demo.txt` (gitignored).
 - Existing demo-site is local **static demo only**, not an actual hosted or accepting-reservations business site.
 - GitHub Actions `Offline Tests` completes **success** for the current head; confirm by direct run URL, not a screenshot or commit comment.
 - `Telegram Lead Digest` can succeed with **0 new opportunities**; count is not a failure. Offline passes do not prove the current live job or scheduled event ran.
-- Inspect workflows for `cron: '23 7 * * 1-5'` and confirm a real `schedule` event on an actual Monday–Friday run before claiming the scheduled delivery verified.
+- Inspect workflows for `cron: '13 * * * *'` and confirm a real `schedule` event after the schedule change before claiming hourly scheduled operation verified.
 
 ## Handoff response
 Provide a short Turkish report with exact commit SHA, test counts, CI run links and outcomes, whether a real live digest was run and how many **new** leads were delivered, and explicit PASS / PARTIAL / FAIL for offline, live and scheduling separately. Finish with a plain-language explanation of what the system does.
