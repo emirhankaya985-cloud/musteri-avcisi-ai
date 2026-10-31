@@ -2,7 +2,7 @@
 from email.message import EmailMessage
 import unittest
 
-from leadhunter.mail_watch import bounce_feedback, read_delivery_messages
+from leadhunter.mail_watch import bounce_feedback, reply_feedback, read_delivery_messages
 
 
 def message(sender="Mail Delivery Subsystem <mailer-daemon@googlemail.com>",
@@ -55,6 +55,20 @@ class MailWatchSafetyTests(unittest.TestCase):
         self.assertEqual([c[1] for c in calls if c[0]=="uid"],["SEARCH","FETCH"])
         self.assertNotIn("STORE",str(calls))
         self.assertNotIn("SMTP",str(calls))
+
+    def test_replies_require_a_thread_reference_and_not_a_bounce(self):
+        msg = EmailMessage()
+        msg["From"] = "owner-mailbox@example.invalid"
+        msg["To"] = "sender@example.invalid"
+        msg["Subject"] = "Re: Previous outreach"
+        msg["In-Reply-To"] = "<bbbbbbbbbbbbbbbbbbbbbbbb@gmail.com>"
+        msg.set_content("Reply body is private and must never be stored.")
+        value = reply_feedback(msg.as_bytes())
+        self.assertEqual(value[0], "owner-mailbox@example.invalid")
+        self.assertIn("bbbbbbbbbbbbbbbbbbbbbbbb", value[1])
+        self.assertNotIn("Reply body is private", str(value))
+        del msg["In-Reply-To"]
+        self.assertIsNone(reply_feedback(msg.as_bytes()))
 
     def test_missing_credentials_never_attempts_connection(self):
         with self.assertRaisesRegex(RuntimeError, "not configured"):

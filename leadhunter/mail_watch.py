@@ -53,6 +53,20 @@ def bounce_feedback(raw):
     return (evidence[:200_000], state) if evidence else None
 
 
+def reply_feedback(raw):
+    """Candidate reply metadata only; full text must never enter private ledger."""
+    if len(raw) > 500_000:
+        return None
+    message = BytesParser(policy=policy.default).parsebytes(raw)
+    sender = parseaddr(str(message.get("From", "")))[1].strip().casefold()
+    refs = str(message.get("In-Reply-To", "")) + " " + str(
+        message.get("References", ""))
+    if (not sender or sender in BOUNCE_SENDERS or
+            not refs.strip() or "@" not in sender or len(refs) > 20_000):
+        return None
+    return sender, "reply:" + refs.casefold()
+
+
 def read_delivery_messages(env, imap_factory=None, days=35):
     """Gmail readonly EXAMINE/UID fetch: no email mutations."""
     address = env.get("GMAIL_SENDER_ADDRESS")
@@ -82,7 +96,7 @@ def read_delivery_messages(env, imap_factory=None, days=35):
             raw = next((part[1] for part in result if isinstance(part, tuple)
                         and isinstance(part[1], bytes)), None)
             if raw is not None:
-                feedback = bounce_feedback(raw)
+                feedback = bounce_feedback(raw) or reply_feedback(raw)
                 if feedback:
                     results.append(feedback)
         return results
@@ -115,6 +129,8 @@ def reconcile_mail(conn, notices):
                     continue
                 state = None
                 for evidence, candidate in notices:
+                    if candidate not in ("failed", "delayed"):
+                        continue  # Reply metadata cannot be a delivery failure.
                     # Trust only a message from an automated Gmail sender
                     # whose DSN evidence explicitly contains a frozen recipient.
                     if re.search(r"(?<![\w.+-])" + re.escape(recipient) + r"(?![\w.+-])", evidence):
@@ -122,6 +138,26 @@ def reconcile_mail(conn, notices):
                             state = "failed"
                             break
                         state = state or "delayed"
+                # A reply requires an exact sender-to-recipient match AND
+                # an RFC822 In-Reply-To/References header tied to our own
+                # frozen outgoing Message-ID. Merely sharing a sender is not
+                # enough to count an unrelated message as a business reply.
+                mail_id = str(record.get("id") or "").casefold()
+                has_reply = any(
+                    candidate.startswith("reply:") and
+                    evidence == recipient and len(mail_id) >= 12 and
+                    ("<" + mail_id + "@") in candidate
+                    for evidence, candidate in notices)
+                if has_reply and not record.get("reply_feedback"):
+                    reply_data = {"state": "sender_matched_reply",
+                                  "observed_at": datetime.now(timezone.utc).isoformat()}
+                    cur.execute(
+                        "UPDATE owner_leads SET lead_data=jsonb_set("
+                        "lead_data,'{_auto_mail,reply_feedback}',%s::jsonb,true),"
+                        "updated_at=now() WHERE osm_id=%s AND "
+                        "lead_data->'_auto_mail'->>'state' IN ('accepted','sending','uncertain')",
+                        (json.dumps(reply_data), lead_id))
+                    changed += 1
                 before = record.get("delivery_feedback") or {}
                 if not state or before.get("state") == "failed" or (
                         before.get("state") == state):
@@ -144,6 +180,14 @@ def reconcile_mail(conn, notices):
                 status = json.loads(feedback) if isinstance(feedback, str) else feedback
                 if status and not status.get("telegram_message_id"):
                     pending.append((lead_id, status["state"]))
+            cur.execute(
+                "SELECT osm_id, lead_data->'_auto_mail'->'reply_feedback' "
+                "FROM owner_leads WHERE lead_data->'_auto_mail'->"
+                "'reply_feedback' IS NOT NULL")
+            for lead_id, feedback in cur.fetchall():
+                status = json.loads(feedback) if isinstance(feedback, str) else feedback
+                if status and not status.get("telegram_message_id"):
+                    pending.append((lead_id, "reply"))
     return changed, pending
 
 
@@ -155,10 +199,12 @@ def deliver_pending(conn, pending, env, opener=None):
         raise RuntimeError("Owner Telegram credentials missing")
     failed = sum(state == "failed" for _, state in pending)
     delayed = sum(state == "delayed" for _, state in pending)
+    replied = sum(state == "reply" for _, state in pending)
     text = (
         "📮 Müşteri Avcısı — Gmail teslimat kontrolü\n"
         f"🔴 Başarısız teslimat bildirimi: {failed}\n"
         f"🟡 Gecikme bildirimi: {delayed}\n"
+        f"📨 Kayıtlı gönderimle eşleşen yanıt: {replied}\n"
         "⛔ Aynı alıcıya otomatik tekrar gönderim YOK.\n"
         "ℹ️ Bunlar yalnızca Gmail'in bildirimleri; SMTP kabul geçmişi korunur.\n"
         "📊 Ayrıntılı toplamlar için /eposta")
@@ -173,14 +219,18 @@ def deliver_pending(conn, pending, env, opener=None):
         raise RuntimeError("Owner-only delivery receipt missing")
     with conn.transaction():
         with conn.cursor() as cur:
-            for lead_id, _ in pending:
+            for lead_id, kind in pending:
+                path = ("{_auto_mail,reply_feedback,telegram_message_id}" if
+                        kind == "reply" else
+                        "{_auto_mail,delivery_feedback,telegram_message_id}")
+                parent = "reply_feedback" if kind == "reply" else "delivery_feedback"
                 cur.execute(
                     "UPDATE owner_leads SET lead_data=jsonb_set("
-                    "lead_data,'{_auto_mail,delivery_feedback,telegram_message_id}',"
-                    "%s::jsonb,true) WHERE osm_id=%s AND "
-                    "lead_data->'_auto_mail'->'delivery_feedback' IS NOT NULL AND "
-                    "NOT (lead_data->'_auto_mail'->'delivery_feedback' ? 'telegram_message_id')",
-                    (json.dumps(message_id), lead_id))
+                    "lead_data,%s::text[],%s::jsonb,true) WHERE osm_id=%s AND "
+                    "lead_data->'_auto_mail'->%s IS NOT NULL AND "
+                    "NOT (lead_data->'_auto_mail'->%s ? 'telegram_message_id')",
+                    (path.strip("{}").split(","), json.dumps(message_id),
+                     lead_id, parent, parent))
     return message_id
 
 
