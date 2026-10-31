@@ -99,6 +99,8 @@ def mail_status_message(review_store):
         f"⚠️ Belirsiz/devam eden: {counts['uncertain']}\n"
         f"⏭️ Adresi bulunamadığı için atlanan: {counts['skipped']}\n"
         f"🔁 Tekrar engellenen: {counts['duplicate']}\n"
+        f"🔴 Gmail başarısız teslimat: {counts.get('failed', 0)}\n"
+        f"🟡 Gmail gecikme: {counts.get('delayed', 0)}\n"
         "ℹ️ SMTP kabulü teslim kanıtı değildir. Gmail gelen yanıtları "
         "bu bot tarafından henüz otomatik okunmuyor."
     )
