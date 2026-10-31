@@ -53,13 +53,15 @@ class DailyScannerTests(unittest.TestCase):
             self.assertEqual(len(calls),2)
             self.assertEqual(json.loads(day.read_text()),{"last_sent_date":"2026-11-01"})
 
-    def test_production_hourly_workflow_never_enables_smtp(self):
+    def test_production_hourly_workflow_has_protected_smtp(self):
         from pathlib import Path
         source=(Path(__file__).resolve().parents[1]/
                 ".github/workflows/lead-digest.yml").read_text(encoding="utf-8")
         self.assertIn("cron: '13 * * * *'",source)
         self.assertNotIn("cron: '23 7 * * 1-5'",source)
         self.assertIn("AUTO_MAIL_ENABLED: 'false'",source)
+        self.assertIn("AUTO_MAIL_DAILY_LIMIT: '5'",source)
+        self.assertIn("secrets.GMAIL_APP_PASSWORD",source)
         self.assertIn("DIGEST_DAILY_GUARD: 'false'",source)
         self.assertIn("concurrency:",source)
 

@@ -54,8 +54,10 @@ def verify_config() -> None:
     assert "python -m leadhunter.daily_scan" in digest
     assert "DIGEST_DAILY_GUARD: 'false'" in digest
     assert "AUTO_MAIL_ENABLED: 'false'" in digest
+    assert "AUTO_MAIL_DAILY_LIMIT: '5'" in digest
+    assert "secrets.GMAIL_APP_PASSWORD" in digest
     assert "contents: write" in digest
-    print("PASS: CI, owner secrets, hourly cron and mail-disabled guard configured")
+    print("PASS: CI, owner secrets, hourly cron and bounded mail policy configured")
     print("NOTE: cron config is NOT proof that a scheduled run happened")
 
 

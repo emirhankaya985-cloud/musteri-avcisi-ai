@@ -126,6 +126,31 @@ class AutomaticMailTests(unittest.TestCase):
         self.assertIn('Sonuç belirsiz',report_text({},store.record))
 
 class AutomaticScanTests(unittest.TestCase):
+    def test_owner_receives_unsent_draft_in_hourly_opportunity_not_smtp(self):
+        import tempfile
+        from pathlib import Path
+        from leadhunter.core import live
+        payloads=[]
+        rows=[{'type':'node','id':801,'tags':{
+            'name':'Synthetic Test Salon','shop':'hairdresser'}}]
+        def fake_network(req,timeout):
+            if 'api.telegram.org' in req.full_url:
+                data=json.loads(req.data)
+                payloads.append(data)
+                return io.BytesIO(b'{"ok":true,"result":{"message_id":95}}')
+            self.assertIn('/interpreter',req.full_url)
+            return io.BytesIO(json.dumps({'elements':rows}).encode())
+        with tempfile.TemporaryDirectory() as tmp:
+            env={'AUTO_MAIL_ENABLED':'false','MAIL_PREVIEW_IN_TELEGRAM':'true',
+                 'TELEGRAM_BOT_TOKEN':'test-only', 'TELEGRAM_CHAT_ID':'123',
+                 'STATE_FILE':str(Path(tmp)/'seen.json')}
+            self.assertEqual(live(env, fake_network,lambda *_:None),1)
+        self.assertEqual(len(payloads),1)
+        self.assertIn('GÖNDERİLMEMİŞ e-posta taslağı',payloads[0]['text'])
+        self.assertIn('Synthetic Test Salon',payloads[0]['text'])
+        self.assertIn('Otomatik SMTP kapalı',payloads[0]['text'])
+        self.assertLessEqual(len(payloads[0]['text']),4096)
+
     def test_auto_scan_missing_config_never_contacts_any_service(self):
         from leadhunter.core import live
         with self.assertRaises(RuntimeError):

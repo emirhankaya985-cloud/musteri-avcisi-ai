@@ -32,14 +32,14 @@ class PostgresDedupTests(unittest.TestCase):
         self.db.execute("INSERT INTO owner_leads VALUES (%s,%s::jsonb,'review',now())",
                         (lid, json.dumps({'_auto_mail':record})))
 
-    def race(self, ids):
+    def race(self, ids, env=None):
         barrier = Barrier(2)
         def claim(lid):
             with self.psycopg.connect(os.environ['TEST_POSTGRES_DSN'], autocommit=True) as db:
                 db.execute('SET search_path TO ' + self.schema)
                 db.execute("SET statement_timeout = '5s'")
                 barrier.wait(timeout=5)
-                return AutoMailStore(ReviewStore(db)).claim(lid)
+                return AutoMailStore(ReviewStore(db)).claim(lid, env)
         with ThreadPoolExecutor(max_workers=2) as pool:
             return list(pool.map(claim, ids))
 
@@ -142,6 +142,50 @@ class PostgresDedupTests(unittest.TestCase):
         self.assertEqual(record["state"],"accepted")
         self.assertEqual(record["reply_feedback"]["telegram_message_id"],193)
         self.assertNotIn("delivery_feedback",record)
+
+    def test_daily_quota_one_is_global_across_concurrent_claims(self):
+        for lid, recipient in (("node/301","a301@example.invalid"),
+                               ("node/302","a302@example.invalid")):
+            data={"name":lid,"_auto_mail":{"id":lid,"state":"draft",
+                  "recipient":recipient,"subject":"Synthetic","body":"Synthetic"}}
+            self.db.execute(
+                "INSERT INTO owner_leads VALUES (%s,%s::jsonb,'review',now())",
+                (lid,json.dumps(data)))
+        results=self.race(["node/301","node/302"],{"AUTO_MAIL_DAILY_LIMIT":"1"})
+        self.assertEqual(sum(v is not None for v in results),1)
+        rows=list(self.db.execute("SELECT lead_data->'_auto_mail' FROM owner_leads "
+                                  "WHERE osm_id IN ('node/301','node/302')"))
+        self.assertCountEqual([row[0]["state"] for row in rows],["sending","draft"])
+        sending=next(row[0] for row in rows if row[0]["state"]=="sending")
+        self.assertRegex(sending["claimed_day"],r"^20[0-9]{2}-[01][0-9]-[0-3][0-9]$")
+        # Restarting with another independent business is still blocked.
+        self.db.execute("INSERT INTO owner_leads VALUES (%s,%s::jsonb,'review',now())",
+            ("node/303",json.dumps({"_auto_mail":{"id":"node/303","state":"draft",
+                      "recipient":"a303@example.invalid"}})))
+        self.assertIsNone(AutoMailStore(ReviewStore(self.db)).claim(
+            "node/303",{"AUTO_MAIL_DAILY_LIMIT":"1"}))
+
+    def test_existing_delivery_failures_pause_scheduled_auto_mail_no_claim(self):
+        for i in range(10):
+            data={"_auto_mail":{"id":"old-"+str(i),"state":"accepted",
+                  "recipient":f"old-{i}@example.invalid"}}
+            if i < 2:
+                data["_auto_mail"]["delivery_feedback"]={"state":"failed"}
+            self.db.execute("INSERT INTO owner_leads VALUES (%s,%s::jsonb,'review',now())",
+                ("node/"+str(i+500),json.dumps(data)))
+        self.db.execute("INSERT INTO owner_leads VALUES (%s,%s::jsonb,'review',now())",
+            ("node/520",json.dumps({"_auto_mail":{"id":"new","state":"draft",
+                      "recipient":"new520@example.invalid"}})))
+        store=AutoMailStore(ReviewStore(self.db))
+        self.assertIsNone(store.claim("node/520"))
+        record=self.db.execute(
+            "SELECT lead_data->'_auto_mail' FROM owner_leads WHERE osm_id='node/520'"
+        ).fetchone()[0]
+        self.assertEqual(record["state"],"draft")
+        self.assertNotIn("claimed_day",record)
+        self.assertEqual(sum(1 for row in self.db.execute(
+            "SELECT lead_data->'_auto_mail'->>'state' FROM owner_leads "
+            "WHERE osm_id='node/520'") if row[0]=="sending"),0)
 
     def test_restart_after_uncertain_result_blocks_recipient(self):
         self.insert('node/1', 'uncertain'); self.insert('node/2')

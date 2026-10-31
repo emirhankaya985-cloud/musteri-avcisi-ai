@@ -92,7 +92,10 @@ def mail_status_message(review_store):
         f"🔴 Gmail başarısız teslimat: {counts.get('failed', 0)}\n"
         f"🟡 Gmail gecikme: {counts.get('delayed', 0)}\n"
         f"📨 Gönderim referansıyla eşleşen yanıt: {counts.get('replied', 0)}\n"
-        "ℹ️ SMTP kabulü teslim kanıtı değildir. Yanıt metinleri okunup "
+        + ("🛑 Otomatik mail geçici DURAKLATILDI: yüksek teslimat hatası.\n"
+           if counts.get('accepted',0) >= 10 and counts.get('failed',0)*100 >= counts['accepted']*15
+           else "📤 Mail taslakları Telegram üzerinden; canlı SMTP kapalı.\n")
+        + "ℹ️ SMTP kabulü teslim kanıtı değildir. Yanıt metinleri okunup "
         "müşteriye otomatik cevap gönderilmez."
     )
 

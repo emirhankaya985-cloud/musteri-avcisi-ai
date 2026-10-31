@@ -411,8 +411,25 @@ def live(env=None, opener=urlopen, output=print):
                 continue
             if store:
                 store.register(item)  # private persistence before Telegram send
+            message = compact_telegram(item)
+            if env.get('MAIL_PREVIEW_IN_TELEGRAM') == 'true':
+                # Prepare the mail proposal locally; owner sees it privately.
+                # Never submit it to Gmail/SMTP from this scan.
+                from .automatic_mail import template_mail
+                preview = template_mail(item)
+                synopsis = (
+                    "\n\n✉️ <b>GÖNDERİLMEMİŞ e-posta taslağı</b>\n"
+                    "<b>Konu:</b> " + html.escape(preview['subject']) +
+                    "\n<blockquote>" + html.escape(preview['body']) +
+                    "</blockquote>\n"
+                    "⛔ Otomatik SMTP kapalı; bu mesaj yalnızca sahibine gösterilir."
+                )
+                # If Telegram size is exceeded, fall back to the short research
+                # notification, never lose an opportunity due to preview size.
+                if len(message + synopsis) <= 4096:
+                    message += synopsis
             message_id = send_telegram(
-                compact_telegram(item), token, chat_id, opener,
+                message, token, chat_id, opener,
                 reply_markup=button_markup(item['id']) if store else None)
             if store:
                 store.presented(item['id'], message_id)
