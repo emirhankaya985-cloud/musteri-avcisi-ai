@@ -56,6 +56,26 @@ class PostgresDedupTests(unittest.TestCase):
             "SELECT lead_data->'_auto_mail'->>'state' FROM owner_leads")]
         self.assertCountEqual(states, ['sending', 'duplicate'])
 
+    def test_same_business_new_recipient_concurrent_claim_still_only_once(self):
+        site = "https://owned-shop.example.invalid"
+        for lid, email in (("node/21", "first@example.invalid"),
+                           ("node/22", "second@example.invalid")):
+            lead = {
+                "name": "Synthetic Barbershop", "website": site,
+                "address": "Test sokak no 14", "email": email,
+                "_auto_mail": {"state":"draft", "recipient":email,
+                               "subject":"Synthetic", "body":"Synthetic", "id":lid}
+            }
+            self.db.execute(
+                "INSERT INTO owner_leads VALUES (%s,%s::jsonb,'review',now())",
+                (lid,json.dumps(lead)))
+        outcomes = self.race(["node/21", "node/22"])
+        self.assertEqual(sum(x is not None for x in outcomes), 1)
+        states = [x[0] for x in self.db.execute(
+            "SELECT lead_data->'_auto_mail'->>'state' FROM owner_leads "
+            "WHERE osm_id IN ('node/21','node/22')")]
+        self.assertCountEqual(states, ["sending", "duplicate"])
+
     def test_restart_after_uncertain_result_blocks_recipient(self):
         self.insert('node/1', 'uncertain'); self.insert('node/2')
         store = AutoMailStore(ReviewStore(self.db))
