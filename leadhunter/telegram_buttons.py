@@ -54,6 +54,76 @@ def send_test(env=None, opener=urlopen, output=print):
     output("Three-button owner demo delivered (1 message, no business contact)")
 
 
+
+def status_message(env):
+    """Public state only; no contact details, tokens, or private CRM content."""
+    from .core import read_seen
+    seen_path = Path(env.get("STATE_FILE", "data/seen.json"))
+    try:
+        count = len(read_seen(seen_path))
+    except (OSError, ValueError, TypeError):
+        count = None
+    day_path = Path(env.get("DIGEST_DAY_STATE_FILE", "data/last_digest_day.json"))
+    last = "Henüz doğrulanmış gün bilgisi yok"
+    try:
+        value = json.loads(day_path.read_text(encoding="utf-8"))
+        date = value.get("last_sent_date") if isinstance(value, dict) else None
+        if (isinstance(date, str) and len(date) == 10
+                and date[4] == "-" and date[7] == "-"
+                and date.replace("-", "").isdigit()):
+            last = date
+    except (OSError, ValueError, TypeError):
+        pass
+    return (
+        "🤖 Müşteri Avcısı AI — Telegram durumu\n\n"
+        "📬 Sahibe özel fırsat bildirimi ve üç butonlu karar işleme açık.\n"
+        "📅 Tarama hedefi: hafta içi 10:23 TRT; 11:53 yedek.\n"
+        "🔄 Komut/karar kontrol hedefi: 15 dakikada bir; GitHub gecikebilir.\n"
+        f"🗂️ Eski OSM arşivinde görülen kayıt: {count if count is not None else 'okunamadı'}\n"
+        f"🗓️ Son günlük rapor işareti: {last}\n"
+        "✉️ Bu zamanlanmış fırsat taraması işletmelere otomatik mail göndermez.\n"
+        "ℹ️ İşletmePilot'un ayrı CRM veritabanındaki müşteri sayısını bu komut "
+        "doğrulamaz; bu botun kendi arşivini gösterir."
+    )
+
+
+def process_owner_command(update, token, owner, env, opener=urlopen):
+    """One existing polling consumer serves owner-only private Telegram commands."""
+    import time
+    message = update.get("message") or {}
+    chat = message.get("chat") or {}
+    sender = message.get("from") or {}
+    command = message.get("text")
+    if (chat.get("type") != "private"
+            or str(chat.get("id")) != owner
+            or str(sender.get("id")) != owner
+            or sender.get("is_bot") is True
+            or not isinstance(command, str)
+            or command not in ("/durum", "/yardim", "/start")):
+        return False
+    timestamp = message.get("date")
+    if type(timestamp) is int and abs(time.time() - timestamp) > 3600:
+        return False  # never replay a stale buffered command
+    if command == "/durum":
+        text = status_message(env)
+    else:
+        text = (
+            "🤖 Müşteri Avcısı AI — yalnızca sahip Telegram sohbeti\n"
+            "🔎 /durum — otomasyon ve tarama durumunu göster.\n"
+            "✅ EVET / ❌ HAYIR / ⏳ BEKLET — fırsat mesajındaki "
+            "butonlarla karar ver.\n"
+            "ℹ️ Web paneli veya izlenecek site eklemeniz gerekmez.\n"
+            "✉️ Bu bot komutları hiçbir işletmeye mail göndermez."
+        )
+    response = api(token, "sendMessage", {
+        "chat_id": owner, "text": text, "disable_web_page_preview": True,
+    }, opener=opener)
+    if not isinstance(response, dict) or type(response.get("message_id")) is not int \
+            or response["message_id"] <= 0:
+        raise RuntimeError("Owner command response not confirmed")
+    return True
+
+
 def process_update(update, token, owner, opener=urlopen):
     callback = update.get("callback_query") or {}
     message = callback.get("message") or {}
@@ -111,7 +181,7 @@ def poll(env=None, opener=urlopen, output=print):
     try:
         updates = api(token, "getUpdates", {
             "offset": offset, "limit": 100, "timeout": 0,
-            "allowed_updates": ["callback_query"],
+            "allowed_updates": ["callback_query", "message"],
         }, opener=opener)
         if not isinstance(updates, list):
             raise RuntimeError("Invalid Telegram updates")
@@ -119,7 +189,9 @@ def poll(env=None, opener=urlopen, output=print):
             uid = update.get("update_id") if isinstance(update, dict) else None
             if type(uid) is not int or uid < offset:
                 continue
-            handled = process_update(update, token, owner, opener=opener)
+            handled = process_owner_command(update, token, owner, env, opener=opener)
+            if not handled:
+                handled = process_update(update, token, owner, opener=opener)
             if not handled and review_store and env.get('OWNER_APPROVED_MAIL_ENABLED') == 'true':
                 from .outreach import handle_mail_callback
                 try:
