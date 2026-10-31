@@ -4,9 +4,9 @@ Kadıköy pilot alanında OSM işletme kayıtlarını inceler; uygun yeni adayla
 
 ## Otonom akış
 
-- Hafta içi **10:23 TRT**, yedek **11:53 TRT**: `Telegram Lead Digest`.
+- **Haftanın 7 günü, saatte bir (yaklaşık XX:13 TRT):** `Telegram Lead Digest`. GitHub cron gecikebilir; her taramada yalnızca yeni fırsatlar özel Telegram sohbetine gönderilir. Önceden bildirilen OSM kimlikleri ve geçmişte mail atılmış işletmeler için tekrar bildirim/gönderim korumaları sürer. Günlük tek-tarama engeli saatlik araştırmada kullanılmaz; tarama otomatik mail göndermez.
 - Önce bekleyen özel Telegram mail raporları kurtarılır. Bu adım SMTP kullanmaz; OSM erişimine bağlı değildir. Rapor hatası veya 100 kayıttan büyük kalan kuyruk yeni taramayı durdurur.
-- Her taramada en fazla **5** uygun aday işlenir. Reddedilmiş/bekletilmiş, gönderilmiş veya SMTP sonucu belirsiz kayıtlar otomatik tekrar gönderilmez.
+- Her taramada en fazla **5** uygun yeni aday değerlendirilir. Saatlik fırsat taraması sadece Telegram bilgilendirmesi yapar; otomatik SMTP kapalıdır. Ayrı ve geçmişte yetkilendirilmiş mail akışları bu değişiklikle tetiklenmez. Reddedilmiş/bekletilmiş, gönderilmiş veya SMTP sonucu belirsiz kayıtlar otomatik tekrar gönderilmez.
 - Varsayılan `MAIL_DRAFT_MODE=template`: AI anahtarı gerektirmez. AI modu isteğe bağlıdır.
 - Yalnızca kaynakta yayımlanmış geçerli adresler kullanılır; alıcı adresi tahmin edilmez.
 - SMTP'den önce özel veritabanına gönderim talebi kaydedilir. İşletme kimliği ve alıcı adresi kontrolü PostgreSQL kilidi altında yapılır. Otomatik takip maili yoktur.
@@ -32,10 +32,10 @@ Offline testler sentetik veri ve mock servisler kullanır. CI ayrıca geçici Po
 30 Ekim 2026 kanıtları:
 
 - [Güncel main offline CI: 150 test başarılı](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40918211203).
-- [Gerçek schedule](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/41025477031) ve [yedek schedule](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/41034390631): başarılı; ikisi de 20 eski kayıt, 0 yeni aday, 0 bildirim.
+- [Eski hafta içi schedule](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/41025477031) ve [yedek schedule](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/41034390631) geçmişte başarılıydı; yeni **saatlik schedule** için ilk gerçek tetikleme ayrıca doğrulanmalıdır.
 - [29 Ekim özel batch](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/40917655884): 15 yeni SMTP kabulü, 0 belirsiz; tam metin raporlama yolu başarıyla tamamlandı. Gelen kutusu teslimi kanıtlanmadı.
 
-GitHub schedule gecikebilir/atlanabilir; dakik çalışma garantisi yoktur. Sonraki gerçek başarılı `schedule` olayı ve canlı Telegram gönderimi ayrı kanıtlarla değerlendirilir. Yeni rapor kurtarma adımının canlı sonucu henüz gözlemlenmedi. Dar örneklemde sıfır yeni aday normal olabilir; sistem yeni müşteri veya satış garantilemez.
+GitHub schedule gecikebilir/atlanabilir; dakik çalışma garantisi yoktur. Gmail teslimat/yanıt kontrolü ayrı saatlik job, Telegram karar işleme ise ayrı 15 dakikalık job'dur. Sonraki gerçek başarılı `schedule` olayı ve canlı Telegram gönderimi ayrı kanıtlarla değerlendirilir. Yeni rapor kurtarma adımının canlı sonucu henüz gözlemlenmedi. Dar örneklemde sıfır yeni aday normal olabilir; sistem yeni müşteri veya satış garantilemez.
 
 Üç butonlu inbox yalnızca sahibin kararlarını işler. Gmail owner-only test yalnızca sahibine gider. `demo-site/index.html` statik örnektir; gerçek rezervasyon veya ödeme hizmeti değildir. Ek ücretli hizmet/abonelik oluşturulmaz.
 
