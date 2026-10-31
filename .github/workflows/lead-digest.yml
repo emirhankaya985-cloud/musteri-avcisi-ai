@@ -68,13 +68,9 @@ jobs:
           TELEGRAM_CHAT_ID: ${{secrets.TELEGRAM_CHAT_ID }}
           SCAN_BBOX: ${{vars.SCAN_BBOX }}
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
-          AUTO_MAIL_ENABLED: 'true'
+          # Telegram-only: opportunity discovery, owner messages and decisions; NEVER SMTP.
+          AUTO_MAIL_ENABLED: 'false'
           MAIL_DRAFT_MODE: ${{ vars.MAIL_DRAFT_MODE || 'template' }}
-          GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          MAIL_AI_API_KEY: ${{ secrets.MAIL_AI_API_KEY || secrets.NVIDIA_API_KEY }}
-          MAIL_AI_MODEL: ${{ vars.MAIL_AI_MODEL || 'nvidia/nemotron-3.5-super-vl-120b-a12b' }}
-          MAIL_AI_URL: ${{ vars.MAIL_AI_URL || 'https://integrate.api.nvidia.com/v1/chat/completions' }}
           DIGEST_DAILY_GUARD: ${{ github.event_name == 'schedule' }}
         run: python -m leadhunter.daily_scan
       - name: Commit seen IDs (also after partial send failure)
