@@ -6,7 +6,8 @@ Telegram review, and inspect at most two small map tiles per run for new
 businesses. No scraping, login, marketing, or private business contacts.
 Data: © OpenStreetMap contributors (ODbL).
 """
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import json
 import math
 from urllib.parse import urlencode
@@ -38,14 +39,14 @@ def _get_json(url, opener, timeout=18):
         raise RuntimeError("Direct OSM API temporarily unavailable; no data invented") from None
 
 
-def _tiles(box, day, maximum=MAX_TILES):
+def _tiles(box, day, maximum=MAX_TILES, *, hour=0):
     south, west, north, east = box
     rows = max(1, math.ceil((north - south) / TILE_DEGREES))
     cols = max(1, math.ceil((east - west) / TILE_DEGREES))
-    # Sparse deterministic rotation; at most two tiny areas per call.
-    # A few requests per weekday, not full-area extracts from the editing API.
+    # Advance each hour, matching the owner's hourly research schedule.
+    # Retries in the same hour reuse the same bounded sample.
     count = min(maximum, rows * cols)
-    start = day.toordinal() * maximum % (rows * cols)
+    start = (day.toordinal() * 24 + hour) * maximum % (rows * cols)
     for i in range(count):
         index = (start + i) % (rows * cols)
         row, col = divmod(index, cols)
@@ -58,7 +59,8 @@ def _tiles(box, day, maximum=MAX_TILES):
         )
 
 
-def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, max_tiles=MAX_TILES):
+def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, hour=None,
+                   max_tiles=MAX_TILES):
     """Fetch previous public OSM IDs + tiny rotating tiles, fail closed.
 
     This is intentionally a degraded small-area fallback. It must not be
@@ -70,7 +72,14 @@ def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, max_tiles=MAX
         -90 <= bbox[0] < bbox[2] <= 90 and -180 <= bbox[1] < bbox[3] <= 180
     ):
         raise ValueError("Invalid OSM bounding box")
-    day = date.today() if day is None else day
+    if day is None:
+        now = datetime.now(ZoneInfo("Europe/Istanbul"))
+        day = now.date()
+        hour = now.hour if hour is None else hour
+    elif hour is None:
+        hour = 0
+    if type(hour) is not int or not 0 <= hour <= 23:
+        raise ValueError("Invalid direct OSM scan hour")
     found, successes = {}, 0
     # At most 150 previously visible public OSM IDs, no private list.
     ids = {"node": [], "way": [], "relation": []}
@@ -95,7 +104,7 @@ def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, max_tiles=MAX
         except RuntimeError:
             pass
 
-    for west, south, east, north in _tiles(bbox, day, max_tiles):
+    for west, south, east, north in _tiles(bbox, day, max_tiles, hour=hour):
         url = MAIN_API + "/map.json?" + urlencode(
             {"bbox": f"{west},{south},{east},{north}"})
         try:
