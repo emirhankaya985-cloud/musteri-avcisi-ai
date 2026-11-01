@@ -66,14 +66,14 @@ def dsn_details(message):
                 parts.append(part.get_content()[:20000])
             except (TypeError, UnicodeError, LookupError):
                 pass
-    body = "\\n".join(parts)
+    body = "\n".join(parts)
     if body:
         if not result.get("smtp_code"):
-            match = re.search(r"(?m)^\\s*([45]\\d\\d)(?!\\d)", body)
+            match = re.search(r"(?m)^\s*([45]\d\d)(?!\d)", body)
             if match:
                 result["smtp_code"] = match.group(1)
         if not result.get("enhanced_status"):
-            match = re.search(r"(?<!\\d)([45]\\.\\d{1,3}\\.\\d{1,3})(?!\\d)", body)
+            match = re.search(r"(?<!\d)([45]\.\d{1,3}\.\d{1,3})(?!\d)", body)
             if match:
                 result["enhanced_status"] = match.group(1)
         low = body.casefold()
