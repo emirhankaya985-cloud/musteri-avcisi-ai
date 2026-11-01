@@ -83,6 +83,11 @@ jobs:
           # Previously seen OSM IDs and private contacted businesses remain protected.
           DIGEST_DAILY_GUARD: 'false'
         run: python -m leadhunter.daily_scan
+      - name: Record private hold evidence for newly discovered contacts (no SMTP)
+        if: success()
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: python -m leadhunter.recipient_audit
       - name: Commit seen IDs (also after partial send failure)
         if: always()
         run: |
