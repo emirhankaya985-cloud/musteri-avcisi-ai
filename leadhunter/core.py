@@ -409,13 +409,16 @@ def live(env=None, opener=urlopen, output=print):
             if automatic:
                 from .automatic_mail import deliver, flush_reports
                 try:
-                    deliver(item, auto_store, env, opener)
+                    delivery_result = deliver(item, auto_store, env, opener)
                     sent += flush_reports(auto_store, env, opener)
                 except Exception:
                     raise RuntimeError('Automatic mail processing failed; private details redacted') from None
-                seen.add(item['id'])
-                save_seen(state, seen)
-                continue
+                if delivery_result != 'paused':
+                    seen.add(item['id'])
+                    save_seen(state, seen)
+                    continue
+                # Missing recipient eligibility or exhausted quota: send the
+                # owner an unsent proposal, not SMTP, never drop the lead.
             if store:
                 store.register(item)  # private persistence before Telegram send
             message = compact_telegram(item)
