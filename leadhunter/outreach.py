@@ -62,14 +62,29 @@ def send_mail(draft, env, smtp_factory=None):
     msg['Message-ID'] = '<'+draft['id']+'@'+sender.split('@')[1]+'>'
     msg.set_content(draft['body'])
     factory = smtp_factory or smtplib.SMTP_SSL
-    try:
-        with factory('smtp.gmail.com',465,context=ssl.create_default_context(),timeout=30) as smtp:
-            smtp.login(sender,password)
-            if smtp.send_message(msg,from_addr=sender,to_addrs=[draft['recipient']]):
-                raise RuntimeError()
-    except Exception:
-        # A timeout after DATA can mean delivered. Never automatically retry.
-        raise RuntimeError('SMTP outcome uncertain; no automatic retry') from None
+    for attempt in range(2):
+        try:
+            with factory('smtp.gmail.com',465,context=ssl.create_default_context(),timeout=30) as smtp:
+                smtp.login(sender,password)
+                if smtp.send_message(msg,from_addr=sender,to_addrs=[draft['recipient']]):
+                    raise RuntimeError('Recipient not accepted')
+            return
+        except smtplib.SMTPRecipientsRefused as exc:
+            # Python raises this only when all recipients are refused *at RCPT
+            # stage*, BEFORE message DATA. One frozen recipient is mandatory.
+            # Exactly one bounded retry is allowed for a verified 4xx refusal.
+            replies = list(exc.recipients.values())
+            temporary = (len(exc.recipients) == 1 and len(replies) == 1
+                         and isinstance(replies[0], tuple)
+                         and type(replies[0][0]) is int
+                         and 400 <= replies[0][0] < 500)
+            if temporary and attempt == 0:
+                continue  # No message body was accepted, so safe to retry.
+            raise RuntimeError('SMTP recipient refused; no further retry') from None
+        except Exception:
+            # Any timeout or error during/after DATA may already be accepted.
+            # Never retry ambiguous outcomes or server delivery delays.
+            raise RuntimeError('SMTP outcome uncertain; no automatic retry') from None
 
 
 class MailStore:
