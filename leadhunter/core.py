@@ -329,7 +329,7 @@ def live(env=None, opener=urlopen, output=print):
         # Never silently claim "zero opportunities" in this situation.
         raise RuntimeError('OSM source inconsistent with previously seen records; retry later')
     stats = discovery_stats(raw, seen)
-    from .review_messages import compact_telegram, button_markup
+    from .review_messages import compact_telegram
     from .review_flow import prioritized_leads
     from .review_private import ReviewStore, connect_private_database
 
@@ -428,9 +428,10 @@ def live(env=None, opener=urlopen, output=print):
                 # notification, never lose an opportunity due to preview size.
                 if len(message + synopsis) <= 4096:
                     message += synopsis
-            message_id = send_telegram(
-                message, token, chat_id, opener,
-                reply_markup=button_markup(item['id']) if store else None)
+            # Automated research is independent of legacy owner-approval
+            # buttons: show the opportunity and unsent draft for information.
+            # The separate guarded SMTP path remains disabled until eligible.
+            message_id = send_telegram(message, token, chat_id, opener)
             if store:
                 store.presented(item['id'], message_id)
             seen.add(item['id'])
