@@ -71,7 +71,7 @@ def status_message(env):
         "🔄 Komut/karar kontrolü: 15 dakikada bir; GitHub gecikebilir.\n"
         f"🗂️ OSM arşivinde görülen kayıt: {count if count is not None else 'okunamadı'}\n"
         "🆕 Yalnızca yeni fırsatlar bildirilir; aynı kayıt tekrar gönderilmez.\n"
-        "✉️ Bu zamanlanmış fırsat taraması işletmelere otomatik mail göndermez.\n"
+        "✉️ Otomatik mail yalnızca belgeli alıcı uygunluğu ve teslimat sağlığı geçerse gönderilir.\n"
         "ℹ️ İşletmePilot'un ayrı CRM veritabanındaki müşteri sayısını bu komut "
         "doğrulamaz; bu botun kendi arşivini gösterir."
     )
