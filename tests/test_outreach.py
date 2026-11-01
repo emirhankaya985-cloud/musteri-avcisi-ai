@@ -87,12 +87,24 @@ class OutreachTests(unittest.TestCase):
 
     def test_uncertain_delivery_is_not_released_for_retry(self):
         review=MagicMock()
-        cur=review.db.cursor.return_value.__enter__.return_value
-        cur.fetchone.return_value=({'_mail':self.draft},)
-        with patch('leadhunter.outreach.send_mail',side_effect=RuntimeError('redacted')):
-            self.assertEqual(MailStore(review).send('node/1',2,'a'*24,self.env),'uncertain')
-        self.assertEqual(cur.execute.call_count,2)
-        self.assertIn("'sending'",cur.execute.call_args.args[0].replace('"',''))
+        store=MailStore(review)
+        with patch.object(store,'_claim',return_value={**self.draft,'state':'sending'}):
+            with patch('leadhunter.outreach.send_mail',side_effect=RuntimeError('redacted')) as send:
+                self.assertEqual(store.send('node/1',2,'a'*24,self.env),'uncertain')
+                self.assertEqual(send.call_count,1)
+        # The committed claim remains sending and is never reset to draft.
+        review.db.cursor.assert_not_called()
+
+    def test_manual_mail_requires_atomic_claim_and_eligibility(self):
+        review=MagicMock()
+        store=MailStore(review)
+        for refusal in ('not_eligible','paused','duplicate'):
+            with self.subTest(refusal=refusal):
+                with patch.object(store,'_claim',return_value=refusal):
+                    with patch('leadhunter.outreach.send_mail') as send:
+                        self.assertEqual(store.send('node/1',2,'a'*24,self.env),refusal)
+                        send.assert_not_called()
+
 
     def test_foreign_callback_rejected_without_database(self):
         review=MagicMock()

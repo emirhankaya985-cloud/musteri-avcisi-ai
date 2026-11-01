@@ -121,8 +121,10 @@ class AutoMailStore:
         """Sender-level stop based on immutable acceptance + observed bounces."""
         with self.db.cursor() as cur:
             cur.execute(
-                "SELECT COUNT(*) FILTER (WHERE lead_data->'_auto_mail'->>'state'='accepted'),"
-                " COUNT(*) FILTER (WHERE lead_data->'_auto_mail'->'delivery_feedback'->>'state'='failed')"
+                "SELECT COUNT(*) FILTER (WHERE lead_data->'_auto_mail'->>'state'='accepted'"
+                " OR lead_data->'_mail'->>'state'='accepted'),"
+                " COUNT(*) FILTER (WHERE lead_data->'_auto_mail'->'delivery_feedback'->>'state'='failed'"
+                " OR lead_data->'_mail'->'delivery_feedback'->>'state'='failed')"
                 " FROM owner_leads")
             accepted, failed = cur.fetchone()
         return int(accepted or 0) >= 10 and int(failed or 0) * 100 >= int(accepted) * 15
@@ -189,8 +191,13 @@ class AutoMailStore:
                             "(lower(btrim(lead_data->'_auto_mail'->>'recipient'))=%s AND "
                             "lead_data->'_auto_mail'->>'state' IN ('sending','accepted','uncertain')) OR "
                             "(lower(btrim(lead_data->'_mail'->>'recipient'))=%s AND "
-                            "lead_data->'_mail'->>'state' IN ('sending','accepted','uncertain'))) LIMIT 1",
-                            (lead_id,recipient,recipient))
+                            "lead_data->'_mail'->>'state' IN ('sending','accepted','uncertain')) OR "
+                            "((status IN ('rejected','deferred') OR "
+                            "lead_data->'marketing_eligibility'->>'opted_out'='true') AND "
+                            "(lower(btrim(lead_data->'_auto_mail'->>'recipient'))=%s OR "
+                            "lower(btrim(lead_data->'_mail'->>'recipient'))=%s OR "
+                            "lower(btrim(lead_data->>'email'))=%s))) LIMIT 1",
+                            (lead_id,recipient,recipient,recipient,recipient,recipient))
                 duplicate = bool(cur.fetchone())
                 if not duplicate:
                     # Old records may use a different recipient and OSM ID for
@@ -212,13 +219,17 @@ class AutoMailStore:
                     # trigger this automatic fail-closed reputation circuit.
                     cur.execute(
                         "SELECT count(*) FILTER (WHERE "
-                        "lead_data->'_auto_mail'->>'state'='accepted'),"
+                        "lead_data->'_auto_mail'->>'state'='accepted' OR "
+                        "lead_data->'_mail'->>'state'='accepted'),"
                         "count(*) FILTER (WHERE "
-                        "lead_data->'_auto_mail'->'delivery_feedback'->>'state'='failed'),"
-                        "count(*) FILTER (WHERE "
+                        "lead_data->'_auto_mail'->'delivery_feedback'->>'state'='failed' OR "
+                        "lead_data->'_mail'->'delivery_feedback'->>'state'='failed'),"
+                        "count(*) FILTER (WHERE ("
                         "lead_data->'_auto_mail'->>'claimed_day'=%s AND "
-                        "lead_data->'_auto_mail'->>'state' IN ('sending','accepted','uncertain')) "
-                        "FROM owner_leads", (local_day,))
+                        "lead_data->'_auto_mail'->>'state' IN ('sending','accepted','uncertain')) OR ("
+                        "lead_data->'_mail'->>'claimed_day'=%s AND "
+                        "lead_data->'_mail'->>'state' IN ('sending','accepted','uncertain'))) "
+                        "FROM owner_leads", (local_day, local_day))
                     accepted, failed, used = cur.fetchone()
                     if int(accepted or 0) >= 10 and int(failed or 0) * 100 >= int(accepted) * 15:
                         # Keep draft eligible for later after genuine remediation;
