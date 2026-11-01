@@ -117,6 +117,17 @@ class AutoMailStore:
                 and data.get('_mail', {}).get('state') not in ('sending','accepted'))
 
     @private_operation
+    def reputation_paused(self):
+        """Sender-level stop based on immutable acceptance + observed bounces."""
+        with self.db.cursor() as cur:
+            cur.execute(
+                "SELECT COUNT(*) FILTER (WHERE lead_data->'_auto_mail'->>'state'='accepted'),"
+                " COUNT(*) FILTER (WHERE lead_data->'_auto_mail'->'delivery_feedback'->>'state'='failed')"
+                " FROM owner_leads")
+            accepted, failed = cur.fetchone()
+        return int(accepted or 0) >= 10 and int(failed or 0) * 100 >= int(accepted) * 15
+
+    @private_operation
     def prepare(self, lead, env, opener):
         # Private registration is immutable once a mail record exists.
         with self.db.cursor() as cur:
@@ -167,6 +178,13 @@ class AutoMailStore:
                 if row[1] != 'review' or record.get('state') != 'draft':
                     return None
                 recipient = record['recipient']
+                # The scheduled automation is never allowed to infer legal
+                # marketing eligibility from an OSM address or an MX record.
+                # Business/IYS status, consent evidence and freshness are private.
+                if env.get('AUTO_MAIL_ENABLED') == 'true':
+                    from .recipient_eligibility import eligible_recipient
+                    if not eligible_recipient(data, recipient):
+                        return None
                 cur.execute("SELECT osm_id FROM owner_leads WHERE osm_id<>%s AND ("
                             "(lower(btrim(lead_data->'_auto_mail'->>'recipient'))=%s AND "
                             "lead_data->'_auto_mail'->>'state' IN ('sending','accepted','uncertain')) OR "
@@ -242,16 +260,17 @@ class AutoMailStore:
 def deliver(lead, store, env, opener, mail_sender=send_mail):
     record = store.prepare(lead,env,opener)
     if not record or record['state'] != 'draft':
-        return
+        return 'not_actionable'
     record = store.claim(lead['id'], env)
     if not record:
-        return
+        return 'paused'
     try:
         mail_sender(record,{**env,'OWNER_APPROVED_MAIL_ENABLED':'true'})
     except RuntimeError:
         store.finish(lead['id'],'uncertain')
-        return
+        return 'attempted'
     store.finish(lead['id'],'accepted')
+    return 'attempted'
 
 
 def flush_reports(store, env, opener):

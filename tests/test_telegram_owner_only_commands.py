@@ -47,7 +47,7 @@ class TelegramOwnerOnlyTests(unittest.TestCase):
             self.assertIn("saatte bir", text)
             self.assertIn("15 dakikada bir", text)
             self.assertNotIn("Son günlük rapor", text)
-            self.assertIn("otomatik mail göndermez", text)
+            self.assertIn("belgeli alıcı uygunluğu", text)
             self.assertIn("ayrı CRM", text)
             self.assertNotIn("TELEGRAM_BOT_TOKEN", text)
 

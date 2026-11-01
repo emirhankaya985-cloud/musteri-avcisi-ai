@@ -70,9 +70,10 @@ jobs:
           TELEGRAM_CHAT_ID: ${{secrets.TELEGRAM_CHAT_ID }}
           SCAN_BBOX: ${{vars.SCAN_BBOX }}
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
-          # Owner-requested mail draft integration; live SMTP remains paused.
+          # Owner-requested SMTP automation with mandatory recipient and bounce gates.
+          # On the current 3/15 failure rate it falls back to Telegram drafts.
           # Any future owner-approved SMTP path uses Postgres hard caps <=5/day and the 15% bounce circuit.
-          AUTO_MAIL_ENABLED: 'false'
+          AUTO_MAIL_ENABLED: 'true'
           MAIL_PREVIEW_IN_TELEGRAM: 'true'
           AUTO_MAIL_DAILY_LIMIT: '5'
           GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}

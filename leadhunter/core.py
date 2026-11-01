@@ -295,7 +295,13 @@ def live(env=None, opener=urlopen, output=print):
     automatic = env.get('AUTO_MAIL_ENABLED') == 'true'
     if automatic:
         from .automatic_mail import check_config
-        check_config(env)
+        try:
+            check_config(env)
+        except RuntimeError:
+            # A misconfigured sender must never take down owner-only research
+            # or accidentally trigger SMTP. Keep Telegram draft-only mode.
+            automatic = False
+            output('AUTO_MAIL_PAUSED: sender configuration unavailable; no SMTP')
     token, chat_id = env.get('TELEGRAM_BOT_TOKEN'), env.get('TELEGRAM_CHAT_ID')
     if not token or not chat_id:
         raise RuntimeError('TELEGRAM_BOT_TOKEN ve TELEGRAM_CHAT_ID eksik')
@@ -346,6 +352,13 @@ def live(env=None, opener=urlopen, output=print):
                 from .automatic_mail import AutoMailStore, flush_reports
                 auto_store = AutoMailStore(store)
                 sent += flush_reports(auto_store, env, opener)
+                if auto_store.reputation_paused():
+                    # High historical Gmail bounce rate: do not call SMTP.
+                    # Continue normal butonsuz Telegram research/draft notices
+                    # instead of silently consuming new opportunities.
+                    automatic = False
+                    output("AUTO_MAIL_PAUSED: historical delivery failure circuit active; "
+                           "new opportunity drafts remain owner-only")
             eligible = []
             legacy = []
             for item in raw:
@@ -402,13 +415,16 @@ def live(env=None, opener=urlopen, output=print):
             if automatic:
                 from .automatic_mail import deliver, flush_reports
                 try:
-                    deliver(item, auto_store, env, opener)
+                    delivery_result = deliver(item, auto_store, env, opener)
                     sent += flush_reports(auto_store, env, opener)
                 except Exception:
                     raise RuntimeError('Automatic mail processing failed; private details redacted') from None
-                seen.add(item['id'])
-                save_seen(state, seen)
-                continue
+                if delivery_result != 'paused':
+                    seen.add(item['id'])
+                    save_seen(state, seen)
+                    continue
+                # Missing recipient eligibility or exhausted quota: send the
+                # owner an unsent proposal, not SMTP, never drop the lead.
             if store:
                 store.register(item)  # private persistence before Telegram send
             message = compact_telegram(item)
