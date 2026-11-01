@@ -152,6 +152,41 @@ class AutomaticScanTests(unittest.TestCase):
         self.assertLessEqual(len(payloads[0]['text']),4096)
         self.assertNotIn('reply_markup', payloads[0])
 
+    def test_high_bounce_auto_mode_falls_back_to_owner_draft_not_smtp(self):
+        import tempfile
+        from pathlib import Path
+        from leadhunter.core import live
+        test_env=AutomaticMailTests()
+        test_env.setUp()
+        notices=[]
+        rows=[{"type":"node","id":919,"tags":{"name":"Synthetic Owner Preview",
+                       "shop":"hairdresser"}}]
+        def opener(req,timeout):
+            if "api.telegram.org" in req.full_url:
+                data=json.loads(req.data)
+                notices.append(data)
+                return io.BytesIO(b'{"ok":true,"result":{"message_id":919}}')
+            return io.BytesIO(json.dumps({"elements":rows}).encode())
+        review=MagicMock()
+        review.statuses.return_value={}
+        review.deferred.return_value=[]
+        review.already_contacted.return_value=False
+        auto=MagicMock()
+        auto.reputation_paused.return_value=True
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "leadhunter.review_private.connect_private_database"), patch(
+            "leadhunter.review_private.ReviewStore",return_value=review), patch(
+            "leadhunter.automatic_mail.AutoMailStore",return_value=auto), patch(
+            "leadhunter.automatic_mail.flush_reports",return_value=0), patch(
+            "leadhunter.automatic_mail.deliver",side_effect=AssertionError("SMTP blocked")):
+            env={**test_env.env,"MAIL_DRAFT_MODE":"template",
+                 "MAIL_PREVIEW_IN_TELEGRAM":"true",
+                 "STATE_FILE":str(Path(tmp)/"seen.json")}
+            self.assertEqual(live(env,opener,lambda *_:None),1)
+        self.assertEqual(len(notices),1)
+        self.assertIn("GÖNDERİLMEMİŞ",notices[0]["text"])
+        self.assertNotIn("reply_markup",notices[0])
+
     def test_auto_scan_missing_config_never_contacts_any_service(self):
         from leadhunter.core import live
         with self.assertRaises(RuntimeError):
