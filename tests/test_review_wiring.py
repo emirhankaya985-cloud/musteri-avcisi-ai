@@ -172,10 +172,8 @@ class DecisionWiringTests(unittest.TestCase):
                 self.assertEqual(live(env, opener, lambda _:None), 2)
                 self.assertEqual(live(env, opener, lambda _:None), 0)
         self.assertEqual(len(telegram),2)
-        self.assertIn("✅ Evet", str(telegram[0]['reply_markup']))
-        self.assertEqual([payload['reply_markup']['inline_keyboard'][0][0]['callback_data']
-                          for payload in telegram],
-                         ['lead:v1:yes:node/43','lead:v1:yes:node/42'])
+        self.assertTrue(all('reply_markup' not in payload for payload in telegram))
+        self.assertTrue(all('inline_keyboard' not in str(payload) for payload in telegram))
         self.assertIn(('presented', old_id, 2), events)
         self.assertEqual(set(db.records), {new_id, old_id})
 
@@ -218,7 +216,7 @@ class DecisionWiringTests(unittest.TestCase):
                 self.assertEqual(live(env,opener,lambda *_:None),1)
         tg=[z[1] for z in calls if z[0]=='telegram']
         self.assertEqual(len(tg),1)
-        self.assertIn('lead:v1:yes:node/42',str(tg[0]['reply_markup']))
+        self.assertNotIn('reply_markup', tg[0])
         self.assertIn(('saved','node/42',77),calls)
 
 
