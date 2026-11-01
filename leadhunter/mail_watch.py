@@ -37,10 +37,10 @@ def dsn_details(message):
                 if value:
                     recipients.add(value)
             status = str(block.get("Status", "")).strip()
-            if re.fullmatch(r"[245]\\.\\d{1,3}\\.\\d{1,3}", status):
+            if re.fullmatch(r"[245]\.\d{1,3}\.\d{1,3}", status):
                 enhanced.add(status)
             diagnostic = str(block.get("Diagnostic-Code", ""))
-            match = re.search(r"(?<!\\d)([245]\\d\\d)(?!\\d)", diagnostic)
+            match = re.search(r"(?<!\d)([245]\d\d)(?!\d)", diagnostic)
             if match:
                 smtp_codes.add(match.group(1))
     # A shared multi-recipient DSN cannot safely attribute one code to a lead.
