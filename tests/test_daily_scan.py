@@ -59,7 +59,7 @@ class DailyScannerTests(unittest.TestCase):
                 ".github/workflows/lead-digest.yml").read_text(encoding="utf-8")
         self.assertIn("cron: '13 * * * *'",source)
         self.assertNotIn("cron: '23 7 * * 1-5'",source)
-        self.assertIn("AUTO_MAIL_ENABLED: 'false'",source)
+        self.assertIn("AUTO_MAIL_ENABLED: 'true'",source)
         self.assertIn("AUTO_MAIL_DAILY_LIMIT: '5'",source)
         self.assertIn("secrets.GMAIL_APP_PASSWORD",source)
         self.assertIn("DIGEST_DAILY_GUARD: 'false'",source)
