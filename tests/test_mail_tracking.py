@@ -34,6 +34,35 @@ class MailHistorySafetyTests(unittest.TestCase):
         social_b = {"name": "B", "website": "https://facebook.com/two"}
         self.assertFalse(identity_keys(social_a) & identity_keys(social_b))
 
+    def test_shared_profile_hosts_do_not_falsely_deduplicate_distinct_businesses(self):
+        # Same platform host does not prove the profiles are the same shop.
+        for first, second in (
+            ("https://www.linkedin.com/company/shop-a",
+             "https://www.linkedin.com/company/shop-b"),
+            ("https://www.youtube.com/@shop-a",
+             "https://m.youtube.com/@shop-b"),
+            ("https://sites.google.com/view/shop-a",
+             "https://sites.google.com/view/shop-b"),
+            ("https://maps.app.goo.gl/a", "https://maps.app.goo.gl/b"),
+            ("https://x.com/shop_a", "https://x.com/shop_b"),
+        ):
+            with self.subTest(first=first):
+                new = {"name": "Shop A", "website": first,
+                       "email": "a@a.example.invalid"}
+                prior = {"name": "Shop B", "website": second,
+                         "_auto_mail": {"state": "accepted",
+                                        "recipient": "b@b.example.invalid"}}
+                self.assertFalse(identity_keys(new) & identity_keys(prior))
+                self.assertFalse(already_contacted(new, prior))
+
+    def test_business_owned_website_still_deduplicates(self):
+        new = {"name": "Shop A", "website": "https://shop.example.invalid",
+               "email": "a@a.example.invalid"}
+        prior = {"name": "Shop B", "website": "https://shop.example.invalid/menu",
+                 "_auto_mail": {"state": "accepted",
+                                "recipient": "b@b.example.invalid"}}
+        self.assertTrue(already_contacted(new, prior))
+
     def test_real_mx_lookup_not_mailbox_verification(self):
         class MX:
             exchange = "mx.example.invalid."

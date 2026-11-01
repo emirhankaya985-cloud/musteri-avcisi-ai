@@ -9,9 +9,14 @@ from urllib.parse import urlsplit
 
 from .outreach import valid_recipient
 
+# Shared platforms identify the host service, not the individual business.
+# Two unrelated businesses may publish different profiles on one platform.
 GENERIC_HOSTS = {
     "facebook.com", "instagram.com", "tiktok.com", "linktr.ee",
     "wa.me", "whatsapp.com", "maps.google.com",
+    "linkedin.com", "youtube.com", "youtu.be", "x.com",
+    "twitter.com", "pinterest.com", "t.me", "telegram.me",
+    "google.com", "maps.app.goo.gl", "business.site",
 }
 
 
@@ -29,8 +34,9 @@ def identity_keys(lead):
         try:
             host = (urlsplit(website if "://" in website else "https://" + website).hostname or "").lower()
             host = host.removeprefix("www.")
-            if host and "." in host and host not in GENERIC_HOSTS and not host.endswith(
-                    (".facebook.com", ".instagram.com", ".google.com")):
+            if host and "." in host and not any(
+                    host == shared or host.endswith("." + shared)
+                    for shared in GENERIC_HOSTS):
                 keys.add("site:" + host)
         except ValueError:
             pass
