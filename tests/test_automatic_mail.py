@@ -166,6 +166,7 @@ class AutomaticScanTests(unittest.TestCase):
               'email':f'business{i}@example.invalid'}} for i in range(10)]
         review=MagicMock();review.statuses.return_value={}
         auto=MagicMock();auto.actionable.return_value=True
+        auto.reputation_paused.return_value=False
         def opener(req,timeout):
             self.assertNotIn('telegram',req.full_url)
             return io.BytesIO(json.dumps({'elements':rows}).encode())
