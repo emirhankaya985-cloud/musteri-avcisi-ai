@@ -67,14 +67,10 @@ class MailWatchSafetyTests(unittest.TestCase):
         ]
         for subject, diagnostic, code, reason, kind in cases:
             with self.subTest(reason=reason):
-                feedback = bounce_feedback(message(
-                    subject=f"Delivery Status Notification ({subject})",
-                    recipient="owner@example.invalid") + b"") 
-                self.assertIsNotNone(feedback)
                 msg = EmailMessage()
                 msg["From"] = "mailer-daemon@googlemail.com"
                 msg["Subject"] = f"Delivery Status Notification ({subject})"
-                msg.set_content("Delivery problem for owner@example.invalid\\n" + diagnostic)
+                msg.set_content("Delivery problem for owner@example.invalid\n" + diagnostic)
                 value = bounce_feedback(msg.as_bytes())
                 self.assertEqual(value[2].get("smtp_code"), code)
                 self.assertEqual(value[2]["reason"], reason)
