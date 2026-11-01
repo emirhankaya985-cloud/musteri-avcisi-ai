@@ -121,6 +121,20 @@ class MailWatchSafetyTests(unittest.TestCase):
         del msg["In-Reply-To"]
         self.assertIsNone(reply_feedback(msg.as_bytes()))
 
+    def test_mixed_bounce_and_reply_shapes_do_not_confuse_matching(self):
+        from leadhunter.mail_watch import matching_reply
+        notices = [
+            ("undelivered to owner@example.invalid", "failed",
+             {"smtp_code":"550", "failure_kind":"permanent"}),
+            ("owner@example.invalid", "reply:<abcdefghijklmnopqrstuv@gmail.com>"),
+        ]
+        self.assertTrue(matching_reply(notices, "owner@example.invalid",
+                                       "abcdefghijklmnopqrstuv"))
+        self.assertFalse(matching_reply(notices, "other@example.invalid",
+                                        "abcdefghijklmnopqrstuv"))
+        self.assertFalse(matching_reply(notices[:1], "owner@example.invalid",
+                                        "abcdefghijklmnopqrstuv"))
+
     def test_missing_credentials_never_attempts_connection(self):
         with self.assertRaisesRegex(RuntimeError, "not configured"):
             read_delivery_messages({}, imap_factory=lambda *a,**kw:
