@@ -35,3 +35,7 @@ jobs:
         env:
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
         run: python -m leadhunter.recipient_audit
+      - name: Evaluate private safety gates (read-only dry run; no SMTP)
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: python -m leadhunter.recipient_audit --dry-run
