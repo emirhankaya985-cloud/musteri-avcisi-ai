@@ -99,7 +99,10 @@ class PostgresDedupTests(unittest.TestCase):
         self.db.execute("CREATE TABLE owner_daily_report_receipts ("
                         "report_day text PRIMARY KEY,state text NOT NULL,"
                         "telegram_message_id bigint,updated_at timestamptz DEFAULT now())")
-        self.insert("node/5001")
+        self.db.execute("INSERT INTO owner_leads "
+            "(osm_id,lead_data,status,updated_at) VALUES (%s,%s::jsonb,'review',now())",
+            ("node/5001",json.dumps({"_auto_mail":{"state":"draft",
+                "recipient":"synthetic@example.invalid"}})))
         messages=[]
         def fake_bot(token,method,data):
             self.assertEqual(method,"sendMessage")
