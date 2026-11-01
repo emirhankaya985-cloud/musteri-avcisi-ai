@@ -164,6 +164,28 @@ class PostgresDedupTests(unittest.TestCase):
         self.assertEqual([r[0]['reason'] for r in rows],
                          ['legal_basis_unverified','previous_contact'])
 
+    def test_rescan_preserves_eligibility_evidence_only_for_same_address(self):
+        seed={"name":"old","email":"synthetic@example.invalid",
+              "recipient_eligibility_audit":{"decision":"hold","reason":"legal_basis_unverified"},
+              "marketing_eligibility":{"opted_out":True}}
+        self.db.execute("INSERT INTO owner_leads "
+            "(osm_id,lead_data,status) VALUES (%s,%s::jsonb,'review')",
+            ("node/92001",json.dumps(seed)))
+        store=ReviewStore(self.db)
+        store.register({"id":"node/92001","name":"new",
+                        "email":"synthetic@example.invalid"})
+        data=self.db.execute(
+            "SELECT lead_data FROM owner_leads WHERE osm_id='node/92001'").fetchone()[0]
+        self.assertEqual(data["name"],"new")
+        self.assertEqual(data["recipient_eligibility_audit"]["decision"],"hold")
+        self.assertTrue(data["marketing_eligibility"]["opted_out"])
+        store.register({"id":"node/92001","name":"changed",
+                        "email":"different@example.invalid"})
+        after=self.db.execute(
+            "SELECT lead_data FROM owner_leads WHERE osm_id='node/92001'").fetchone()[0]
+        self.assertNotIn("recipient_eligibility_audit",after)
+        self.assertNotIn("marketing_eligibility",after)
+
     def test_same_business_concurrent_claim_only_once(self):
         self.insert('node/1')
         results = self.race(['node/1', 'node/1'])
