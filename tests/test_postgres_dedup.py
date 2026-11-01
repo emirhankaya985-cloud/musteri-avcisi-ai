@@ -187,6 +187,55 @@ class PostgresDedupTests(unittest.TestCase):
             "SELECT lead_data->'_auto_mail'->>'state' FROM owner_leads "
             "WHERE osm_id='node/520'") if row[0]=="sending"),0)
 
+    def test_production_auto_requires_verified_recipient_before_claim(self):
+        self.insert("node/701")
+        env={"AUTO_MAIL_ENABLED":"true","AUTO_MAIL_DAILY_LIMIT":"5"}
+        store=AutoMailStore(ReviewStore(self.db))
+        self.assertIsNone(store.claim("node/701",env))
+        row=self.db.execute(
+            "SELECT lead_data->'_auto_mail' FROM owner_leads WHERE osm_id='node/701'"
+        ).fetchone()[0]
+        self.assertEqual(row["state"],"draft")
+        self.assertNotIn("claimed_day",row)
+        # A forged OSM shop tag, a valid-looking email and MX cannot grant
+        # an IYS verified status to the sender.
+        self.db.execute("UPDATE owner_leads SET lead_data=jsonb_set("
+            "lead_data,'{shop}','\"hairdresser\"'::jsonb) WHERE osm_id='node/701'")
+        self.assertIsNone(store.claim("node/701",env))
+
+    def test_verified_synthetic_business_claim_is_single_use(self):
+        from datetime import datetime, timezone
+        self.insert("node/702")
+        proof={"route":"consent","recipient":"synthetic@example.invalid",
+               "evidence_ref":"synthetic-document-123456",
+               "verified_at":datetime.now(timezone.utc).isoformat(),
+               "opted_out":False,"consent_active":True}
+        self.db.execute("UPDATE owner_leads SET lead_data=jsonb_set("
+                        "lead_data,'{marketing_eligibility}',%s::jsonb,true)"
+                        " WHERE osm_id='node/702'",(json.dumps(proof),))
+        store=AutoMailStore(ReviewStore(self.db))
+        env={"AUTO_MAIL_ENABLED":"true","AUTO_MAIL_DAILY_LIMIT":"5"}
+        accepted=store.claim("node/702",env)
+        self.assertIsNotNone(accepted)
+        self.assertEqual(accepted["state"],"sending")
+        self.assertIsNone(store.claim("node/702",env))
+        row=self.db.execute("SELECT lead_data->'_auto_mail' FROM owner_leads"
+                            " WHERE osm_id='node/702'").fetchone()[0]
+        self.assertEqual(row["state"],"sending")
+        self.assertTrue(row["claimed_day"])
+
+    def test_bounce_pause_read_only_no_claims(self):
+        for i in range(15):
+            record={"state":"accepted","recipient":f"synthetic-{i}@example.invalid"}
+            if i < 3:
+                record["delivery_feedback"]={"state":"failed"}
+            self.db.execute("INSERT INTO owner_leads VALUES (%s,%s::jsonb,'review',now())",
+                ("node/"+str(800+i),json.dumps({"_auto_mail":record})))
+        store=AutoMailStore(ReviewStore(self.db))
+        self.assertTrue(store.reputation_paused())
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM owner_leads WHERE"
+            " lead_data->'_auto_mail'->>'state'='sending'").fetchone()[0],0)
+
     def test_restart_after_uncertain_result_blocks_recipient(self):
         self.insert('node/1', 'uncertain'); self.insert('node/2')
         store = AutoMailStore(ReviewStore(self.db))
