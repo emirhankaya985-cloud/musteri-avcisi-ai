@@ -118,31 +118,106 @@ class MailStore:
         # Concurrent preparation uses the winning frozen version.
         return self.load(lead_id,message_id)['_mail']
 
+    def _claim(self, lead_id, message_id, draft_id, env):
+        """One shared, committed Postgres claim for manual and automatic workers."""
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from .recipient_eligibility import eligible_recipient
+        from .mail_tracking import already_contacted
+
+        today = datetime.now(ZoneInfo("Europe/Istanbul")).date().isoformat()
+        with self.db.transaction():
+            with self.db.cursor() as cur:
+                # This is the SAME advisory lock used by AutoMailStore.claim.
+                cur.execute("SELECT pg_advisory_xact_lock(789654321)")
+                cur.execute(
+                    "SELECT lead_data,status,telegram_message_id FROM owner_leads "
+                    "WHERE osm_id=%s FOR UPDATE", (lead_id,))
+                row = cur.fetchone()
+                if not row or row[1] != 'email_pending' or row[2] != message_id:
+                    return 'already_claimed'
+                data = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+                draft = data.get('_mail') or {}
+                recipient = str(draft.get('recipient') or '').strip().casefold()
+                if draft.get('id') != draft_id or draft.get('state') != 'draft':
+                    return 'already_claimed'
+                if not valid_recipient(recipient):
+                    return 'not_eligible'
+                if not eligible_recipient(data, recipient):
+                    return 'not_eligible'
+                cur.execute(
+                    "SELECT count(*) FILTER (WHERE "
+                    "lead_data->'_auto_mail'->>'state'='accepted' OR "
+                    "lead_data->'_mail'->>'state'='accepted'),"
+                    "count(*) FILTER (WHERE "
+                    "lead_data->'_auto_mail'->'delivery_feedback'->>'state'='failed' OR "
+                    "lead_data->'_mail'->'delivery_feedback'->>'state'='failed'),"
+                    "count(*) FILTER (WHERE ("
+                    "lead_data->'_auto_mail'->>'claimed_day'=%s AND "
+                    "lead_data->'_auto_mail'->>'state' IN ('sending','accepted','uncertain')) OR ("
+                    "lead_data->'_mail'->>'claimed_day'=%s AND "
+                    "lead_data->'_mail'->>'state' IN ('sending','accepted','uncertain'))) "
+                    "FROM owner_leads", (today,today))
+                accepted, failed, used = cur.fetchone()
+                if int(accepted or 0) >= 10 and int(failed or 0) * 100 >= int(accepted) * 15:
+                    return 'paused'
+                cap = str(env.get('AUTO_MAIL_DAILY_LIMIT','5'))
+                if not cap.isdigit() or not (1 <= int(cap) <= 5):
+                    raise RuntimeError('Invalid shared mail quota')
+                if int(used or 0) >= int(cap):
+                    return 'paused'
+                # All active mailers use the source Postgres as the immutable
+                # history. Do not send from a separate CRM database.
+                cur.execute(
+                    "SELECT lead_data,status FROM owner_leads WHERE osm_id<>%s "
+                    "AND (lead_data->'_auto_mail'->>'state' IN ('sending','accepted','uncertain') "
+                    "OR lead_data->'_mail'->>'state' IN ('sending','accepted','uncertain') "
+                    "OR status IN ('rejected','deferred') "
+                    "OR lead_data->'marketing_eligibility'->>'opted_out'='true')",
+                    (lead_id,))
+                candidate = {**data, 'email':recipient}
+                for prior_data, prior_status in cur.fetchall():
+                    prior = json.loads(prior_data) if isinstance(prior_data,str) else prior_data
+                    old_addresses = [
+                        str(prior.get('email') or '').strip().casefold(),
+                        str((prior.get('_auto_mail') or {}).get('recipient') or '').strip().casefold(),
+                        str((prior.get('_mail') or {}).get('recipient') or '').strip().casefold(),
+                    ]
+                    if (already_contacted(candidate,prior) or
+                            (recipient in old_addresses and
+                             (prior_status in ('rejected','deferred') or
+                              (prior.get('marketing_eligibility') or {}).get('opted_out') is True))):
+                        return 'duplicate'
+                claim = {**draft, 'state':'sending', 'claimed_day':today}
+                cur.execute(
+                    "UPDATE owner_leads SET lead_data=jsonb_set("
+                    "lead_data,'{_mail}',%s::jsonb,true),updated_at=now() "
+                    "WHERE osm_id=%s AND telegram_message_id=%s "
+                    "AND status='email_pending' "
+                    "AND lead_data->'_mail'->>'state'='draft' "
+                    "AND lead_data->'_mail'->>'id'=%s RETURNING osm_id",
+                    (json.dumps(claim),lead_id,message_id,draft_id))
+                if cur.fetchone() is None:
+                    return 'already_claimed'
+                return claim
+
     def send(self, lead_id, message_id, draft_id, env):
         if env.get('OWNER_APPROVED_MAIL_ENABLED') != 'true':
             raise RuntimeError('Owner-approved mail disabled')
-        sender_credentials(env)  # configuration errors must not consume an approval
-        lead = self.load(lead_id, message_id)
-        if lead and not valid_recipient(lead.get('_mail', {}).get('recipient')):
-            raise RuntimeError('Recipient missing or invalid')
-        # Claim and COMMIT before network IO. Unknown outcomes stay claimed forever.
-        with self.db.cursor() as cur:
-            cur.execute("UPDATE owner_leads SET lead_data=jsonb_set(lead_data,'{_mail,state}', '\"sending\"'::jsonb) "
-                        "WHERE osm_id=%s AND telegram_message_id=%s AND status='email_pending' "
-                        "AND lead_data->'_mail'->>'id'=%s AND lead_data->'_mail'->>'state'='draft' "
-                        'RETURNING lead_data',(lead_id,message_id,draft_id))
-            row = cur.fetchone()
-        if not row:
-            return 'already_claimed'
-        data = json.loads(row[0]) if isinstance(row[0],str) else row[0]
+        sender_credentials(env)
+        claim = self._claim(lead_id,message_id,draft_id,env)
+        if isinstance(claim,str):
+            return claim
         try:
-            send_mail(data['_mail'],env)
+            send_mail(claim,env)
         except RuntimeError:
+            # The committed sending claim blocks all automatic reattempts.
             return 'uncertain'
         with self.db.cursor() as cur:
             cur.execute("UPDATE owner_leads SET status='email_sent',updated_at=now(), "
                         "lead_data=jsonb_set(lead_data,'{_mail,state}','\"accepted\"'::jsonb) "
-                        "WHERE osm_id=%s AND lead_data->'_mail'->>'id'=%s",(lead_id,draft_id))
+                        "WHERE osm_id=%s AND lead_data->'_mail'->>'id'=%s "
+                        "AND lead_data->'_mail'->>'state'='sending'",(lead_id,draft_id))
         return 'accepted'
 
 
@@ -195,7 +270,10 @@ def handle_mail_callback(update, token, owner, review, env, opener=urlopen):
         result = store.send(lid,mid,did,env)
         text = {'accepted':'✅ Mail SMTP tarafından kabul edildi. Gelen kutusu teslimi doğrulanmadı.',
                 'already_claimed':'ℹ️ Gönderim zaten işlendi veya eski düğme; tekrar mail atılmadı.',
-                'uncertain':'⚠️ Gönderim sonucu belirsiz. Tekrar gönderim kilitli; Gmail Gönderilenler kontrol edilmeli.'}[result]
+                'uncertain':'⚠️ Gönderim sonucu belirsiz. Tekrar gönderim kilitli; Gmail Gönderilenler kontrol edilmeli.',
+                'not_eligible':'⛔ Alıcı için doğrulanmış iletişim izni/uygunluk kaydı yok; e-posta gönderilmedi.',
+                'paused':'⛔ Gönderici itibar veya günlük kota koruması aktif; e-posta gönderilmedi.',
+                'duplicate':'⛔ Bu alıcıya daha önce temas var veya iletişim istememe kaydı bulunuyor.'}[result]
     api(token,'editMessageText',{'chat_id':owner,'message_id':mid,'text':text,
                                'reply_markup':markup},opener)
     try:
