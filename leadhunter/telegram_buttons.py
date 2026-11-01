@@ -65,7 +65,7 @@ def status_message(env):
         count = None
     return (
         "🤖 Müşteri Avcısı AI — Telegram durumu\n\n"
-        "📬 Sahibe özel fırsat bildirimi ve üç butonlu karar işleme açık.\n"
+        "📬 Fırsatlar sahibin özel sohbetine butonsuz bildirilir.\n"
         "📅 Fırsat taraması: haftanın 7 günü saatte bir, yaklaşık XX:13 TRT.\n"
         "📮 Gmail gönderim ve yanıt kontrolü: saatte bir.\n"
         "🔄 Komut/karar kontrolü: 15 dakikada bir; GitHub gecikebilir.\n"
@@ -128,8 +128,7 @@ def process_owner_command(update, token, owner, env, opener=urlopen, review_stor
             "🤖 Müşteri Avcısı AI — yalnızca sahip Telegram sohbeti\n"
             "🔎 /durum — otomasyon ve tarama durumunu göster.\n"
             "📮 /eposta — özel veritabanındaki eski mail ve atlama sayılarını göster.\n"
-            "✅ EVET / ❌ HAYIR / ⏳ BEKLET — fırsat mesajındaki "
-            "butonlarla karar ver.\n"
+            "📩 Yeni fırsatlar otomatik gelir; Evet/Hayır/Beklet gerekmez.\n"
             "ℹ️ Web paneli veya izlenecek site eklemeniz gerekmez.\n"
             "✉️ Bu bot komutları hiçbir işletmeye mail göndermez."
         )
@@ -216,7 +215,10 @@ def poll(env=None, opener=urlopen, output=print):
                     handled = handle_mail_callback(update, token, owner, review_store, env, opener)
                 except Exception:
                     raise RuntimeError('Owner mail operation failed; sensitive details redacted') from None
-            if not handled and review_store:
+            # Legacy inline buttons are no longer part of the owner's flow.
+            # Explicit opt-in is required to process older review buttons.
+            if (not handled and review_store
+                    and env.get('LEGACY_REVIEW_BUTTONS_ENABLED') == 'true'):
                 handled = process_review_callback(
                     update, token, owner, review_store, opener=opener)
             if handled:
