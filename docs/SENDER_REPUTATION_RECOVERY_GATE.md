@@ -3,9 +3,9 @@
 This is a **proposal, not an enabled runtime bypass**. The production 15% failure circuit remains unchanged.
 
 ## Measured baseline
-- Historical SMTP acceptances: 15; known failed delivery notices: 3; delayed: 1.
-- Failure ratio: 3 / 15 = 20%; the sender is automatically paused.
-- To fall strictly below the unchanged 15% threshold with 3 historical failures would require at least 21 genuine total accepted attempts (6 more). The circuit correctly prevents using new unsolicited sends merely to inflate the denominator. A count of SMTP acceptances is not proof of inbox delivery.
+- Historical SMTP acceptances: 15; confirmed final delivery failures: 4; currently delayed: 0. The fourth failure is the later final DSN for a recipient whose server originally refused connections (111); two earlier delay DSNs are preserved as the same message's history.
+- Failure ratio: 4 / 15 = 26.67%; the sender is automatically paused.
+- To fall strictly below the unchanged 15% threshold with 4 historical failures would require at least 27 genuine total accepted attempts (12 more). The circuit correctly prevents using new unsolicited sends merely to inflate the denominator. A count of SMTP acceptances is not proof of inbox delivery.
 - Existing failed recipients are suppressed; NXDOMAIN and relay-denied domains are quarantined; accepted-but-delayed messages are never retried after DATA.
 
 ## Recipient legal gate
