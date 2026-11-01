@@ -82,6 +82,31 @@ class TelegramOwnerOnlyTests(unittest.TestCase):
             process_owner_command(message(), "fixture", "123", env,
                                   opener_for([], accepted_id=0))
 
+    def test_old_review_buttons_are_not_required_or_processed(self):
+        from unittest.mock import Mock, patch
+        with tempfile.TemporaryDirectory() as tmp:
+            calls = []
+            env = {"TELEGRAM_BOT_TOKEN": "fixture", "TELEGRAM_CHAT_ID": "123",
+                   "OWNER_APPROVED_MAIL_ENABLED": "false",
+                   "LEGACY_REVIEW_BUTTONS_ENABLED": "false",
+                   "REVIEW_DATABASE_URL": "postgresql://synthetic/?sslmode=require",
+                   "CALLBACK_OFFSET_FILE": str(Path(tmp) / "cursor.json")}
+            callback = {"update_id": 61, "callback_query": {
+                "id": "synthetic-cb", "data": "lead:v1:yes:node/42",
+                "from": {"id": 123}, "message": {"chat": {"type": "private", "id": 123},
+                "message_id": 73, "text": "old synthetic opportunity"}}}
+            db = Mock()
+            review = Mock()
+            review.decide.side_effect = AssertionError("Old approval cannot modify CRM")
+            with patch("leadhunter.review_private.connect_private_database", return_value=db), patch(
+                 "leadhunter.review_private.ReviewStore", return_value=review):
+                self.assertEqual(poll(env, opener_for(calls, [callback]),
+                                      output=lambda *_: None), 0)
+            self.assertEqual([m for m, _ in calls], ["getWebhookInfo", "getUpdates"])
+            review.decide.assert_not_called()
+            self.assertEqual(json.loads(Path(env["CALLBACK_OFFSET_FILE"]).read_text()),
+                             {"next_offset": 62})
+
     def test_single_existing_poll_consumer_handles_commands_and_preserves_cursor(self):
         with tempfile.TemporaryDirectory() as tmp:
             calls = []
