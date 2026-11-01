@@ -295,7 +295,13 @@ def live(env=None, opener=urlopen, output=print):
     automatic = env.get('AUTO_MAIL_ENABLED') == 'true'
     if automatic:
         from .automatic_mail import check_config
-        check_config(env)
+        try:
+            check_config(env)
+        except RuntimeError:
+            # A misconfigured sender must never take down owner-only research
+            # or accidentally trigger SMTP. Keep Telegram draft-only mode.
+            automatic = False
+            output('AUTO_MAIL_PAUSED: sender configuration unavailable; no SMTP')
     token, chat_id = env.get('TELEGRAM_BOT_TOKEN'), env.get('TELEGRAM_CHAT_ID')
     if not token or not chat_id:
         raise RuntimeError('TELEGRAM_BOT_TOKEN ve TELEGRAM_CHAT_ID eksik')
