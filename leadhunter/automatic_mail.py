@@ -196,8 +196,13 @@ class AutoMailStore:
                             "lead_data->'marketing_eligibility'->>'opted_out'='true') AND "
                             "(lower(btrim(lead_data->'_auto_mail'->>'recipient'))=%s OR "
                             "lower(btrim(lead_data->'_mail'->>'recipient'))=%s OR "
-                            "lower(btrim(lead_data->>'email'))=%s))) LIMIT 1",
-                            (lead_id,recipient,recipient,recipient,recipient,recipient))
+                            "lower(btrim(lead_data->>'email'))=%s)) OR "
+                            "(lead_data#>>'{_auto_mail,delivery_feedback,reason}' "
+                            "IN ('dns_nxdomain','relay_denied') AND "
+                            "lower(split_part(lead_data#>>'{_auto_mail,recipient}','@',2))=%s)"
+                            ") LIMIT 1",
+                            (lead_id,recipient,recipient,recipient,recipient,recipient,
+                             recipient.rsplit('@',1)[-1]))
                 duplicate = bool(cur.fetchone())
                 if not duplicate:
                     # Old records may use a different recipient and OSM ID for
