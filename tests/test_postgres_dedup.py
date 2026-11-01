@@ -43,6 +43,56 @@ class PostgresDedupTests(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=2) as pool:
             return list(pool.map(claim, ids))
 
+    def test_auto_and_owner_approved_workers_share_one_atomic_claim(self):
+        from datetime import datetime,timezone
+        from unittest.mock import patch
+        from leadhunter.outreach import MailStore
+        self.db.execute("ALTER TABLE owner_leads ADD COLUMN telegram_message_id bigint")
+        recipient="synthetic-race@example.invalid"
+        proof={"route":"consent","recipient":recipient,
+               "evidence_ref":"synthetic-mock-consent-001",
+               "verified_at":datetime.now(timezone.utc).isoformat(),
+               "opted_out":False,"consent_active":True}
+        auto={"name":"Synthetic Auto","email":recipient,
+              "marketing_eligibility":proof,
+              "_auto_mail":{"state":"draft","recipient":recipient,
+                            "subject":"Synthetic auto","body":"Synthetic",
+                            "id":"a"*24}}
+        manual={"name":"Synthetic Manual","email":recipient,
+                "marketing_eligibility":proof,
+                "_mail":{"state":"draft","recipient":recipient,
+                         "subject":"Synthetic owner","body":"Synthetic",
+                         "id":"b"*24}}
+        self.db.execute("INSERT INTO owner_leads "
+            "(osm_id,lead_data,status) VALUES (%s,%s::jsonb,'review')",
+            ("node/7001",json.dumps(auto)))
+        self.db.execute("INSERT INTO owner_leads "
+            "(osm_id,lead_data,status,telegram_message_id) "
+            "VALUES (%s,%s::jsonb,'email_pending',701)",
+            ("node/7002",json.dumps(manual)))
+        env={"AUTO_MAIL_ENABLED":"true","AUTO_MAIL_DAILY_LIMIT":"5",
+             "OWNER_APPROVED_MAIL_ENABLED":"true",
+             "GMAIL_SENDER_ADDRESS":"synthetic.sender@gmail.com",
+             "GMAIL_APP_PASSWORD":"abcdefghijklmnop"}
+        barrier=Barrier(2)
+        def attempt(kind):
+            with self.psycopg.connect(os.environ["TEST_POSTGRES_DSN"],autocommit=True) as db:
+                db.execute("SET search_path TO "+self.schema)
+                db.execute("SET statement_timeout = '5s'")
+                barrier.wait(timeout=5)
+                if kind=="automatic":
+                    return bool(AutoMailStore(ReviewStore(db)).claim("node/7001",env))
+                return MailStore(ReviewStore(db)).send("node/7002",701,"b"*24,env)=="accepted"
+        with patch("leadhunter.outreach.send_mail",return_value=None) as fake_sender:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results=list(pool.map(attempt,["automatic","manual"]))
+            self.assertEqual(sum(results),1)
+            self.assertEqual(fake_sender.call_count,int(results[1]))
+        self.assertEqual(self.db.execute(
+            "SELECT COUNT(*) FROM owner_leads WHERE "
+            "lead_data->'_auto_mail'->>'state' IN ('sending','accepted') "
+            "OR lead_data->'_mail'->>'state' IN ('sending','accepted')").fetchone()[0],1)
+
     def test_same_business_concurrent_claim_only_once(self):
         self.insert('node/1')
         results = self.race(['node/1', 'node/1'])
