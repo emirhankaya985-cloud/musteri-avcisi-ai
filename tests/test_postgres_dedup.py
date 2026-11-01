@@ -118,6 +118,28 @@ class PostgresDedupTests(unittest.TestCase):
             "SELECT state,telegram_message_id FROM owner_daily_report_receipts").fetchone(),
             ("confirmed",501))
 
+    def test_dns_nxdomain_and_relay_domain_quarantines_are_durable(self):
+        for i,reason in enumerate(("dns_nxdomain","relay_denied")):
+            domain=f"blocked-{i}.example.invalid"
+            prior={"name":"Unreachable","_auto_mail":{
+                "state":"accepted","recipient":"old@"+domain,
+                "delivery_feedback":{"state":"failed","reason":reason}}}
+            new={"name":"New Shop","_auto_mail":{
+                "state":"draft","recipient":"new@"+domain,
+                "subject":"Synthetic","body":"Synthetic","id":f"blocked-{i}"}}
+            self.db.execute("INSERT INTO owner_leads "
+                "(osm_id,lead_data,status) VALUES (%s,%s::jsonb,'review')",
+                (f"node/{8800+i}",json.dumps(prior)))
+            self.db.execute("INSERT INTO owner_leads "
+                "(osm_id,lead_data,status) VALUES (%s,%s::jsonb,'review')",
+                (f"node/{8900+i}",json.dumps(new)))
+            self.assertIsNone(AutoMailStore(ReviewStore(self.db)).claim(
+                f"node/{8900+i}"))
+            state=self.db.execute(
+                "SELECT lead_data->'_auto_mail'->>'state' FROM owner_leads "
+                "WHERE osm_id=%s",(f"node/{8900+i}",)).fetchone()[0]
+            self.assertEqual(state,"duplicate")
+
     def test_same_business_concurrent_claim_only_once(self):
         self.insert('node/1')
         results = self.race(['node/1', 'node/1'])
