@@ -150,6 +150,7 @@ class AutomaticScanTests(unittest.TestCase):
         self.assertIn('Synthetic Test Salon',payloads[0]['text'])
         self.assertIn('Otomatik SMTP kapalı',payloads[0]['text'])
         self.assertLessEqual(len(payloads[0]['text']),4096)
+        self.assertNotIn('reply_markup', payloads[0])
 
     def test_auto_scan_missing_config_never_contacts_any_service(self):
         from leadhunter.core import live
