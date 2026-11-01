@@ -27,6 +27,35 @@ class MailWatchSafetyTests(unittest.TestCase):
         self.assertIsNone(bounce_feedback(message(subject="Special Offer")))
         self.assertIsNone(bounce_feedback(b"X" * 600_000))
 
+    def test_machine_readable_dsn_code_classification(self):
+        from leadhunter.mail_watch import dsn_details
+        from email import policy
+        from email.parser import BytesParser
+        def dsn(status, diagnostic, action="failed"):
+            raw = (
+                "From: mailer-daemon@googlemail.com\r\n"
+                "Subject: Delivery Status Notification (Failure)\r\n"
+                "MIME-Version: 1.0\r\n"
+                'Content-Type: multipart/report; boundary="bound"; report-type=delivery-status\r\n'
+                "\r\n--bound\r\nContent-Type: text/plain\r\n\r\nDelivery failed\r\n"
+                "--bound\r\nContent-Type: message/delivery-status\r\n\r\n"
+                "Reporting-MTA: dns; gmail.example.invalid\r\n\r\n"
+                "Final-Recipient: rfc822; owner@example.invalid\r\n"
+                f"Action: {action}\r\nStatus: {status}\r\n"
+                f"Diagnostic-Code: smtp; {diagnostic}\r\n"
+                "--bound--\r\n"
+            )
+            return BytesParser(policy=policy.default).parsebytes(raw.encode())
+        permanent = dsn("5.1.1", "550 5.1.1 mailbox unavailable")
+        temporary = dsn("4.2.0", "450 4.2.0 temporarily unavailable", "delayed")
+        self.assertEqual(dsn_details(permanent)["smtp_code"], "550")
+        self.assertEqual(dsn_details(permanent)["failure_kind"], "permanent")
+        self.assertEqual(dsn_details(temporary)["failure_kind"], "temporary")
+        self.assertEqual(dsn_details(temporary)["enhanced_status"], "4.2.0")
+        # No mailbox address, SMTP diagnostics or personal text in metadata.
+        self.assertNotIn("@", str(dsn_details(permanent)))
+        self.assertNotIn("mailbox unavailable", str(dsn_details(permanent)))
+
     def test_gmail_imap_is_readonly_and_smtp_never_invoked(self):
         calls = []
         class FakeIMAP:

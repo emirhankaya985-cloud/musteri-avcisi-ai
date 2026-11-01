@@ -24,6 +24,42 @@ FAILURE = re.compile(r"failure|failed|undeliver|not delivered|teslim edilemedi",
 DELAY = re.compile(r"delay|delayed|gecik", re.I)
 
 
+
+def dsn_details(message):
+    """Only machine-readable DSN status codes, never personal details or text."""
+    enhanced, smtp_codes, recipients = set(), set(), set()
+    for part in message.walk():
+        if part.get_content_type() != "message/delivery-status":
+            continue
+        for block in (part.get_payload() if isinstance(part.get_payload(), list) else []):
+            for field in ("Final-Recipient", "Original-Recipient"):
+                value = str(block.get(field, "")).strip().casefold()
+                if value:
+                    recipients.add(value)
+            status = str(block.get("Status", "")).strip()
+            if re.fullmatch(r"[245]\.\d{1,3}\.\d{1,3}", status):
+                enhanced.add(status)
+            diagnostic = str(block.get("Diagnostic-Code", ""))
+            match = re.search(r"(?<!\d)([245]\d\d)(?!\d)", diagnostic)
+            if match:
+                smtp_codes.add(match.group(1))
+    # A shared multi-recipient DSN cannot safely attribute one code to a lead.
+    if len(recipients) > 1 or len(enhanced) > 1 or len(smtp_codes) > 1:
+        return {}
+    result = {}
+    if len(enhanced) == 1:
+        result["enhanced_status"] = next(iter(enhanced))
+    if len(smtp_codes) == 1:
+        result["smtp_code"] = next(iter(smtp_codes))
+    classes = {value[0] for value in (list(enhanced) + list(smtp_codes))}
+    if classes == {"5"}:
+        result["failure_kind"] = "permanent"
+    elif classes == {"4"}:
+        result["failure_kind"] = "temporary"
+    # Disagreement, missing code, or a success DSN is unclassified.
+    return result
+
+
 def bounce_feedback(raw):
     """One trusted RFC822 DSN -> (recipient text, delivery status), or None."""
     if len(raw) > 500_000:
@@ -50,7 +86,10 @@ def bounce_feedback(raw):
             except (TypeError, UnicodeError, LookupError):
                 continue
     evidence = "\n".join(pieces).casefold()
-    return (evidence[:200_000], state) if evidence else None
+    if not evidence:
+        return None
+    details = dsn_details(message)
+    return (evidence[:200_000], state, details) if details else (evidence[:200_000], state)
 
 
 def reply_feedback(raw):
@@ -127,17 +166,18 @@ def reconcile_mail(conn, notices):
                 recipient = str(record.get("recipient") or "").strip().casefold()
                 if not recipient:
                     continue
-                state = None
-                for evidence, candidate in notices:
+                state, details = None, {}
+                for notice in notices:
+                    evidence, candidate = notice[:2]
                     if candidate not in ("failed", "delayed"):
                         continue  # Reply metadata cannot be a delivery failure.
-                    # Trust only a message from an automated Gmail sender
-                    # whose DSN evidence explicitly contains a frozen recipient.
-                    if re.search(r"(?<![\w.+-])" + re.escape(recipient) + r"(?![\w.+-])", evidence):
+                    # Only match already frozen recipients, never arbitrary leads.
+                    if re.search(r"(?<![\\w.+-])" + re.escape(recipient) + r"(?![\\w.+-])", evidence):
                         if candidate == "failed":
-                            state = "failed"
+                            state, details = "failed", (notice[2] if len(notice) > 2 else {})
                             break
-                        state = state or "delayed"
+                        if state is None:
+                            state, details = "delayed", (notice[2] if len(notice) > 2 else {})
                 # A reply requires an exact sender-to-recipient match AND
                 # an RFC822 In-Reply-To/References header tied to our own
                 # frozen outgoing Message-ID. Merely sharing a sender is not
@@ -159,11 +199,19 @@ def reconcile_mail(conn, notices):
                         (json.dumps(reply_data), lead_id))
                     changed += 1
                 before = record.get("delivery_feedback") or {}
-                if not state or before.get("state") == "failed" or (
-                        before.get("state") == state):
+                if not state or before.get("state") == "failed" and state != "failed":
                     continue
-                feedback = {"state": state, "observed_at": datetime.now(
-                    timezone.utc).isoformat()}
+                details = details if isinstance(details, dict) else {}
+                # Preserve the old observed time/Telegram receipt on enrichment;
+                # do not resend a notification when finding a diagnostic code.
+                enrichment = {key: value for key, value in details.items()
+                              if key in ("smtp_code", "enhanced_status", "failure_kind")
+                              and key not in before}
+                if before.get("state") == state and not enrichment:
+                    continue
+                feedback = {**before, "state": state, "observed_at":
+                            before.get("observed_at") or datetime.now(timezone.utc).isoformat(),
+                            **enrichment}
                 cur.execute(
                     "UPDATE owner_leads SET lead_data=jsonb_set("
                     "lead_data,'{_auto_mail,delivery_feedback}',%s::jsonb,true),"
