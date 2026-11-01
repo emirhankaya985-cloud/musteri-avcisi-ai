@@ -46,6 +46,34 @@ class OutreachTests(unittest.TestCase):
         self.assertEqual(call.kwargs['to_addrs'],['owner@example.invalid'])
         self.assertEqual(call.args[0].get_content().strip(),self.draft['body'])
 
+    def test_temporary_rcpt_450_retries_once_before_data(self):
+        import smtplib
+        smtp = MagicMock()
+        smtp.__enter__.return_value.send_message.side_effect = [
+            smtplib.SMTPRecipientsRefused(
+                {'owner@example.invalid': (450, b'temporary refusal')}),
+            {},
+        ]
+        send_mail(self.draft, self.env, lambda *a, **k:smtp)
+        self.assertEqual(smtp.__enter__.return_value.send_message.call_count, 2)
+
+    def test_permanent_rcpt_550_never_retries(self):
+        import smtplib
+        smtp = MagicMock()
+        smtp.__enter__.return_value.send_message.side_effect = (
+            smtplib.SMTPRecipientsRefused(
+                {'owner@example.invalid': (550, b'no such user')}))
+        with self.assertRaises(RuntimeError):
+            send_mail(self.draft, self.env, lambda *a, **k:smtp)
+        self.assertEqual(smtp.__enter__.return_value.send_message.call_count, 1)
+
+    def test_ambiguous_smtp_timeout_never_retries(self):
+        smtp = MagicMock()
+        smtp.__enter__.return_value.send_message.side_effect = TimeoutError('synthetic')
+        with self.assertRaisesRegex(RuntimeError, 'uncertain'):
+            send_mail(self.draft, self.env, lambda *a, **k:smtp)
+        self.assertEqual(smtp.__enter__.return_value.send_message.call_count, 1)
+
     def test_disabled_mail_never_connects(self):
         with self.assertRaises(RuntimeError):
             send_mail(self.draft,{},lambda *a,**k:self.fail('SMTP'))
