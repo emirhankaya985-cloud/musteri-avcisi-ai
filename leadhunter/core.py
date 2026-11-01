@@ -346,6 +346,13 @@ def live(env=None, opener=urlopen, output=print):
                 from .automatic_mail import AutoMailStore, flush_reports
                 auto_store = AutoMailStore(store)
                 sent += flush_reports(auto_store, env, opener)
+                if auto_store.reputation_paused():
+                    # High historical Gmail bounce rate: do not call SMTP.
+                    # Continue normal butonsuz Telegram research/draft notices
+                    # instead of silently consuming new opportunities.
+                    automatic = False
+                    output("AUTO_MAIL_PAUSED: historical delivery failure circuit active; "
+                           "new opportunity drafts remain owner-only")
             eligible = []
             legacy = []
             for item in raw:
