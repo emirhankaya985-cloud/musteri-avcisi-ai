@@ -56,7 +56,45 @@ def dsn_details(message):
         result["failure_kind"] = "permanent"
     elif classes == {"4"}:
         result["failure_kind"] = "temporary"
-    # Disagreement, missing code, or a success DSN is unclassified.
+    # Some genuine Gmail notifications have only a human-readable plaintext
+    # body, with no message/delivery-status MIME part. This parser is called
+    # ONLY for whitelisted mailer-daemon addresses and DSN subjects.
+    parts = []
+    for part in message.walk():
+        if part.get_content_type() == "text/plain":
+            try:
+                parts.append(part.get_content()[:20000])
+            except (TypeError, UnicodeError, LookupError):
+                pass
+    body = "\n".join(parts)
+    if body:
+        if not result.get("smtp_code"):
+            match = re.search(r"(?m)^\s*([45]\d\d)(?!\d)", body)
+            if match:
+                result["smtp_code"] = match.group(1)
+        if not result.get("enhanced_status"):
+            match = re.search(r"(?<!\d)([45]\.\d{1,3}\.\d{1,3})(?!\d)", body)
+            if match:
+                result["enhanced_status"] = match.group(1)
+        low = body.casefold()
+        # Coarse reasons only: never persist remote diagnostic text or PII.
+        if "nxdomain" in low or "domain name not found" in low:
+            result["reason"] = "dns_nxdomain"
+            result["failure_kind"] = "permanent"
+        elif "no such user here" in low:
+            result["reason"] = "mailbox_missing"
+            result["failure_kind"] = "permanent"
+        elif "relay access denied" in low:
+            result["reason"] = "relay_denied"
+            result["failure_kind"] = "permanent"
+        elif "connection refused" in low and not classes:
+            result["reason"] = "connection_refused"
+            result["failure_kind"] = "temporary"
+        elif not result.get("failure_kind"):
+            code = result.get("enhanced_status") or result.get("smtp_code")
+            if code and code[0] in "45":
+                result["failure_kind"] = (
+                    "permanent" if code[0] == "5" else "temporary")
     return result
 
 
@@ -205,7 +243,7 @@ def reconcile_mail(conn, notices):
                 # Preserve the old observed time/Telegram receipt on enrichment;
                 # do not resend a notification when finding a diagnostic code.
                 enrichment = {key: value for key, value in details.items()
-                              if key in ("smtp_code", "enhanced_status", "failure_kind")
+                              if key in ("smtp_code", "enhanced_status", "failure_kind", "reason")
                               and key not in before}
                 if before.get("state") == state and not enrichment:
                     continue

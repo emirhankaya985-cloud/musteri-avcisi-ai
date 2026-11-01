@@ -56,6 +56,28 @@ class MailWatchSafetyTests(unittest.TestCase):
         self.assertNotIn("@", str(dsn_details(permanent)))
         self.assertNotIn("mailbox unavailable", str(dsn_details(permanent)))
 
+    def test_realistic_gmail_plaintext_bounces_have_safe_reasons(self):
+        cases = [
+            ("Failure", "550 No Such User Here", "550", "mailbox_missing", "permanent"),
+            ("Failure", "554 5.7.1 : Relay access denied", "554", "relay_denied", "permanent"),
+            ("Failure", "DNS type mx lookup responded with code NXDOMAIN", None,
+             "dns_nxdomain", "permanent"),
+            ("Delay", "Recipient server: connect error (111): Connection refused",
+             None, "connection_refused", "temporary"),
+        ]
+        for subject, diagnostic, code, reason, kind in cases:
+            with self.subTest(reason=reason):
+                msg = EmailMessage()
+                msg["From"] = "mailer-daemon@googlemail.com"
+                msg["Subject"] = f"Delivery Status Notification ({subject})"
+                msg.set_content("Delivery problem for owner@example.invalid\n" + diagnostic)
+                value = bounce_feedback(msg.as_bytes())
+                self.assertEqual(value[2].get("smtp_code"), code)
+                self.assertEqual(value[2]["reason"], reason)
+                self.assertEqual(value[2]["failure_kind"], kind)
+                self.assertNotIn("@", str(value[2]))
+                self.assertNotIn("owner@example.invalid", str(value[2]))
+
     def test_gmail_imap_is_readonly_and_smtp_never_invoked(self):
         calls = []
         class FakeIMAP:
