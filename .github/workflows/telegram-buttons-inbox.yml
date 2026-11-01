@@ -1,4 +1,4 @@
-name: Telegram Three-Button Inbox
+name: Telegram Owner Commands
 on:
   workflow_dispatch:
   push:
@@ -35,13 +35,14 @@ jobs:
         env:
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
         run: python -m leadhunter.review_smoke
-      - name: Process owner-only demo choices
+      - name: Process owner-only private commands
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
           # Telegram-only automated inbox: keep owner choices but never start SMTP.
           OWNER_APPROVED_MAIL_ENABLED: 'false'
+          LEGACY_REVIEW_BUTTONS_ENABLED: 'false'
         run: python -m leadhunter.telegram_buttons poll
       - name: Store only numeric update offset
         run: |
