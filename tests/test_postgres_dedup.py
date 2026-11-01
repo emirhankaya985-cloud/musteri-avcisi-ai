@@ -93,6 +93,31 @@ class PostgresDedupTests(unittest.TestCase):
             "lead_data->'_auto_mail'->>'state' IN ('sending','accepted') "
             "OR lead_data->'_mail'->>'state' IN ('sending','accepted')").fetchone()[0],1)
 
+    def test_owner_daily_summary_is_at_most_once_and_preserves_leads(self):
+        from leadhunter.daily_status import run
+        self.db.execute("ALTER TABLE owner_leads ADD COLUMN first_seen_at timestamptz DEFAULT now()")
+        self.db.execute("CREATE TABLE owner_daily_report_receipts ("
+                        "report_day text PRIMARY KEY,state text NOT NULL,"
+                        "telegram_message_id bigint,updated_at timestamptz DEFAULT now())")
+        self.insert("node/5001")
+        messages=[]
+        def fake_bot(token,method,data):
+            self.assertEqual(method,"sendMessage")
+            messages.append(data['text'])
+            return {"message_id":501}
+        env={"TELEGRAM_BOT_TOKEN":"fake","TELEGRAM_CHAT_ID":"123",
+             "AUTO_MAIL_ENABLED":"true"}
+        self.assertEqual(run(env,self.db,fake_bot,"2026-11-01"),501)
+        self.assertEqual(run(env,self.db,fake_bot,"2026-11-01"),0)
+        self.assertEqual(len(messages),1)
+        self.assertIn("KAPALI",messages[0])
+        self.assertNotIn("synthetic@example.invalid",messages[0])
+        self.assertEqual(self.db.execute(
+            "SELECT count(*) FROM owner_leads").fetchone()[0],1)
+        self.assertEqual(self.db.execute(
+            "SELECT state,telegram_message_id FROM owner_daily_report_receipts").fetchone(),
+            ("confirmed",501))
+
     def test_same_business_concurrent_claim_only_once(self):
         self.insert('node/1')
         results = self.race(['node/1', 'node/1'])
