@@ -156,6 +156,12 @@ class PostgresDedupTests(unittest.TestCase):
                 (lid, json.dumps(data)))
         self.assertEqual(run(self.db),2)
         self.assertEqual(run(self.db),0)
+        from leadhunter.recipient_audit import dry_run
+        check = dry_run(self.db)
+        self.assertEqual(check['contacts'],2)
+        self.assertEqual(check['audited'],2)
+        self.assertEqual(check['legally_verified'],0)
+        self.assertEqual(check['sendable'],0)
         rows=self.db.execute(
             "SELECT lead_data->'recipient_eligibility_audit' FROM owner_leads "
             "ORDER BY osm_id").fetchall()
