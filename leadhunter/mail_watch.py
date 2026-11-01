@@ -187,6 +187,17 @@ def read_delivery_messages(env, imap_factory=None, days=35):
                 pass
 
 
+def matching_reply(notices, recipient, mail_id):
+    """Two-field reply tuples coexist with three-field DSN metadata tuples."""
+    if len(mail_id) < 12:
+        return False
+    return any(
+        len(notice) >= 2 and notice[1].startswith("reply:")
+        and notice[0] == recipient and ("<" + mail_id + "@") in notice[1]
+        for notice in notices
+    )
+
+
 def reconcile_mail(conn, notices):
     """Add feedback without changing any accepted/sending/uncertain claim."""
     with conn.transaction():
@@ -221,11 +232,7 @@ def reconcile_mail(conn, notices):
                 # frozen outgoing Message-ID. Merely sharing a sender is not
                 # enough to count an unrelated message as a business reply.
                 mail_id = str(record.get("id") or "").casefold()
-                has_reply = any(
-                    candidate.startswith("reply:") and
-                    evidence == recipient and len(mail_id) >= 12 and
-                    ("<" + mail_id + "@") in candidate
-                    for evidence, candidate in notices)
+                has_reply = matching_reply(notices, recipient, mail_id)
                 if has_reply and not record.get("reply_feedback"):
                     reply_data = {"state": "sender_matched_reply",
                                   "observed_at": datetime.now(timezone.utc).isoformat()}
