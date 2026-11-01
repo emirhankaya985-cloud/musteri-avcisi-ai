@@ -92,7 +92,13 @@ class ReviewStore:
                         "INSERT INTO owner_leads (osm_id,lead_data,status) "
                         "VALUES (%s, %s::jsonb, 'review') "
                         "ON CONFLICT (osm_id) DO UPDATE SET "
-                        "lead_data=EXCLUDED.lead_data,updated_at=now() "
+                        "lead_data=EXCLUDED.lead_data || (CASE WHEN "
+                        "lower(btrim(coalesce(owner_leads.lead_data->>'email',''))) = "
+                        "lower(btrim(coalesce(EXCLUDED.lead_data->>'email',''))) "
+                        "THEN jsonb_strip_nulls(jsonb_build_object("
+                        "'recipient_eligibility_audit', owner_leads.lead_data->'recipient_eligibility_audit',"
+                        "'marketing_eligibility', owner_leads.lead_data->'marketing_eligibility')) "
+                        "ELSE '{}'::jsonb END),updated_at=now() "
                         "WHERE owner_leads.status IN ('review','deferred') "
                         "AND NOT (owner_leads.lead_data ? '_auto_mail')",
                         (lead_id, json.dumps(lead, ensure_ascii=False)))
