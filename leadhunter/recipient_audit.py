@@ -3,7 +3,11 @@
 An audit is NOT approval. Only recipient_eligibility.eligible_recipient can
 interpret separately verified consent/IYS evidence. Never access SMTP or Telegram.
 """
+import json
 import os
+import sys
+from .recipient_eligibility import eligible_recipient
+from .outreach import valid_recipient
 from .review_private import connect_private_database
 
 POLICY_URL = "https://ticaret.gov.tr/ic-ticaret/ticari-elektronik-iletiler/genel-bilgiler"
@@ -72,5 +76,53 @@ def run(conn=None, env=None):
             conn.close()
 
 
+def dry_run(conn=None, env=None):
+    """Read-only rehearsal of contact, permission and reputation gates."""
+    env = os.environ if env is None else env
+    owns = conn is None
+    conn = conn or connect_private_database(env.get("REVIEW_DATABASE_URL"))
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT lead_data,status FROM owner_leads")
+            rows = cur.fetchall()
+        total = len(rows)
+        contacts = accepted = failed = delayed = eligible = reviewed = sendable = 0
+        for raw, status in rows:
+            data = json.loads(raw) if isinstance(raw,str) else raw
+            auto = data.get("_auto_mail") or {}
+            manual = data.get("_mail") or {}
+            address = str(auto.get("recipient") or manual.get("recipient")
+                          or data.get("email") or "").strip().casefold()
+            if not address:
+                continue
+            contacts += 1
+            reviewed += int(bool(data.get("recipient_eligibility_audit")))
+            history = (status == "email_sent" or auto.get("state") in
+                       ("sending","accepted","uncertain") or
+                       manual.get("state") in ("sending","accepted","uncertain"))
+            accepted += int(history)
+            feedback = auto.get("delivery_feedback") or {}
+            failed += int(feedback.get("state") == "failed")
+            delayed += int(feedback.get("state") == "delayed")
+            verified = valid_recipient(address) and eligible_recipient(data,address)
+            eligible += int(verified)
+            if (verified and not history and status == "review" and
+                    auto.get("email_check", data.get("email_check")) == "mx_present"):
+                sendable += 1
+        paused = accepted >= 10 and failed * 100 >= accepted * 15
+        if paused:
+            sendable = 0
+        result = dict(total=total,contacts=contacts,audited=reviewed,
+                      historical=accepted,failed=failed,delayed=delayed,
+                      legally_verified=eligible,paused=paused,sendable=sendable)
+        print("SAFETY_DRY_RUN: " + "; ".join(
+            f"{key}={value}" for key,value in result.items()) +
+            "; actual_smtp=0")
+        return result
+    finally:
+        if owns:
+            conn.close()
+
+
 if __name__ == "__main__":
-    run()
+    dry_run() if "--dry-run" in sys.argv else run()
