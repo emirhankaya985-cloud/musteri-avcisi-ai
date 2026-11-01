@@ -37,7 +37,7 @@ UPDATE owner_leads o SET
    jsonb_build_object(
      'decision','hold','reason',c.reason,'checked_at',now(),
      'evidence_origin',c.evidence_origin,'address_preflight',c.address_preflight,
-     'regulatory_basis',%s,'iys_reference',%s,
+     'regulatory_basis',%s::text,'iys_reference',%s::text,
      'permission_source','not_verified','automated_send_allowed',false
    ),true),
  updated_at=now()
