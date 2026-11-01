@@ -260,16 +260,17 @@ class AutoMailStore:
 def deliver(lead, store, env, opener, mail_sender=send_mail):
     record = store.prepare(lead,env,opener)
     if not record or record['state'] != 'draft':
-        return
+        return 'not_actionable'
     record = store.claim(lead['id'], env)
     if not record:
-        return
+        return 'paused'
     try:
         mail_sender(record,{**env,'OWNER_APPROVED_MAIL_ENABLED':'true'})
     except RuntimeError:
         store.finish(lead['id'],'uncertain')
-        return
+        return 'attempted'
     store.finish(lead['id'],'accepted')
+    return 'attempted'
 
 
 def flush_reports(store, env, opener):
