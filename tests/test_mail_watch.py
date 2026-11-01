@@ -33,17 +33,17 @@ class MailWatchSafetyTests(unittest.TestCase):
         from email.parser import BytesParser
         def dsn(status, diagnostic, action="failed"):
             raw = (
-                "From: mailer-daemon@googlemail.com\\r\\n"
-                "Subject: Delivery Status Notification (Failure)\\r\\n"
-                "MIME-Version: 1.0\\r\\n"
-                'Content-Type: multipart/report; boundary="bound"; report-type=delivery-status\\r\\n'
-                "\\r\\n--bound\\r\\nContent-Type: text/plain\\r\\n\\r\\nDelivery failed\\r\\n"
-                "--bound\\r\\nContent-Type: message/delivery-status\\r\\n\\r\\n"
-                "Reporting-MTA: dns; gmail.example.invalid\\r\\n\\r\\n"
-                "Final-Recipient: rfc822; owner@example.invalid\\r\\n"
-                f"Action: {action}\\r\\nStatus: {status}\\r\\n"
-                f"Diagnostic-Code: smtp; {diagnostic}\\r\\n"
-                "--bound--\\r\\n"
+                "From: mailer-daemon@googlemail.com\r\n"
+                "Subject: Delivery Status Notification (Failure)\r\n"
+                "MIME-Version: 1.0\r\n"
+                'Content-Type: multipart/report; boundary="bound"; report-type=delivery-status\r\n'
+                "\r\n--bound\r\nContent-Type: text/plain\r\n\r\nDelivery failed\r\n"
+                "--bound\r\nContent-Type: message/delivery-status\r\n\r\n"
+                "Reporting-MTA: dns; gmail.example.invalid\r\n\r\n"
+                "Final-Recipient: rfc822; owner@example.invalid\r\n"
+                f"Action: {action}\r\nStatus: {status}\r\n"
+                f"Diagnostic-Code: smtp; {diagnostic}\r\n"
+                "--bound--\r\n"
             )
             return BytesParser(policy=policy.default).parsebytes(raw.encode())
         permanent = dsn("5.1.1", "550 5.1.1 mailbox unavailable")
