@@ -183,7 +183,12 @@ class MailStore:
                         str((prior.get('_auto_mail') or {}).get('recipient') or '').strip().casefold(),
                         str((prior.get('_mail') or {}).get('recipient') or '').strip().casefold(),
                     ]
+                    prior_mail = prior.get('_auto_mail') or {}
+                    bad_domain = ((prior_mail.get('delivery_feedback') or {}).get('reason')
+                                  in ('dns_nxdomain','relay_denied'))
+                    prior_domain = str(prior_mail.get('recipient') or '').strip().casefold().rsplit('@',1)[-1]
                     if (already_contacted(candidate,prior) or
+                            (bad_domain and prior_domain == recipient.rsplit('@',1)[-1]) or
                             (recipient in old_addresses and
                              (prior_status in ('rejected','deferred') or
                               (prior.get('marketing_eligibility') or {}).get('opted_out') is True))):
