@@ -99,6 +99,10 @@ class PostgresDedupTests(unittest.TestCase):
         self.db.execute("CREATE TABLE owner_daily_report_receipts ("
                         "report_day text PRIMARY KEY,state text NOT NULL,"
                         "telegram_message_id bigint,updated_at timestamptz DEFAULT now())")
+        self.db.execute("CREATE TABLE owner_scan_run_metrics ("
+                        "scan_run_id text PRIMARY KEY,report_day date NOT NULL,"
+                        "scanned_count int NOT NULL,new_registered int NOT NULL,"
+                        "new_addresses int NOT NULL,new_mx int NOT NULL)")
         self.db.execute("INSERT INTO owner_leads "
             "(osm_id,lead_data,status,updated_at) VALUES (%s,%s::jsonb,'review',now())",
             ("node/5001",json.dumps({"_auto_mail":{"state":"draft",
@@ -191,6 +195,50 @@ class PostgresDedupTests(unittest.TestCase):
             "SELECT lead_data FROM owner_leads WHERE osm_id='node/92001'").fetchone()[0]
         self.assertNotIn("recipient_eligibility_audit",after)
         self.assertNotIn("marketing_eligibility",after)
+
+    def test_run_scoped_metrics_are_idempotent_and_count_persisted_mx_only(self):
+        from leadhunter.scan_metrics import snapshot, persist
+        self.db.execute("CREATE TABLE owner_scan_run_metrics ("
+                        "scan_run_id text PRIMARY KEY,report_day date NOT NULL,"
+                        "scanned_count int NOT NULL,new_registered int NOT NULL,"
+                        "new_addresses int NOT NULL,new_mx int NOT NULL)")
+        before = snapshot(self.db,["node/9950","node/9951"])
+        candidate={"name":"Synthetic shop", "email":"synthetic@example.invalid",
+                   "email_check":"mx_present"}
+        self.db.execute("INSERT INTO owner_leads "
+                        "(osm_id,lead_data,status) VALUES (%s,%s::jsonb,'review')",
+                        ("node/9950",json.dumps(candidate)))
+        self.assertTrue(persist(self.db,"41499900000","2026-11-02",3,before,
+                                ["node/9950","node/9951"]))
+        self.assertFalse(persist(self.db,"41499900000","2026-11-02",3,before,
+                                 ["node/9950","node/9951"]))
+        row=self.db.execute("SELECT scanned_count,new_registered,new_addresses,new_mx "
+                            "FROM owner_scan_run_metrics").fetchone()
+        self.assertEqual(row,(3,1,1,1))
+        self.assertEqual(self.db.execute("SELECT count(*) FROM owner_leads").fetchone()[0],1)
+        before=snapshot(self.db,["node/9950"])
+        self.assertTrue(persist(self.db,"41499900001","2026-11-02",3,before,
+                                ["node/9950"]))
+        second=self.db.execute("SELECT new_registered,new_addresses,new_mx "
+                              "FROM owner_scan_run_metrics WHERE scan_run_id='41499900001'"
+                              ).fetchone()
+        self.assertEqual(second,(0,0,0))
+
+    def test_scan_without_email_is_not_reported_as_new_technical_address(self):
+        from leadhunter.scan_metrics import snapshot,persist
+        self.db.execute("CREATE TABLE owner_scan_run_metrics ("
+                        "scan_run_id text PRIMARY KEY,report_day date NOT NULL,"
+                        "scanned_count int NOT NULL,new_registered int NOT NULL,"
+                        "new_addresses int NOT NULL,new_mx int NOT NULL)")
+        before=snapshot(self.db,["node/9960"])
+        self.db.execute("INSERT INTO owner_leads "
+                        "(osm_id,lead_data,status) VALUES (%s,%s::jsonb,'review')",
+                        ("node/9960",json.dumps({"name":"No email","email":""})))
+        self.assertTrue(persist(self.db,"41499900002","2026-11-02",1,before,
+                                ["node/9960"]))
+        self.assertEqual(self.db.execute(
+            "SELECT new_registered,new_addresses,new_mx FROM owner_scan_run_metrics"
+            ).fetchone(),(1,0,0))
 
     def test_same_business_concurrent_claim_only_once(self):
         self.insert('node/1')
