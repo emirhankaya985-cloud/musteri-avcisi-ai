@@ -43,9 +43,11 @@ def aggregate(conn, day):
             "count(*) FILTER (WHERE lead_data->'_auto_mail'->'delivery_feedback'->>'state'='delayed'),"
             "count(*) FILTER (WHERE lead_data->'_auto_mail'->'reply_feedback'->>'state'='sender_matched_reply'),"
             "count(*) FILTER (WHERE lead_data->'_auto_mail'->>'state'='duplicate'),"
-            "count(*) FILTER (WHERE lead_data->'_auto_mail'->>'claimed_day'=%s "
-            "AND lead_data->'_auto_mail'->>'state'='accepted') "
-            "FROM owner_leads", (day, day))
+            "count(*) FILTER (WHERE (lead_data->'_auto_mail'->>'claimed_day'=%s "
+            "AND lead_data->'_auto_mail'->>'state'='accepted') OR "
+            "(lead_data->'_mail'->>'claimed_day'=%s "
+            "AND lead_data->'_mail'->>'state'='accepted')) "
+            "FROM owner_leads", (day, day, day))
         total, new, accepted, failed, delayed, replies, duplicate, accepted_today = cur.fetchone()
         cur.execute(
             "SELECT count(*),sum(scanned_count),sum(new_registered),"
