@@ -150,6 +150,14 @@ def run(env=None, connection=None, messenger=api, day=None):
             print("OWNER_DAILY_REPORT: already_reserved=1; business_mail_sent=0")
             return 0
         message = compose(today, counts, env.get('AUTO_MAIL_ENABLED') == 'true')
+        if env.get("UNIFIED_CONTROL_HTTP_ENABLED") == "true":
+            from .unified_control import snapshot, safe_report
+            # A Render outage must never block the source owner's daily receipt.
+            try:
+                message += "\n🛰️ " + safe_report(snapshot())
+            except Exception:
+                message += "\\n🛰️ İşletmePilot/YorumPilot HTTP: doğrulanamadı"
+
         try:
             result = messenger(env['TELEGRAM_BOT_TOKEN'], 'sendMessage',
                                {'chat_id':env['TELEGRAM_CHAT_ID'], 'text':message})
