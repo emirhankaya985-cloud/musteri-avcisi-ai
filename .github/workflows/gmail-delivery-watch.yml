@@ -4,7 +4,7 @@ on:
   # One-time live acceptance when this workflow changes on main.
   push:
     branches: [main]
-    paths: ['.github/workflows/gmail-delivery-watch.yml']
+    paths: ['.github/workflows/gmail-delivery-watch.yml', 'leadhunter/mail_watch.py', 'leadhunter/daily_status.py']
   schedule:
     - cron: '7 * * * *'
 permissions:
