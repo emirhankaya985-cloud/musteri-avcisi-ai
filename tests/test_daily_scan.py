@@ -62,7 +62,7 @@ class DailyScannerTests(unittest.TestCase):
         self.assertIn("AUTO_MAIL_ENABLED: 'false'",source)
         self.assertNotIn("AUTO_MAIL_ENABLED: 'true'",source)
         self.assertIn("AUTO_MAIL_DAILY_LIMIT: '5'",source)
-        self.assertIn("secrets.GMAIL_APP_PASSWORD",source)
+        self.assertNotIn("secrets.GMAIL_APP_PASSWORD",source)
         self.assertIn("DIGEST_DAILY_GUARD: 'false'",source)
         self.assertIn("concurrency:",source)
 
