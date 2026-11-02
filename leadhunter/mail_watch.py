@@ -6,12 +6,14 @@ Only strict automated bounce senders and known frozen recipients are considered.
 from datetime import datetime, timedelta, timezone
 from email import policy
 from email.parser import BytesParser
-from email.utils import parseaddr
+from email.utils import parseaddr, parsedate_to_datetime
+import hashlib
 import imaplib
 import json
 import os
 import re
 import ssl
+from zoneinfo import ZoneInfo
 
 from .review_private import connect_private_database
 from .telegram_buttons import api
@@ -175,7 +177,23 @@ def read_delivery_messages(env, imap_factory=None, days=35):
             if raw is not None:
                 feedback = bounce_feedback(raw) or reply_feedback(raw)
                 if feedback:
-                    results.append(feedback)
+                    # Full raw message hash is a stable duplicate key even
+                    # across IMAP UID changes. Hash only; never store payload.
+                    parsed = BytesParser(policy=policy.default).parsebytes(raw)
+                    stamp = str(parsed.get("Date") or "")
+                    try:
+                        when = parsedate_to_datetime(stamp)
+                        if when.tzinfo is None:
+                            raise ValueError("Naive email Date")
+                        local_day = when.astimezone(ZoneInfo("Europe/Istanbul")).date()
+                    except (TypeError, ValueError, OverflowError):
+                        # Date header may be missing; use first observed day.
+                        local_day = datetime.now(ZoneInfo("Europe/Istanbul")).date()
+                    key = hashlib.sha256(raw).hexdigest()
+                    evidence, state = feedback[:2]
+                    details = feedback[2] if len(feedback)>2 else {}
+                    results.append((evidence,state,details,
+                                    {"digest":key,"day":local_day.isoformat()}))
         return results
     except Exception:
         raise RuntimeError("Read-only Gmail delivery watch failed; credentials redacted") from None
@@ -221,17 +239,45 @@ def reconcile_mail(conn, notices):
                     if candidate not in ("failed", "delayed"):
                         continue  # Reply metadata cannot be a delivery failure.
                     # Only match already frozen recipients, never arbitrary leads.
-                    if re.search(r"(?<![\\w.+-])" + re.escape(recipient) + r"(?![\\w.+-])", evidence):
+                    if re.search(r"(?<![\w.+-])" + re.escape(recipient) + r"(?![\w.+-])", evidence):
                         if candidate == "failed":
                             state, details = "failed", (notice[2] if len(notice) > 2 else {})
                             break
                         if state is None:
                             state, details = "delayed", (notice[2] if len(notice) > 2 else {})
-                # A reply requires an exact sender-to-recipient match AND
-                # an RFC822 In-Reply-To/References header tied to our own
-                # frozen outgoing Message-ID. Merely sharing a sender is not
-                # enough to count an unrelated message as a business reply.
+                # Count trusted notices once, not once per 35-day inbox scan.
+                # Only fully matched, frozen recipients/references are logged.
+                # The ledger contains no sender, address, message text or body.
                 mail_id = str(record.get("id") or "").casefold()
+                for notice in notices:
+                    if len(notice) < 4 or not isinstance(notice[3], dict):
+                        continue  # Older synthetic tuple has no event identity.
+                    evidence, candidate = notice[:2]
+                    digest = notice[3].get("digest")
+                    day = notice[3].get("day")
+                    if not (isinstance(digest,str) and
+                            re.fullmatch(r"[0-9a-f]{64}",digest) and
+                            isinstance(day,str) and
+                            re.fullmatch(r"20[0-9]{2}-[0-9]{2}-[0-9]{2}",day)):
+                        continue
+                    if candidate in ("failed","delayed"):
+                        matched = bool(re.search(
+                            r"(?<![\w.+-])"+re.escape(recipient)+r"(?![\w.+-])",evidence))
+                        kind = candidate
+                    elif candidate.startswith("reply:"):
+                        matched = (len(mail_id)>=12 and evidence==recipient and
+                                   ("<"+mail_id+"@") in candidate)
+                        kind = "reply"
+                    else:
+                        continue
+                    if matched:
+                        cur.execute(
+                            "INSERT INTO owner_mail_notice_metrics "
+                            "(notice_digest,report_day,kind) "
+                            "VALUES (%s,%s::date,%s) "
+                            "ON CONFLICT (notice_digest) DO NOTHING",
+                            (digest,day,kind))
+                # A reply requires an exact frozen outgoing Message-ID.
                 has_reply = matching_reply(notices, recipient, mail_id)
                 if has_reply and not record.get("reply_feedback"):
                     reply_data = {"state": "sender_matched_reply",
@@ -333,6 +379,16 @@ def run(env=None, imap_factory=None, opener=None):
     db = connect_private_database(env.get("REVIEW_DATABASE_URL"))
     try:
         changed, pending = reconcile_mail(db, notices)
+        # This commit is independent of Telegram delivery. A failed bot
+        # notification must not lose observed DSN coverage or duplicate it.
+        run_id = env.get("GITHUB_RUN_ID")
+        if isinstance(run_id,str) and re.fullmatch(r"[0-9]{6,24}",run_id):
+            with db.transaction():
+                with db.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO owner_mail_watch_runs(watch_run_id,report_day) "
+                        "VALUES (%s,(now() AT TIME ZONE 'Europe/Istanbul')::date) "
+                        "ON CONFLICT (watch_run_id) DO NOTHING", (run_id,))
         receipt = deliver_pending(db, pending, env, opener)
     finally:
         db.close()
