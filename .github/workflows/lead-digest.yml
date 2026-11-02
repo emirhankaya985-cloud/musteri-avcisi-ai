@@ -87,6 +87,9 @@ jobs:
         env:
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
         run: python -m leadhunter.recipient_audit
+      - name: Check unified project HTTP readiness (GET only, no SMTP or reviews)
+        if: success()
+        run: python -m leadhunter.unified_control
       - name: Commit seen IDs (also after partial send failure)
         if: always()
         run: |
