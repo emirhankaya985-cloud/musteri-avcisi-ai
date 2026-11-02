@@ -239,7 +239,7 @@ def reconcile_mail(conn, notices):
                     if candidate not in ("failed", "delayed"):
                         continue  # Reply metadata cannot be a delivery failure.
                     # Only match already frozen recipients, never arbitrary leads.
-                    if re.search(r"(?<![\\w.+-])" + re.escape(recipient) + r"(?![\\w.+-])", evidence):
+                    if re.search(r"(?<![\w.+-])" + re.escape(recipient) + r"(?![\w.+-])", evidence):
                         if candidate == "failed":
                             state, details = "failed", (notice[2] if len(notice) > 2 else {})
                             break
@@ -262,7 +262,7 @@ def reconcile_mail(conn, notices):
                         continue
                     if candidate in ("failed","delayed"):
                         matched = bool(re.search(
-                            r"(?<![\\w.+-])"+re.escape(recipient)+r"(?![\\w.+-])",evidence))
+                            r"(?<![\w.+-])"+re.escape(recipient)+r"(?![\w.+-])",evidence))
                         kind = candidate
                     elif candidate.startswith("reply:"):
                         matched = (len(mail_id)>=12 and evidence==recipient and
