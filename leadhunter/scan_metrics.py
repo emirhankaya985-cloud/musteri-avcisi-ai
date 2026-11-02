@@ -45,12 +45,13 @@ def persist(conn, run_id, day, scanned, before, osm_ids):
                 if osm_id not in before:
                     new_registered += 1
                 address = str(data.get("email") or "").strip().casefold()
-                if not valid_recipient(address) or (old and old == address):
+                if not address or (old and old == address):
                     continue
-                # Count one new valid address only if the stored address was
-                # absent or changed; a contact from OSM alone is not consent.
+                # Count newly recorded address candidates separately from
+                # format/MX pass. Invalid email-looking strings are not
+                # silently treated as technically valid or legally eligible.
                 new_addresses += 1
-                if data.get("email_check") == "mx_present":
+                if valid_recipient(address) and data.get("email_check") == "mx_present":
                     new_mx += 1
             cur.execute(
                 "INSERT INTO owner_scan_run_metrics "
