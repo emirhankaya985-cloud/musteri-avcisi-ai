@@ -6,7 +6,7 @@ No customer SMTP, no private addresses or bodies in Telegram.
 """
 import json
 import os
-from datetime import datetime
+from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from .recipient_eligibility import eligible_recipient
@@ -14,6 +14,22 @@ from .review_private import connect_private_database
 from .telegram_buttons import api
 
 ZONE = ZoneInfo("Europe/Istanbul")
+
+
+def report_day(env=None, now=None):
+    """Attribute delayed scheduled jobs to their 20:55 UTC intended date.
+
+    20:55 UTC is 23:55 Europe/Istanbul all year. Using the actual local
+    date alone incorrectly credited a 00:23 TRT late run to the next day.
+    """
+    env = os.environ if env is None else env
+    now = now or datetime.now(timezone.utc)
+    now = now.astimezone(timezone.utc)
+    if env.get("GITHUB_EVENT_NAME") == "schedule":
+        due = datetime.combine(now.date(), time(20,55),tzinfo=timezone.utc)
+        return (now.date() if now >= due else
+                (now - timedelta(days=1)).date()).isoformat()
+    return now.astimezone(ZONE).date().isoformat()
 
 
 def aggregate(conn, day):
@@ -31,6 +47,18 @@ def aggregate(conn, day):
             "AND lead_data->'_auto_mail'->>'state'='accepted') "
             "FROM owner_leads", (day, day))
         total, new, accepted, failed, delayed, replies, duplicate, accepted_today = cur.fetchone()
+        cur.execute(
+            "SELECT count(*),sum(scanned_count),sum(new_registered),"
+            "sum(new_addresses),sum(new_mx) "
+            "FROM owner_scan_run_metrics WHERE report_day=%s::date", (day,))
+        measured_runs, inspected, registered_runs, found_addresses, checked_mx = cur.fetchone()
+        cur.execute(
+            "SELECT count(*) FROM owner_leads WHERE "
+            "(first_seen_at AT TIME ZONE 'Europe/Istanbul')::date=%s::date "
+            "AND coalesce(lead_data->>'email','')<>''", (day,))
+        # This is an independent CRM total, not necessarily fully
+        # represented in the newly instrumented hourly scan ledger.
+        registered_day_addresses = cur.fetchone()[0]
         cur.execute("SELECT lead_data FROM owner_leads WHERE status='review' "
                     "AND lead_data->'_auto_mail'->>'state'='draft'")
         candidates = cur.fetchall()
@@ -43,7 +71,12 @@ def aggregate(conn, day):
     return dict(total=int(total),new=int(new),accepted=int(accepted),
                 failed=int(failed),delayed=int(delayed),replies=int(replies),
                 duplicate=int(duplicate),accepted_today=int(accepted_today),
-                eligible=eligible)
+                eligible=eligible, measured_runs=int(measured_runs),
+                inspected=None if inspected is None else int(inspected),
+                found_addresses=None if found_addresses is None else int(found_addresses),
+                checked_mx=None if checked_mx is None else int(checked_mx),
+                registered_day_addresses=int(registered_day_addresses),
+                registered_runs=None if registered_runs is None else int(registered_runs))
 
 
 def compose(day, counts, enabled):
@@ -53,14 +86,28 @@ def compose(day, counts, enabled):
               if paused else 'Doğrulanmış uygun alıcı yok'
               if counts['eligible'] == 0 else 'Çalışma izni/config kapalı'
               if not enabled else 'Uygunluk ve itibar ön denetimleri sağlandı')
+    inspected = counts.get("inspected")
+    addresses = counts.get("found_addresses")
+    checked = counts.get("checked_mx")
+    measured = counts.get("measured_runs",0)
+    def amount(value):
+        return "ölçülmedi" if value is None else str(value)
+    coverage = (f"{measured} kimlikli koşum; günün yalnızca ölçülen kısmı"
+                if measured else "henüz tarama koşum kaydı yok")
     return (
         f"📊 Müşteri Avcısı AI — {day} TRT günlük rapor\n"
-        f"🔎 Toplam aday: {counts['total']} | Bugün yeni: {counts['new']}\n"
+        f"🔎 İncelenen işletme: {amount(inspected)} (tekrarları içerir; {coverage})\n"
+        f"🆕 CRM'e yeni benzersiz aday: {counts['new']}\n"
+        f"📧 Yeni kaydedilen teknik adres: {amount(addresses)}\n"
+        f"🔎 Yeni adreslerden format+DNS MX kontrolünü geçen: {amount(checked)}"
+        " (posta kutusu/teslim ve izin kanıtı değildir)\n"
         f"✅ Doğrulanmış iletişim uygunluğu: {counts['eligible']}\n"
         f"⏭️ Mükerrer: {counts['duplicate']}\n"
         f"📤 Geçmiş SMTP kabulü: {counts['accepted']} | Bugün: {counts['accepted_today']}\n"
-        f"🔴 Teslimat hatası: {counts['failed']} | 🟡 Geciken: {counts['delayed']}\n"
-        f"📨 Yanıt: {counts['replies']}\n"
+        f"🔴 Bugün gelen hata DSN: ölçülmedi (olay günlüğü yok) | "
+        f"Güncel başarısız gönderi: {counts['failed']} | Geciken: {counts['delayed']}\n"
+        f"📨 Bugün eşleşen yeni müşteri yanıtı: ölçülmedi (olay günlüğü yok) | "
+        f"Toplam eşleşmiş yanıt: {counts['replies']}\n"
         f"🔐 Otomatik gönderim: {'KOŞULLU' if live else 'KAPALI'} — {reason}\n"
         "ℹ️ SMTP kabulü, alıcının gelen kutusuna teslim kanıtı değildir."
     )
@@ -70,7 +117,7 @@ def run(env=None, connection=None, messenger=api, day=None):
     env = os.environ if env is None else env
     if not env.get('TELEGRAM_BOT_TOKEN') or not str(env.get('TELEGRAM_CHAT_ID') or '').isdigit():
         raise RuntimeError('Verified owner Telegram configuration required')
-    today = day or datetime.now(ZONE).date().isoformat()
+    today = day or report_day(env)
     owns_connection = connection is None
     conn = connection if connection is not None else connect_private_database(
         env.get('REVIEW_DATABASE_URL'))
