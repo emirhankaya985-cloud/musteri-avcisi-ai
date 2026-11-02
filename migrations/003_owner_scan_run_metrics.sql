@@ -14,3 +14,19 @@ CREATE TABLE IF NOT EXISTS owner_scan_run_metrics (
 );
 CREATE INDEX IF NOT EXISTS owner_scan_run_metrics_day_idx ON owner_scan_run_metrics(report_day);
 -- Reversal: stop writing new metrics, keep historical rows; dropping is NOT required.
+
+-- Gmail events are immutable fingerprints of verified inbound messages.
+-- No recipient, sender, body, SMTP credentials or provider message IDs.
+CREATE TABLE IF NOT EXISTS owner_mail_notice_metrics (
+    notice_digest text PRIMARY KEY CHECK (notice_digest ~ '^[0-9a-f]{64}$'),
+    report_day date NOT NULL,
+    kind text NOT NULL CHECK (kind IN ('failed','delayed','reply')),
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS owner_mail_notice_metrics_day_idx ON owner_mail_notice_metrics(report_day);
+CREATE TABLE IF NOT EXISTS owner_mail_watch_runs (
+    watch_run_id text PRIMARY KEY CHECK (watch_run_id ~ '^[0-9]{6,24}$'),
+    report_day date NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS owner_mail_watch_runs_day_idx ON owner_mail_watch_runs(report_day);
