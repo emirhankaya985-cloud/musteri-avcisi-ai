@@ -292,6 +292,10 @@ def send_telegram(message, token, chat_id, opener=urlopen, reply_markup=None):
 
 def live(env=None, opener=urlopen, output=print):
     env = os.environ if env is None else env
+    # Freeze Turkey-local accounting day at scan start, not end of a slow job.
+    from .scan_metrics import scan_day
+    metric_day = scan_day()
+    metric_run = env.get('GITHUB_RUN_ID')
     automatic = env.get('AUTO_MAIL_ENABLED') == 'true'
     if automatic:
         from .automatic_mail import check_config
@@ -335,6 +339,8 @@ def live(env=None, opener=urlopen, output=print):
         # Never silently claim "zero opportunities" in this situation.
         raise RuntimeError('OSM source inconsistent with previously seen records; retry later')
     stats = discovery_stats(raw, seen)
+    metric_ids = [lead['id'] for item in raw
+                  if (lead := lead_from_osm(item)) is not None]
     from .review_messages import compact_telegram
     from .review_flow import prioritized_leads
     from .review_private import ReviewStore, connect_private_database
@@ -348,6 +354,9 @@ def live(env=None, opener=urlopen, output=print):
             conn = connect_private_database(database_url)
             store = ReviewStore(conn)
             statuses = store.statuses()
+            if metric_run:
+                from .scan_metrics import snapshot
+                metric_before = snapshot(conn, metric_ids)
             if automatic:
                 from .automatic_mail import AutoMailStore, flush_reports
                 auto_store = AutoMailStore(store)
@@ -453,6 +462,12 @@ def live(env=None, opener=urlopen, output=print):
             seen.add(item['id'])
             save_seen(state, seen)
             sent += 1
+        if conn is not None and metric_run:
+            # Commit per-run counters ONLY after successful research/persistence.
+            # Unique run ID means GitHub Actions reruns never inflate totals.
+            from .scan_metrics import persist
+            persist(conn, metric_run, metric_day, stats['fetched'],
+                    metric_before, metric_ids)
     finally:
         if conn is not None:
             conn.close()
