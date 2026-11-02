@@ -103,6 +103,11 @@ class PostgresDedupTests(unittest.TestCase):
                         "scan_run_id text PRIMARY KEY,report_day date NOT NULL,"
                         "scanned_count int NOT NULL,new_registered int NOT NULL,"
                         "new_addresses int NOT NULL,new_mx int NOT NULL)")
+        self.db.execute("CREATE TABLE owner_mail_notice_metrics ("
+                        "notice_digest text PRIMARY KEY,report_day date NOT NULL,"
+                        "kind text NOT NULL)")
+        self.db.execute("CREATE TABLE owner_mail_watch_runs ("
+                        "watch_run_id text PRIMARY KEY,report_day date NOT NULL)")
         self.db.execute("INSERT INTO owner_leads "
             "(osm_id,lead_data,status,updated_at) VALUES (%s,%s::jsonb,'review',now())",
             ("node/5001",json.dumps({"_auto_mail":{"state":"draft",
@@ -239,6 +244,35 @@ class PostgresDedupTests(unittest.TestCase):
         self.assertEqual(self.db.execute(
             "SELECT new_registered,new_addresses,new_mx FROM owner_scan_run_metrics"
             ).fetchone(),(1,0,0))
+
+    def test_gmail_immutable_notice_ledger_deduplicates_repeat_reads(self):
+        from leadhunter.mail_watch import reconcile_mail
+        self.db.execute("CREATE TABLE owner_mail_notice_metrics ("
+                        "notice_digest text PRIMARY KEY,report_day date NOT NULL,"
+                        "kind text NOT NULL)")
+        recipient="bounced@example.invalid"
+        record={"_auto_mail":{"state":"accepted","recipient":recipient,
+                              "id":"a"*24}}
+        self.db.execute("INSERT INTO owner_leads "
+                        "(osm_id,lead_data,status) VALUES (%s,%s::jsonb,'email_sent')",
+                        ("node/9965",json.dumps(record)))
+        notice=("The recipient "+recipient+" failed","failed",
+                {"smtp_code":"550"},
+                {"digest":"a"*64,"day":"2026-11-02"})
+        other=(recipient,"reply:<"+("a"*24)+"@gmail.com>",{},
+               {"digest":"b"*64,"day":"2026-11-02"})
+        for _ in range(2):
+            reconcile_mail(self.db,[notice,other])
+        results=self.db.execute(
+            "SELECT kind,count(*) FROM owner_mail_notice_metrics "
+            "GROUP BY kind ORDER BY kind").fetchall()
+        self.assertEqual(results,[("failed",1),("reply",1)])
+        row=self.db.execute(
+            "SELECT lead_data->'_auto_mail' FROM owner_leads "
+            "WHERE osm_id='node/9965'").fetchone()[0]
+        self.assertEqual(row["state"],"accepted")
+        self.assertEqual(row["delivery_feedback"]["state"],"failed")
+        self.assertEqual(row["reply_feedback"]["state"],"sender_matched_reply")
 
     def test_same_business_concurrent_claim_only_once(self):
         self.insert('node/1')
