@@ -59,6 +59,15 @@ def aggregate(conn, day):
         # This is an independent CRM total, not necessarily fully
         # represented in the newly instrumented hourly scan ledger.
         registered_day_addresses = cur.fetchone()[0]
+        cur.execute(
+            "SELECT count(*) FILTER (WHERE kind='failed'),"
+            "count(*) FILTER (WHERE kind='delayed'),"
+            "count(*) FILTER (WHERE kind='reply') "
+            "FROM owner_mail_notice_metrics WHERE report_day=%s::date",(day,))
+        today_failed_notices,today_delays,today_replies = cur.fetchone()
+        cur.execute("SELECT count(*) FROM owner_mail_watch_runs "
+                    "WHERE report_day=%s::date",(day,))
+        measured_watches = cur.fetchone()[0]
         cur.execute("SELECT lead_data FROM owner_leads WHERE status='review' "
                     "AND lead_data->'_auto_mail'->>'state'='draft'")
         candidates = cur.fetchall()
@@ -76,7 +85,11 @@ def aggregate(conn, day):
                 found_addresses=None if found_addresses is None else int(found_addresses),
                 checked_mx=None if checked_mx is None else int(checked_mx),
                 registered_day_addresses=int(registered_day_addresses),
-                registered_runs=None if registered_runs is None else int(registered_runs))
+                registered_runs=None if registered_runs is None else int(registered_runs),
+                measured_watches=int(measured_watches),
+                today_failed_notices=int(today_failed_notices) if measured_watches else None,
+                today_delays=int(today_delays) if measured_watches else None,
+                today_replies=int(today_replies) if measured_watches else None)
 
 
 def compose(day, counts, enabled):
@@ -104,10 +117,11 @@ def compose(day, counts, enabled):
         f"✅ Doğrulanmış iletişim uygunluğu: {counts['eligible']}\n"
         f"⏭️ Mükerrer: {counts['duplicate']}\n"
         f"📤 Geçmiş SMTP kabulü: {counts['accepted']} | Bugün: {counts['accepted_today']}\n"
-        f"🔴 Bugün gelen hata DSN: ölçülmedi (olay günlüğü yok) | "
-        f"Güncel başarısız gönderi: {counts['failed']} | Geciken: {counts['delayed']}\n"
-        f"📨 Bugün eşleşen yeni müşteri yanıtı: ölçülmedi (olay günlüğü yok) | "
-        f"Toplam eşleşmiş yanıt: {counts['replies']}\n"
+        f"🔴 Bugün eşleşen başarısızlık DSN: {amount(counts.get('today_failed_notices'))} "
+        f"| Gecikme DSN: {amount(counts.get('today_delays'))} "
+        f"| Güncel başarısız gönderi: {counts['failed']} | Geciken: {counts['delayed']}\n"
+        f"📨 Bugün eşleşen yeni müşteri yanıtı: {amount(counts.get('today_replies'))} "
+        f"| Toplam eşleşmiş yanıt: {counts['replies']}\n"
         f"🔐 Otomatik gönderim: {'KOŞULLU' if live else 'KAPALI'} — {reason}\n"
         "ℹ️ SMTP kabulü, alıcının gelen kutusuna teslim kanıtı değildir."
     )
