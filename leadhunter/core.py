@@ -14,7 +14,7 @@ OVERPASS_ENDPOINTS = (
     'https://overpass-api.de/api/interpreter',
     'https://lz4.overpass-api.de/api/interpreter',
 )
-DEFAULT_BBOX = '40.982,29.015,41.008,29.055'
+from .scan_regions import DEFAULT_BBOX, select_bbox
 CATEGORIES = {'car_wash': 'Oto yıkama', 'hairdresser': 'Kuaför/berber', 'beauty': 'Güzellik salonu'}
 
 
@@ -311,8 +311,10 @@ def live(env=None, opener=urlopen, output=print):
         raise RuntimeError('TELEGRAM_BOT_TOKEN ve TELEGRAM_CHAT_ID eksik')
     state = Path(env.get('STATE_FILE', 'data/seen.json'))
     seen = read_seen(state)
-    configured_bbox = (env.get('SCAN_BBOX') or DEFAULT_BBOX).strip()
+    configured_bbox, scan_slot = select_bbox(env)
     bbox = bbox_parse(configured_bbox)
+    if scan_slot != 'default':
+        output('OSM tarama alanı: ' + scan_slot + ' (tek, sınırlı alan sorgusu)')
     source_mode = env.get('OSM_SOURCE_MODE', 'auto')
     if source_mode not in ('auto', 'direct', 'overpass'):
         raise ValueError('Invalid OSM_SOURCE_MODE')
