@@ -32,6 +32,20 @@ class DirectApiTests(unittest.TestCase):
             raise AssertionError("unexpected URL")
         return io.BytesIO(json.dumps(payload).encode())
 
+    def test_direct_fallback_matches_all_five_production_categories(self):
+        from leadhunter.osm_direct import SUPPORTED_SHOPS
+        from leadhunter.core import CATEGORIES
+        self.assertEqual(SUPPORTED_SHOPS, set(CATEGORIES)-{"car_wash"})
+        def opener(req, timeout=None):
+            return io.BytesIO(json.dumps({"elements":[
+                {"type":"node","id":501,"tags":{"name":"Synthetic Flowers","shop":"florist"}},
+                {"type":"node","id":502,"tags":{"name":"Synthetic Optics","shop":"optician"}},
+                {"type":"node","id":503,"tags":{"name":"Synthetic Pharmacy","shop":"chemist"}},
+            ]}).encode())
+        leads = get_osm_direct(self.BOX, (), opener,
+                               day=date(2026,11,7),hour=12,max_tiles=1)
+        self.assertEqual({x["id"] for x in leads}, {501,502})
+
     def test_known_nodes_and_ways_are_returned(self):
         items=get_osm_direct(self.BOX,self.OLD,self.fake,max_tiles=0)
         self.assertEqual({(x["type"],x["id"]) for x in items},
