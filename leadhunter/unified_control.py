@@ -23,29 +23,62 @@ SERVICES = {
 }
 
 
-def probe(name, opener=urlopen):
-    """GET fixed public health routes only. No tokens, data writes, redirects or URL input."""
-    entry = SERVICES[name]
-    url = entry["url"]
+def _failure_class(code):
+    if code in (400, 401, 403, 404, 429):
+        return "http_" + str(code)
+    if 500 <= code <= 599:
+        return "http_5xx"
+    return "http_other"
+
+
+def probe_detail(name, opener=urlopen, sleeper=None):
+    """Two read-only GET attempts maximum; retry only transient failures."""
+    from urllib.error import HTTPError, URLError
+    from time import sleep
+    if sleeper is None:
+        sleeper = sleep
+    url = SERVICES[name]["url"]
     request = Request(url, headers={"User-Agent": "MusteriAvcisi-HealthCheck/1"},
                       method="GET")
-    try:
-        with opener(request, timeout=6) as response:
-            if response.geturl() != url or response.status != 200:
-                return "unverified"
-            content = response.read(2049)
-            if len(content) > 2048:
-                return "unverified"
-            parsed = json.loads(content)
-            if parsed.get("status") != "ok":
-                return "unverified"
-            if name == "isletmepilot" and parsed.get("database") != "ok":
-                return "unverified"
-            # Never infer OAuth, review sync, customer ownership, or business
-            # authorization from one successful unauthenticated HTTP GET.
-            return "http_200"
-    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
-        return "unverified"
+    for attempt in range(2):
+        retry = False
+        reason = "unverified"
+        try:
+            with opener(request, timeout=5) as response:
+                if response.geturl() != url:
+                    return "unverified", "redirect"
+                code = response.status
+                if code == 200:
+                    content = response.read(2049)
+                    if len(content) > 2048:
+                        return "unverified", "oversize"
+                    try:
+                        parsed = json.loads(content)
+                    except (ValueError, TypeError):
+                        return "unverified", "invalid_json"
+                    if not isinstance(parsed, dict) or parsed.get("status") != "ok":
+                        return "unverified", "invalid_health"
+                    if name == "isletmepilot" and parsed.get("database") != "ok":
+                        return "unverified", "database_unverified"
+                    # HTTP readiness is not CRM or OAuth business authorization.
+                    return "http_200", "ok"
+                reason = _failure_class(code)
+                retry = code == 429 or code >= 500
+        except HTTPError as exc:
+            reason = _failure_class(exc.code)
+            retry = exc.code == 429 or exc.code >= 500
+        except (URLError, OSError, TimeoutError):
+            reason = "network"
+            retry = True
+        if not retry or attempt == 1:
+            return "unverified", reason
+        sleeper(0.2)
+    return "unverified", "unverified"
+
+
+def probe(name, opener=urlopen):
+    """Compatibility: only confirmed 200 + healthy JSON can be reported up."""
+    return probe_detail(name, opener=opener)[0]
 
 
 def snapshot(opener=urlopen):
@@ -61,8 +94,12 @@ def safe_report(states):
 
 
 def run(opener=urlopen):
-    result = snapshot(opener)
-    print("CONTROL_CENTER: " + safe_report(result) + "; smtp_sent=0; google_replies_published=0")
+    details = {name: probe_detail(name, opener=opener) for name in SERVICES}
+    result = {name: item[0] for name, item in details.items()}
+    # Restricted categories only. No URLs, private response bodies or credentials.
+    failures = " | ".join(name + "=" + item[1] for name, item in details.items())
+    print("CONTROL_CENTER: " + safe_report(result) + "; diagnosis: " + failures +
+          "; smtp_sent=0; google_replies_published=0")
     return result
 
 
