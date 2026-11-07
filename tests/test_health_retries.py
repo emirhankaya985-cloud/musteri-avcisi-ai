@@ -32,7 +32,7 @@ class HealthRetryTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         self.assertEqual(sleeps, [0.2])
 
-    def test_429_is_bounded(self):
+    def test_429_is_not_retried_and_honors_provider_limit(self):
         url = SERVICES['isletmepilot']['url']
         calls = []
         def opener(req, timeout):
@@ -40,7 +40,7 @@ class HealthRetryTests(unittest.TestCase):
             raise HTTPError(url, 429, 'busy', {}, None)
         self.assertEqual(probe_detail('isletmepilot', opener, lambda _: None),
                          ('unverified', 'http_429'))
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 1)
 
     def test_400_401_403_not_retried(self):
         url = SERVICES['isletmepilot']['url']
@@ -53,14 +53,24 @@ class HealthRetryTests(unittest.TestCase):
                              ('unverified', 'http_' + str(code)))
             self.assertEqual(len(calls), 1)
 
-    def test_network_errors_retry_twice_and_no_false_success(self):
+    def test_network_errors_retry_three_times_and_no_false_success(self):
         calls = []
         def opener(req, timeout):
             calls.append(1)
             raise URLError('private-hostname-never-log-this')
         self.assertEqual(probe_detail('yorumpilot', opener, lambda _: None),
                          ('unverified', 'network'))
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 3)
+
+    def test_network_backoff_has_two_geometric_intervals(self):
+        calls, sleeps = [], []
+        def opener(req, timeout):
+            calls.append(1)
+            raise URLError("synthetic network")
+        self.assertEqual(probe_detail("yorumpilot", opener, sleeps.append),
+                         ("unverified", "network"))
+        self.assertEqual(sleeps, [0.2, 0.4])
+        self.assertEqual(len(calls),3)
 
     def test_redirect_is_rejected(self):
         self.assertEqual(probe_detail('isletmepilot', lambda req, timeout:
