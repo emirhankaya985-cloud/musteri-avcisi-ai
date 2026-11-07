@@ -21,10 +21,10 @@ class ScanRegionsTests(unittest.TestCase):
         from datetime import timedelta
         found = [select_bbox({"SCAN_ROTATE_BBOX": "true"}, first + timedelta(hours=i))
                  for i in range(4)]
-        self.assertEqual([v[0] for v in found], list(PILOT_BBOXES))
+        self.assertEqual([v[0] for v in found], list(PILOT_BBOXES)[:4])
         self.assertEqual([v[1] for v in found],
-                         ["pilot_1_of_4", "pilot_2_of_4",
-                          "pilot_3_of_4", "pilot_4_of_4"])
+                         ["pilot_1_of_8", "pilot_2_of_8",
+                          "pilot_3_of_8", "pilot_4_of_8"])
 
     def test_regions_remain_bounded_and_nonidentical(self):
         self.assertEqual(len(PILOT_BBOXES), len(set(PILOT_BBOXES)))
