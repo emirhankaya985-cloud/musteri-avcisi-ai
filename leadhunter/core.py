@@ -490,9 +490,14 @@ def live(env=None, opener=urlopen, output=print):
         if eligible_run(env):
             try:
                 mail_aggregate = store.mail_summary() if store is not None else None
-                send_telegram(hourly_compose(stats, sent, scan_slot, mail_aggregate),
-                              token, chat_id, opener)
-                output('HOURLY_OWNER_REPORT: receipt_confirmed=1; business_mail_sent=0')
+                receipt_id = send_telegram(
+                    hourly_compose(stats, sent, scan_slot, mail_aggregate),
+                    token, chat_id, opener)
+                # Telegram returns a positive integer only after API acceptance.
+                # Message ID is a receipt, not proof the human read the text.
+                output('HOURLY_OWNER_REPORT: receipt_confirmed=1; '
+                       'telegram_message_id=' + str(receipt_id) +
+                       '; business_mail_sent=0')
             except Exception:
                 output('HOURLY_OWNER_REPORT: receipt_confirmed=0; no automatic replay')
     finally:
