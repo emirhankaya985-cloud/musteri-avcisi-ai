@@ -71,6 +71,8 @@ jobs:
           SCAN_BBOX: ${{vars.SCAN_BBOX }}
           # Owner-only discovery rotates four bounded pilot regions, no new SMTP.
           SCAN_ROTATE_BBOX: 'true'
+          # One private aggregate after each normal hourly scan, not on reruns.
+          OWNER_HOURLY_SUMMARY: 'true'
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
           # Historical outreach remains BLOCKED independent of current bounce counts.
           # This scheduled job researches leads and reports privately; no customer SMTP.
