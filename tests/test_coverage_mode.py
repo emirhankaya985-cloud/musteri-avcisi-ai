@@ -104,9 +104,12 @@ class CoverageModeTests(unittest.TestCase):
                 if "/api/interpreter" in req.full_url:
                     raise TimeoutError("synthetic provider offline")
                 self.fail("No alternative host, OSM editing API or Telegram permitted")
+            output=[]
             with self.assertRaisesRegex(RuntimeError,"No confirmed read-only Overpass tile"):
-                live(env=env,opener=opener,output=lambda _:None)
+                live(env=env,opener=opener,output=output.append)
             self.assertEqual(len(api_calls),1)
+            self.assertTrue(any("OVERPASS_TILE_FAILURE: class=timeout; tile_offset=0"
+                                in line for line in output))
             state=plan(env["TILE_PROGRESS_FILE"],
                        select_bbox(env)[1],bbox_parse(select_bbox(env)[0]))
             self.assertEqual(state["completed"],0)
