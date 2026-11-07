@@ -64,6 +64,26 @@ class CoverageModeTests(unittest.TestCase):
             self.assertEqual(plan(env["TILE_PROGRESS_FILE"],select_bbox(env)[1],
                                   bbox_parse(select_bbox(env)[0]))["completed"],2)
 
+    def test_api_429_stops_before_second_tile_or_provider_fallback(self):
+        from urllib.error import HTTPError
+        from leadhunter.osm_direct import OSMProviderStop
+        with tempfile.TemporaryDirectory() as temp:
+            env={"TELEGRAM_BOT_TOKEN":"synthetic","TELEGRAM_CHAT_ID":"123",
+                 "STATE_FILE":str(Path(temp)/"seen.json"),
+                 "TILE_PROGRESS_FILE":str(Path(temp)/"tiles.json"),
+                 "SCAN_ROTATE_BBOX":"true","SCAN_TILE_LEDGER":"true",
+                 "OSM_SOURCE_MODE":"coverage","AUTO_MAIL_ENABLED":"false"}
+            calls=[]
+            def opener(req,timeout=None):
+                calls.append(req.full_url)
+                if "api.openstreetmap.org" in req.full_url:
+                    raise HTTPError(req.full_url,429,"rate limited",None,None)
+                self.fail("Rate-limit bypass or Telegram delivery not permitted")
+            with self.assertRaisesRegex(OSMProviderStop,"429"):
+                live(env=env,opener=opener,output=lambda _:None)
+            self.assertEqual(len(calls),1)
+            self.assertFalse(Path(env["TILE_PROGRESS_FILE"]).exists())
+
     def test_failed_direct_tiles_can_use_overpass_without_false_progress(self):
         with tempfile.TemporaryDirectory() as temp:
             env = {
