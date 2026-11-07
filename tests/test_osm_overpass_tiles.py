@@ -25,12 +25,12 @@ class ReadonlyOverpassTileTests(unittest.TestCase):
             calls.append(req)
             self.assertEqual(req.full_url,READONLY_OVERPASS)
             self.assertEqual(req.get_method(),"POST")
-            self.assertLessEqual(timeout,22)
+            self.assertEqual(timeout,55)
             self.assertIn("User-agent",req.headers)
             query=parse_qs(req.data.decode())["data"][0]
             self.assertIn('nwr["shop"="florist"]',query)
             self.assertIn('nwr["amenity"="car_wash"]',query)
-            self.assertIn("[timeout:20]",query)
+            self.assertIn("[timeout:35]",query)
             return io.BytesIO(json.dumps(reply).encode())
         items=get_overpass_tiles(BOX,opener,day=date(2026,11,7),hour=0,
                                  tile_start=0,tile_results=slots)

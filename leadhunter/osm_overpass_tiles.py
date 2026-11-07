@@ -19,6 +19,7 @@ from .osm_direct import (_tiles, MAX_RESPONSE_BYTES, MAX_TILES,
 
 # Public global-data instance listed by the OpenStreetMap Overpass API wiki.
 # Switch away from the provider repeatedly timing out in production.
+# Queue delay observed near 23s in GitHub runner; 55s is the bounded client deadline.
 # One fixed host per visit, no parallel requests and no rate-limit evasions.
 READONLY_OVERPASS = "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
 
@@ -63,7 +64,7 @@ def _query(bbox):
     south, west, north, east = bbox
     values = ",".join(str(v) for v in (south, west, north, east))
     return (
-        "[out:json][timeout:20];("
+        "[out:json][timeout:35];("
         f'nwr["amenity"="car_wash"]({values});'
         f'nwr["shop"="hairdresser"]({values});'
         f'nwr["shop"="beauty"]({values});'
@@ -82,7 +83,7 @@ def _read_one(box, opener):
                  "Content-Type":"application/x-www-form-urlencoded"},
     )
     try:
-        with opener(req, timeout=22) as response:
+        with opener(req, timeout=55) as response:
             payload = response.read(MAX_RESPONSE_BYTES + 1)
     except HTTPError as exc:
         if exc.code in (400, 401, 403, 406, 429):

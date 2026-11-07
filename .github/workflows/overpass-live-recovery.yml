@@ -1,4 +1,5 @@
 name: Controlled Overpass Live Recovery Acceptance (One Time)
+# Re-run once with 55-second bounded Overpass client deadline after 22-second timeout.
 # A one-time, bounded production acceptance using the exact existing hourly
 # lead-digest job and its established safety gates. No new recurring cron.
 on:
