@@ -14,7 +14,7 @@ def eligible_run(env):
     )
 
 
-def compose(stats, sent, slot, mail=None):
+def compose(stats, sent, slot, mail=None, *, coverage_path="data/osm_tile_progress.json"):
     keys = ("fetched", "eligible", "rejected", "duplicates", "already_seen", "new")
     if any(type(stats.get(key)) is not int or stats[key] < 0 for key in keys):
         raise ValueError("Invalid scan metrics")
@@ -27,6 +27,8 @@ def compose(stats, sent, slot, mail=None):
         status = (f"📮 Geçmiş SMTP kabul: {mail['accepted']} | "
                   f"Başarısız teslimat: {mail['failed']} | "
                   f"Eşleşmiş yanıt: {mail['replied']} (teslim kanıtı değil)\n")
+    from .coverage_report import coverage_text
+    coverage = coverage_text(coverage_path, details=True)
     return (
         "📊 Müşteri Avcısı — Saatlik tarama özeti\n"
         f"🔎 Tarama alanı: {label}\n"
@@ -35,7 +37,7 @@ def compose(stats, sent, slot, mail=None):
         f"🔁 Önceden görülen: {stats['already_seen']} | Tekrar: {stats['duplicates']}\n"
         f"⏭️ Geçersiz/eksik: {stats['rejected']}\n"
         f"📩 Sahibe yeni fırsat bildirimi: {sent}\n"
-        + status +
+        + coverage + "\n" + status +
         "⛔ Müşterilere otomatik SMTP gönderimi: 0\n"
         "ℹ️ Bu tarama bir satış veya alıcı izni kanıtı değildir."
     )
