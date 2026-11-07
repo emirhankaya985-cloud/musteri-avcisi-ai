@@ -348,7 +348,11 @@ def live(env=None, opener=urlopen, output=print):
         if tile_plan is not None:
             options.update(max_tiles=tile_plan['maximum'],
                            tile_start=tile_plan['start'], tile_results=tile_results)
-        return get_osm_direct(bbox, seen_ids=seen, opener=opener, **options)
+        # The resumable tile-ledger already has independent historical IDs.
+        # Re-fetching all old OSM objects every hour wastes public API
+        # capacity and can make an empty but successful tile look populated.
+        refresh_ids = () if tile_plan is not None else seen
+        return get_osm_direct(bbox, seen_ids=refresh_ids, opener=opener, **options)
     source_mode = env.get('OSM_SOURCE_MODE', 'auto')
     if source_mode not in ('auto', 'direct', 'overpass', 'coverage'):
         raise ValueError('Invalid OSM_SOURCE_MODE')
@@ -390,10 +394,10 @@ def live(env=None, opener=urlopen, output=print):
         if not raw and seen and configured_bbox == DEFAULT_BBOX and source_mode == 'auto':
             raw = fetch_direct()
             output('Kaynak: boş Overpass yerine doğrulanmış OSM API')
-    if not raw and seen and configured_bbox == DEFAULT_BBOX:
-        # There are previously confirmed OSM objects in this same area.
-        # A suddenly empty feed is more likely a stale or regional mirror.
-        # Never silently claim "zero opportunities" in this situation.
+    if (not raw and seen and configured_bbox == DEFAULT_BBOX
+            and source_mode not in ('coverage', 'direct')):
+        # A *full-area* Overpass request returning no known objects is
+        # suspicious. A successful tiny map tile may legitimately be empty.
         raise RuntimeError('OSM source inconsistent with previously seen records; retry later')
     stats = discovery_stats(raw, seen)
     metric_ids = [lead['id'] for item in raw
