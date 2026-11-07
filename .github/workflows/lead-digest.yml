@@ -69,8 +69,10 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{secrets.TELEGRAM_CHAT_ID }}
           SCAN_BBOX: ${{vars.SCAN_BBOX }}
-          # Owner-only discovery rotates four bounded pilot regions, no new SMTP.
+          # Owner-only discovery rotates eight bounded pilot regions, no new SMTP.
           SCAN_ROTATE_BBOX: 'true'
+          # Persist only proven official OSM map-tile successes, not wall hours.
+          SCAN_TILE_LEDGER: 'true'
           # Owner-only run summary, never re-send when run attempt is retried.
           OWNER_HOURLY_SUMMARY: 'true'
           # At most one owner error-alert attempt per Turkey-local day.
@@ -103,6 +105,9 @@ jobs:
           fi
           if [ -f data/last_scan_alert.json ]; then
             git add data/last_scan_alert.json
+          fi
+          if [ -f data/osm_tile_progress.json ]; then
+            git add data/osm_tile_progress.json
           fi
           if ! git diff --cached --quiet; then
             git config user.name "github-actions[bot]"
