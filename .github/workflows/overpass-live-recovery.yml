@@ -1,0 +1,120 @@
+name: Controlled Overpass Live Recovery Acceptance (One Time)
+# A one-time, bounded production acceptance using the exact existing hourly
+# lead-digest job and its established safety gates. No new recurring cron.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/overpass-live-recovery.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: telegram-lead-digest
+  cancel-in-progress: false
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Run offline tests
+        run: python -m unittest discover -s tests -v
+      - name: Validate red website and green automation preview (no external messages)
+        run: |
+          python -m leadhunter demo
+          python - <<'PY'
+          from pathlib import Path
+          preview = Path('dist/telegram-demo.txt').read_text(encoding='utf-8')
+          assert '🔴 WEB SİTESİ FIRSATI' in preview
+          assert '🟢 OTOMASYON FIRSATI' in preview
+          assert 'Premium web sitesi kapsamı:' in preview
+          assert 'premium bir web sitesi' in preview
+          assert 'Sonraki adım:' in preview
+          print('Website/automation recommendation preview validated')
+          PY
+      - name: Verify owner Telegram secrets are configured (presence only)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::error::Owner Telegram repository secrets are missing."
+            exit 1
+          fi
+          echo "Owner Telegram secrets are configured (values not displayed)."
+      - name: Install free Postgres driver only when private review is enabled
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: |
+          if [ -n "$REVIEW_DATABASE_URL" ]; then
+            python -m pip install 'psycopg[binary]==3.2.12'
+          else
+            echo "Optional private review database is not configured; no install needed."
+          fi
+      - name: Install free MX lookup for conservative recipient preflight
+        run: python -m pip install 'dnspython==2.8.0'
+      - name: Recover pending full-text owner reports before source access (no SMTP)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: python -m leadhunter.report_recovery
+      - name: Find opportunities and send Telegram report
+        env:
+          TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{secrets.TELEGRAM_CHAT_ID }}
+          SCAN_BBOX: ${{vars.SCAN_BBOX }}
+          # Owner-only discovery rotates eight bounded pilot regions, no new SMTP.
+          SCAN_ROTATE_BBOX: 'true'
+          # Persist only proven official OSM map-tile successes, not wall hours.
+          SCAN_TILE_LEDGER: 'true'
+          # Use only the public read-only Overpass interface, not the OSM
+          # editing API. At most two tiny requests, one provider per visit;
+          # no HTTP 429/403 mirror hopping or full-region fallback.
+          OSM_SOURCE_MODE: 'coverage'
+          # Owner-only run summary, never re-send when run attempt is retried.
+          OWNER_HOURLY_SUMMARY: 'true'
+          # At most one owner error-alert attempt per Turkey-local day.
+          OWNER_ERROR_ALERT_DAILY_GUARD: 'true'
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+          # Historical outreach remains BLOCKED independent of current bounce counts.
+          # This scheduled job researches leads and reports privately; no customer SMTP.
+          AUTO_MAIL_ENABLED: 'false'
+          MAIL_PREVIEW_IN_TELEGRAM: 'true'
+          AUTO_MAIL_DAILY_LIMIT: '5'
+          MAIL_DRAFT_MODE: template
+          # Hourly checks must not be suppressed after one owner notification per day.
+          # Previously seen OSM IDs and private contacted businesses remain protected.
+          DIGEST_DAILY_GUARD: 'false'
+        run: python -m leadhunter.daily_scan
+      - name: Record private hold evidence for newly discovered contacts (no SMTP)
+        if: success()
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: python -m leadhunter.recipient_audit
+      - name: Check unified project HTTP readiness (GET only, no SMTP or reviews)
+        if: success()
+        run: python -m leadhunter.unified_control
+      - name: Commit seen IDs (also after partial send failure)
+        if: always()
+        run: |
+          git add data/seen.json
+          if [ -f data/last_digest_day.json ]; then
+            git add data/last_digest_day.json
+          fi
+          if [ -f data/last_scan_alert.json ]; then
+            git add data/last_scan_alert.json
+          fi
+          if [ -f data/osm_tile_progress.json ]; then
+            git add data/osm_tile_progress.json
+          fi
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: remember delivered Telegram leads"
+            git push
+          fi
