@@ -24,13 +24,27 @@ class HealthRetryTests(unittest.TestCase):
         calls, sleeps = [], []
         def opener(req, timeout):
             self.assertEqual(req.get_method(), 'GET')
-            self.assertLessEqual(timeout, 5)
+            self.assertLessEqual(timeout, 15)
             calls.append(1)
             return FakeResponse(url, 503 if len(calls) == 1 else 200)
         self.assertEqual(probe_detail('isletmepilot', opener, sleeps.append),
                          ('http_200', 'ok'))
         self.assertEqual(len(calls), 2)
         self.assertEqual(sleeps, [0.2])
+
+    def test_free_tier_cold_boot_can_recover_after_two_timeouts(self):
+        url = SERVICES['yorumpilot']['url']
+        attempts, pauses = [], []
+        def opener(req, timeout):
+            self.assertEqual(timeout,15)
+            attempts.append(1)
+            if len(attempts)<3:
+                raise TimeoutError("synthetic cold boot")
+            return FakeResponse(url,200)
+        self.assertEqual(probe_detail('yorumpilot', opener, pauses.append),
+                         ('http_200','ok'))
+        self.assertEqual(len(attempts),3)
+        self.assertEqual(pauses,[0.2,0.4])
 
     def test_429_is_not_retried_and_honors_provider_limit(self):
         url = SERVICES['isletmepilot']['url']
