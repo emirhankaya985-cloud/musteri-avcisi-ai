@@ -50,7 +50,7 @@ jobs:
             echo 'RESTORE_ACCEPTANCE: dump_unavailable; no production writes'
             exit 1
           fi
-          if ! docker run --rm --network host --user "$(id -u):$(id -g)" --env ISOLATED_POSTGRES_URL --volume "$WORKDIR:/backup:ro" postgres:16 bash -c 'pg_restore --no-owner --no-privileges --exit-on-error --dbname="$ISOLATED_POSTGRES_URL" /backup/backup.dump >/dev/null 2>&1'; then
+          if ! docker run --rm --network host --user "$(id -u):$(id -g)" --env ISOLATED_POSTGRES_URL --volume "$WORKDIR:/backup:ro" postgres:16 bash -c 'pg_restore --clean --if-exists --no-owner --no-privileges --exit-on-error --dbname="$ISOLATED_POSTGRES_URL" /backup/backup.dump >/dev/null 2>&1'; then
             echo 'RESTORE_ACCEPTANCE: restore_unavailable; production unchanged'
             exit 1
           fi
