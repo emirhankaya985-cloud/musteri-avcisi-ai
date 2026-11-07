@@ -4,6 +4,10 @@ on:
     branches: [main]
     paths: ['.github/workflows/neon-isolated-restore.yml']
   workflow_dispatch:
+  # Verify that current production can STILL be restored to a disposable
+  # database once a week; do not retain or upload any customer archive.
+  schedule:
+    - cron: '27 2 * * 0'
 permissions:
   contents: read
 concurrency:
