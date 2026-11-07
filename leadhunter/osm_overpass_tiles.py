@@ -17,9 +17,10 @@ from zoneinfo import ZoneInfo
 from .osm_direct import (_tiles, MAX_RESPONSE_BYTES, MAX_TILES,
                          OSMProviderStop)
 
-# Existing read-only source already used by the legacy Overpass scanner.
+# Public global-data instance listed by the OpenStreetMap Overpass API wiki.
+# Switch away from the provider repeatedly timing out in production.
 # One fixed host per visit, no parallel requests and no rate-limit evasions.
-READONLY_OVERPASS = "https://overpass.private.coffee/api/interpreter"
+READONLY_OVERPASS = "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
 
 
 class OverpassTransient(RuntimeError):
