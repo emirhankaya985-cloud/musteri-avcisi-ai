@@ -3,7 +3,9 @@ import io
 import json
 import unittest
 from datetime import date
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
+import socket
+import ssl
 from urllib.parse import parse_qs
 
 from leadhunter.osm_overpass_tiles import get_overpass_tiles, READONLY_OVERPASS
@@ -94,6 +96,70 @@ class ReadonlyOverpassTileTests(unittest.TestCase):
                                tile_start=0,tile_results=results)
         self.assertEqual(results,[False])
         self.assertEqual(len(calls),1)
+
+    def test_readonly_query_has_no_silent_result_limit(self):
+        captured = []
+        many = {"elements":[
+            {"type":"node","id":i,"tags":{"name":"Synthetic", "shop":"florist"}}
+            for i in range(1,226)]}
+        def opener(req, timeout=None):
+            query=parse_qs(req.data.decode())["data"][0]
+            self.assertIn("out tags qt;", query)
+            self.assertNotIn(" 200;", query)
+            self.assertNotIn("out center", query)
+            captured.append(req.full_url)
+            return io.BytesIO(json.dumps(many).encode())
+        results=[]
+        found=get_overpass_tiles(
+            BOX,opener,day=date(2026,11,7),tile_start=0,
+            max_tiles=1,tile_results=results)
+        self.assertEqual(len(found),225)
+        self.assertEqual(results,[True])
+        self.assertEqual(len(captured),1)
+
+    def test_safe_failure_diagnostics_classify_without_leaking(self):
+        from leadhunter.osm_direct import MAX_RESPONSE_BYTES
+        def class_for(exc=None, payload=None):
+            events=[]
+            def opener(req, timeout=None):
+                if exc is not None:
+                    raise exc
+                return io.BytesIO(payload)
+            with self.assertRaisesRegex(RuntimeError,
+                                        "No confirmed read-only Overpass tile"):
+                get_overpass_tiles(
+                    BOX,opener,day=date(2026,11,7),tile_start=0,
+                    max_tiles=1,on_diagnostic=events.append)
+            self.assertEqual(len(events),1)
+            self.assertIn("; tile_offset=0",events[0])
+            self.assertNotIn("secret",events[0])
+            return events[0]
+        scenarios=[
+            ("timeout",TimeoutError("secret"),None),
+            ("dns",URLError(socket.gaierror(-2,"secret")),None),
+            ("tls",URLError(ssl.SSLError("secret")),None),
+            ("connection",ConnectionResetError("secret"),None),
+            ("http_5xx",HTTPError("https://secret.invalid",503,"secret",None,None),None),
+            ("http_other",HTTPError("https://secret.invalid",418,"secret",None,None),None),
+            ("response_invalid",None,b"secret-json"),
+            ("provider_remark",None,b'{"elements":[],"remark":"secret"}'),
+            ("response_oversize",None,b"x"*(MAX_RESPONSE_BYTES+1)),
+        ]
+        for reason,exc,payload in scenarios:
+            with self.subTest(reason=reason):
+                self.assertIn("class="+reason+";",class_for(exc,payload))
+
+    def test_429_diagnostic_only_reports_http_status(self):
+        logged=[]
+        def blocked(req, timeout=None):
+            raise HTTPError("https://secret.invalid",429,"secret",None,None)
+        with self.assertRaises(OSMProviderStop):
+            get_overpass_tiles(
+                BOX,blocked,day=date(2026,11,7),
+                max_tiles=1,on_diagnostic=logged.append)
+        self.assertEqual(logged,[
+            "OVERPASS_TILE_FAILURE: class=provider_refusal; http_status=429; tile_offset=0"
+        ])
 
     def test_request_limit_never_exceeds_two(self):
         with self.assertRaises(ValueError):
