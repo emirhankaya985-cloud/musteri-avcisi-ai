@@ -18,6 +18,18 @@ class RestoreAcceptanceTests(unittest.TestCase):
                                            {"owner_leads":after}))
         self.assertFalse(compare_inventory({},{}))
 
+    def test_weekly_restore_job_never_uploads_private_dump(self):
+        from pathlib import Path
+        source=Path(".github/workflows/neon-isolated-restore.yml").read_text()
+        self.assertIn("cron: '27 2 * * 0'",source)
+        self.assertIn("postgres:16",source)
+        self.assertIn("pg_dump",source)
+        self.assertIn("pg_restore --clean --if-exists",source)
+        self.assertIn("ISOLATED_POSTGRES_URL",source)
+        self.assertIn("trap 'rm -rf",source)
+        self.assertNotIn("upload-artifact",source)
+        self.assertNotIn("AUTO_MAIL_ENABLED: 'true'",source)
+
     def test_target_must_be_local_isolated_postgres(self):
         for target in ("postgresql://some-host.invalid:5432/db",
                        "postgresql://localhost:5433/db",
