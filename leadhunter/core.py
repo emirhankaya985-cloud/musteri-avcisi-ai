@@ -363,7 +363,18 @@ def live(env=None, opener=urlopen, output=print):
                 raise RuntimeError('No confirmed OSM tile in coverage mode')
             output('Kaynak: resmi OSM API, kalıcı harita ilerlemesi')
         except RuntimeError:
-            raw = get_osm(bbox, opener)
+            try:
+                raw = get_osm(bbox, opener)
+            except RuntimeError:
+                # Both independent sources failed. This is evidence of a
+                # failed visit, not successful coverage. Preserve the retry
+                # cursor in the public ledger if any map tiles were attempted.
+                if tile_plan is not None and tile_results:
+                    from .tile_progress import commit as commit_tile_progress
+                    commit_tile_progress(tile_path, scan_slot, bbox,
+                                         tile_plan['start'], 0,
+                                         attempted=len(tile_results))
+                raise
             output('Kaynak: resmi OSM API erişilemedi, sınırlı Overpass fallback')
     elif source_mode == 'direct':
         raw = fetch_direct()
@@ -541,12 +552,15 @@ def live(env=None, opener=urlopen, output=print):
                 prefix += 1
             from .tile_progress import commit as commit_tile_progress
             updated = commit_tile_progress(
-                tile_path, scan_slot, bbox, tile_plan['start'], prefix)
+                tile_path, scan_slot, bbox, tile_plan['start'], prefix,
+                attempted=len(tile_results))
             output('OSM_TILE_PROGRESS: region=' + scan_slot +
                    '; confirmed_new=' + str(prefix) +
                    '; covered=' + str(updated['completed']) +
                    '; total=' + str(updated['total']) +
-                   '; cycle=' + str(updated['cycle']))
+                   '; cycle=' + str(updated['cycle']) +
+                   '; pending_retry=' + str(int(len(tile_results) > prefix)) +
+                   '; consecutive_stalls=' + str(updated['stalls']))
     finally:
         if conn is not None:
             conn.close()
