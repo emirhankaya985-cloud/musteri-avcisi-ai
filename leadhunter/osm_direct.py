@@ -1,7 +1,7 @@
 """Low-volume direct OSM API fallback when Overpass is inaccessible.
 
 OpenStreetMap API 0.6 GET /map.json and batch /nodes.json, /ways.json.
-Keep the owner's existing open OSM identifiers available for one-time
+Keep the owner's existing public OSM identifiers available for one-time
 Telegram review, and inspect at most two small map tiles per run for new
 businesses. No scraping, login, marketing, or private business contacts.
 Data: © OpenStreetMap contributors (ODbL).
@@ -19,6 +19,8 @@ USER_AGENT = "MusteriAvcisiAI/0.2 (small owner-only research; https://www.openst
 MAX_RESPONSE_BYTES = 8_000_000
 TILE_DEGREES = 0.005
 MAX_TILES = 2
+# Keep direct fallback's shop coverage aligned with the Overpass query.
+SUPPORTED_SHOPS = frozenset(("hairdresser", "beauty", "florist", "optician"))
 
 
 def _get_json(url, opener, timeout=18):
@@ -116,7 +118,7 @@ def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, hour=None,
                 tags = row.get("tags") or {}
                 if not isinstance(tags, dict) or not str(tags.get("name") or "").strip():
                     continue
-                if tags.get("shop") not in ("hairdresser", "beauty") and (
+                if tags.get("shop") not in SUPPORTED_SHOPS and (
                     tags.get("amenity") != "car_wash"):
                     continue
                 found.setdefault((row.get("type"), row.get("id")), row)
@@ -124,7 +126,7 @@ def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, hour=None,
             pass
     if successes == 0:
         raise RuntimeError("All direct OSM API reads failed; no leads sent")
-    # Return only the 3 categories the owner explicitly researches.
+    # Return only the five categories supported by the owner-only scanner.
     # Prevent full raw-map objects and irrelevant personal metadata entering state.
     return [
         {"type": row.get("type"), "id": row.get("id"),
@@ -135,6 +137,6 @@ def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, hour=None,
         for row in found.values()
         if isinstance(row.get("tags"), dict)
         and str(row["tags"].get("name") or "").strip()
-        and (row["tags"].get("shop") in ("hairdresser", "beauty")
+        and (row["tags"].get("shop") in SUPPORTED_SHOPS
              or row["tags"].get("amenity") == "car_wash")
     ]
