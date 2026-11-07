@@ -350,9 +350,22 @@ def live(env=None, opener=urlopen, output=print):
                            tile_start=tile_plan['start'], tile_results=tile_results)
         return get_osm_direct(bbox, seen_ids=seen, opener=opener, **options)
     source_mode = env.get('OSM_SOURCE_MODE', 'auto')
-    if source_mode not in ('auto', 'direct', 'overpass'):
+    if source_mode not in ('auto', 'direct', 'overpass', 'coverage'):
         raise ValueError('Invalid OSM_SOURCE_MODE')
-    if source_mode == 'direct':
+    if source_mode == 'coverage':
+        # Production coverage cannot depend on Overpass being down. Each
+        # hourly visit first attempts at most two official OSM map tiles.
+        # On provider failure, fall back to the existing bounded Overpass
+        # discovery; never advance the tile cursor without real map success.
+        try:
+            raw = fetch_direct()
+            if tile_plan is not None and not any(tile_results):
+                raise RuntimeError('No confirmed OSM tile in coverage mode')
+            output('Kaynak: resmi OSM API, kalıcı harita ilerlemesi')
+        except RuntimeError:
+            raw = get_osm(bbox, opener)
+            output('Kaynak: resmi OSM API erişilemedi, sınırlı Overpass fallback')
+    elif source_mode == 'direct':
         raw = fetch_direct()
         output('Kaynak: doğrudan OSM API (sınırlı örneklem)')
     else:
