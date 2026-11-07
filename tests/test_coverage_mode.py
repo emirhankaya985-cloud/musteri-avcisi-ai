@@ -83,7 +83,12 @@ class CoverageModeTests(unittest.TestCase):
             with self.assertRaisesRegex(OSMProviderStop,"429"):
                 live(env=env,opener=opener,output=lambda _:None)
             self.assertEqual(len(calls),1)
-            self.assertFalse(Path(env["TILE_PROGRESS_FILE"]).exists())
+            # A 429 is a failed request, never covered progress. The public
+            # stall ledger can record that denial without switching hosts.
+            status=plan(env["TILE_PROGRESS_FILE"],select_bbox(env)[1],
+                        bbox_parse(select_bbox(env)[0]))
+            self.assertEqual(status["completed"],0)
+            self.assertEqual(status["stalls"],1)
 
     def test_network_failure_does_not_fall_back_to_full_region_or_fake_progress(self):
         with tempfile.TemporaryDirectory() as temp:
