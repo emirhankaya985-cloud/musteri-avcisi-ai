@@ -332,13 +332,28 @@ def live(env=None, opener=urlopen, output=print):
     direct_period = len(PILOT_BBOXES) if scan_slot.startswith('pilot_') else 1
     if scan_slot != 'default':
         output('OSM tarama alanı: ' + scan_slot + ' (tek, sınırlı alan sorgusu)')
+    tile_path = Path(env.get('TILE_PROGRESS_FILE', 'data/osm_tile_progress.json'))
+    tile_plan, tile_results = None, []
+    if env.get('SCAN_TILE_LEDGER') == 'true' and scan_slot.startswith('pilot_'):
+        from .tile_progress import plan as tile_plan_next
+        tile_plan = tile_plan_next(tile_path, scan_slot, bbox)
+        output('OSM_TILE_PLAN: region=' + scan_slot +
+               '; start=' + str(tile_plan['start']) +
+               '; count=' + str(tile_plan['maximum']) +
+               '; confirmed_before=' + str(tile_plan['completed']) +
+               '; total=' + str(tile_plan['total']))
+    def fetch_direct():
+        from .osm_direct import get_osm_direct
+        options = {'rotation_period': direct_period}
+        if tile_plan is not None:
+            options.update(max_tiles=tile_plan['maximum'],
+                           tile_start=tile_plan['start'], tile_results=tile_results)
+        return get_osm_direct(bbox, seen_ids=seen, opener=opener, **options)
     source_mode = env.get('OSM_SOURCE_MODE', 'auto')
     if source_mode not in ('auto', 'direct', 'overpass'):
         raise ValueError('Invalid OSM_SOURCE_MODE')
     if source_mode == 'direct':
-        from .osm_direct import get_osm_direct
-        raw = get_osm_direct(bbox, seen_ids=seen, opener=opener,
-                                 rotation_period=direct_period)
+        raw = fetch_direct()
         output('Kaynak: doğrudan OSM API (sınırlı örneklem)')
     else:
         try:
@@ -346,14 +361,10 @@ def live(env=None, opener=urlopen, output=print):
         except RuntimeError:
             if source_mode == 'overpass':
                 raise
-            from .osm_direct import get_osm_direct
-            raw = get_osm_direct(bbox, seen_ids=seen, opener=opener,
-                                 rotation_period=direct_period)
+            raw = fetch_direct()
             output('Kaynak: Overpass yerine doğrudan OSM API (sınırlı örneklem)')
         if not raw and seen and configured_bbox == DEFAULT_BBOX and source_mode == 'auto':
-            from .osm_direct import get_osm_direct
-            raw = get_osm_direct(bbox, seen_ids=seen, opener=opener,
-                                 rotation_period=direct_period)
+            raw = fetch_direct()
             output('Kaynak: boş Overpass yerine doğrulanmış OSM API')
     if not raw and seen and configured_bbox == DEFAULT_BBOX:
         # There are previously confirmed OSM objects in this same area.
@@ -506,6 +517,23 @@ def live(env=None, opener=urlopen, output=print):
                        '; business_mail_sent=0')
             except Exception:
                 output('HOURLY_OWNER_REPORT: receipt_confirmed=0; no automatic replay')
+        if tile_plan is not None and tile_results:
+            # Only a contiguous prefix of successful public map reads counts.
+            # Failed map tiles are retried at the next *actual* region visit;
+            # a previously successful ID batch never counts as map coverage.
+            prefix = 0
+            for success in tile_results:
+                if not success:
+                    break
+                prefix += 1
+            from .tile_progress import commit as commit_tile_progress
+            updated = commit_tile_progress(
+                tile_path, scan_slot, bbox, tile_plan['start'], prefix)
+            output('OSM_TILE_PROGRESS: region=' + scan_slot +
+                   '; confirmed_new=' + str(prefix) +
+                   '; covered=' + str(updated['completed']) +
+                   '; total=' + str(updated['total']) +
+                   '; cycle=' + str(updated['cycle']))
     finally:
         if conn is not None:
             conn.close()
