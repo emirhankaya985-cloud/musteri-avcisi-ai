@@ -24,7 +24,7 @@ class HourlyCoverageOrderTests(unittest.TestCase):
                  "GITHUB_RUN_ATTEMPT":"1"}
             def opener(req,timeout=None):
                 all_urls.append(req.full_url)
-                if "/map.json" in req.full_url:
+                if "/api/interpreter" in req.full_url:
                     return io.BytesIO(b'{"elements":[]}')
                 if "/sendMessage" in req.full_url:
                     body=json.loads(req.data)
@@ -36,7 +36,8 @@ class HourlyCoverageOrderTests(unittest.TestCase):
             self.assertEqual(len(messages),1)
             self.assertIn("Kanıtlı OSM kapsaması: 2/402",messages[0])
             self.assertEqual(aggregate(env["TILE_PROGRESS_FILE"])[0],2)
-            self.assertEqual(sum("/map.json" in url for url in all_urls),2)
+            self.assertEqual(sum("/api/interpreter" in url for url in all_urls),2)
+            self.assertFalse(any("api.openstreetmap.org" in url for url in all_urls))
             self.assertNotIn("@",messages[0])
 
     def test_discovery_and_command_workflows_share_serial_write_group(self):
