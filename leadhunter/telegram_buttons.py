@@ -100,7 +100,8 @@ def mail_status_message(review_store):
     )
 
 
-def process_owner_command(update, token, owner, env, opener=urlopen, review_store=None):
+def process_owner_command(update, token, owner, env, opener=urlopen, review_store=None,
+                          receipt=None):
     """One existing polling consumer serves owner-only private Telegram commands."""
     import time
     message = update.get("message") or {}
@@ -138,6 +139,8 @@ def process_owner_command(update, token, owner, env, opener=urlopen, review_stor
     if not isinstance(response, dict) or type(response.get("message_id")) is not int \
             or response["message_id"] <= 0:
         raise RuntimeError("Owner command response not confirmed")
+    if receipt is not None:
+        receipt.append(response["message_id"])
     return True
 
 
@@ -195,6 +198,7 @@ def poll(env=None, opener=urlopen, output=print):
         review_conn = connect_private_database(env["REVIEW_DATABASE_URL"])
         review_store = ReviewStore(review_conn)
     count = 0
+    owner_receipts = []
     try:
         updates = api(token, "getUpdates", {
             "offset": offset, "limit": 100, "timeout": 0,
@@ -206,7 +210,18 @@ def poll(env=None, opener=urlopen, output=print):
             uid = update.get("update_id") if isinstance(update, dict) else None
             if type(uid) is not int or uid < offset:
                 continue
-            handled = process_owner_command(update, token, owner, env, opener=opener, review_store=review_store)
+            command_receipt = []
+            handled = process_owner_command(
+                update, token, owner, env, opener=opener,
+                review_store=review_store, receipt=command_receipt)
+            if handled:
+                # Only the actual private owner command can reach here.
+                owner_receipts.append((uid, str(update["message"]["text"])[1:],
+                                       command_receipt[0]))
+                output("OWNER_COMMAND_RECEIPT: update_id=" + str(uid) +
+                       "; command=" + str(update["message"]["text"])[1:] +
+                       "; telegram_message_id=" + str(command_receipt[0]) +
+                       "; api_accepted=1")
             if not handled:
                 handled = process_update(update, token, owner, opener=opener)
             if not handled and review_store and env.get('OWNER_APPROVED_MAIL_ENABLED') == 'true':
@@ -230,6 +245,17 @@ def poll(env=None, opener=urlopen, output=print):
     if offset != previous["next_offset"]:
         state.parent.mkdir(parents=True, exist_ok=True)
         state.write_text(json.dumps({"next_offset": offset}) + "\n", encoding="utf-8")
+    if owner_receipts:
+        # Public metadata: no Telegram chat IDs, tokens, text, phone or contacts.
+        path = Path(env.get("OWNER_COMMAND_RECEIPT_FILE",
+                            "data/telegram_owner_command_receipt.json"))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        last_id, command, reply_id = owner_receipts[-1]
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"update_id": last_id, "command": command,
+                                   "telegram_message_id": reply_id}) + "\n",
+                       encoding="utf-8")
+        tmp.replace(path)
     output(f"Owner demo/review button selections processed: {count}")
     return count
 
