@@ -12,6 +12,20 @@ def eligible_recipient(lead, recipient, now=None):
     info = lead.get("marketing_eligibility") if isinstance(lead, dict) else None
     if not isinstance(info, dict):
         return False
+    # Any prior attempt with uncertain/sending/accepted SMTP status, or
+    # delivery failure/delay, blocks a fresh automatic claim on this lead.
+    # Fresh marketing permission is NOT permission to resend a bounce.
+    for key in ("_auto_mail", "_mail"):
+        record = lead.get(key) or {}
+        if not isinstance(record, dict):
+            return False
+        feedback = record.get("delivery_feedback") or {}
+        if not isinstance(feedback, dict):
+            return False
+        if record.get("state") in ("sending", "accepted", "uncertain"):
+            return False
+        if feedback.get("state") in ("failed", "delayed"):
+            return False
     recipient = normalized_email(recipient)
     if not recipient or normalized_email(info.get("recipient")) != recipient:
         return False

@@ -50,6 +50,26 @@ class EligibilityTests(unittest.TestCase):
                 self.assertFalse(eligible_recipient({"marketing_eligibility":value},
                                                     self.address,self.now))
 
+    def test_no_resend_after_prior_bounce_delay_or_uncertain_mail(self):
+        for field in ("_auto_mail", "_mail"):
+            for state in ("sending", "accepted", "uncertain"):
+                lead={"marketing_eligibility":self.consent,field:{"state":state}}
+                with self.subTest(field=field,state=state):
+                    self.assertFalse(eligible_recipient(lead,self.address,self.now))
+            for failure in ("failed", "delayed"):
+                lead={"marketing_eligibility":self.consent,field:{
+                    "state":"draft","delivery_feedback":{"state":failure}}}
+                with self.subTest(field=field,failure=failure):
+                    self.assertFalse(eligible_recipient(lead,self.address,self.now))
+
+    def test_clean_draft_remains_eligible_only_with_real_evidence(self):
+        lead={"marketing_eligibility":self.consent, "_auto_mail":{"state":"draft"}}
+        self.assertTrue(eligible_recipient(lead,self.address,self.now))
+        self.assertFalse(eligible_recipient({"_auto_mail":{"state":"draft"}},
+                                            self.address,self.now))
+        lead["_auto_mail"]["delivery_feedback"]=["invalid"]
+        self.assertFalse(eligible_recipient(lead,self.address,self.now))
+
     def test_evidence_cannot_be_future_dated(self):
         candidate={**self.consent,"verified_at":(self.now+timedelta(minutes=2)).isoformat()}
         self.assertFalse(eligible_recipient({"marketing_eligibility":candidate},
