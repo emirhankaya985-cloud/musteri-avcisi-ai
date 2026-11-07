@@ -1,0 +1,23 @@
+name: Eight Region Live Provider Acceptance
+on:
+  # One owner-requested live acceptance when added to main.
+  push:
+    branches: [main]
+    paths: ['.github/workflows/eight-region-live-acceptance.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: musteri-avcisi-public-region-acceptance
+  cancel-in-progress: false
+jobs:
+  eight-regions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Eight bounded OSM queries (one per region, no DB or customer mail)
+        run: python -m leadhunter.live_region_audit
