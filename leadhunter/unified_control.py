@@ -32,7 +32,7 @@ def _failure_class(code):
 
 
 def probe_detail(name, opener=urlopen, sleeper=None):
-    """Two read-only GET attempts maximum; retry only transient failures."""
+    """Three read-only GET attempts max; 5xx/network only, exponential backoff."""
     from urllib.error import HTTPError, URLError
     from time import sleep
     if sleeper is None:
@@ -40,7 +40,7 @@ def probe_detail(name, opener=urlopen, sleeper=None):
     url = SERVICES[name]["url"]
     request = Request(url, headers={"User-Agent": "MusteriAvcisi-HealthCheck/1"},
                       method="GET")
-    for attempt in range(2):
+    for attempt in range(3):
         retry = False
         reason = "unverified"
         try:
@@ -63,16 +63,16 @@ def probe_detail(name, opener=urlopen, sleeper=None):
                     # HTTP readiness is not CRM or OAuth business authorization.
                     return "http_200", "ok"
                 reason = _failure_class(code)
-                retry = code == 429 or code >= 500
+                retry = code >= 500
         except HTTPError as exc:
             reason = _failure_class(exc.code)
-            retry = exc.code == 429 or exc.code >= 500
+            retry = exc.code >= 500
         except (URLError, OSError, TimeoutError):
             reason = "network"
             retry = True
-        if not retry or attempt == 1:
+        if not retry or attempt == 2:
             return "unverified", reason
-        sleeper(0.2)
+        sleeper(0.2 * (2 ** attempt))
     return "unverified", "unverified"
 
 
