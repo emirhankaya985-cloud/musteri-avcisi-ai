@@ -9,8 +9,11 @@ on:
     - cron: '*/15 * * * *'
 permissions:
   contents: write
+# Serialize GitHub writers that share public seen/coverage and owner offsets.
+# A delayed owner poll can resume with its committed update_id; never race a
+# simultaneous source-state git push from the lead digest workflow.
 concurrency:
-  group: telegram-three-button-inbox
+  group: telegram-lead-digest
   cancel-in-progress: false
 jobs:
   handle:
