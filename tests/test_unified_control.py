@@ -23,7 +23,7 @@ class ControlSafetyTests(unittest.TestCase):
         visited = []
         def open_fake(req, timeout):
             self.assertEqual(req.get_method(), "GET")
-            self.assertLessEqual(timeout, 6)
+            self.assertLessEqual(timeout, 15)
             self.assertNotIn("Authorization", req.headers)
             visited.append(req.full_url)
             body = ({"status":"ok","database":"ok","service":"api"}
