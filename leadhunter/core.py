@@ -15,7 +15,9 @@ OVERPASS_ENDPOINTS = (
     'https://lz4.overpass-api.de/api/interpreter',
 )
 from .scan_regions import DEFAULT_BBOX, select_bbox
-CATEGORIES = {'car_wash': 'Oto yıkama', 'hairdresser': 'Kuaför/berber', 'beauty': 'Güzellik salonu'}
+CATEGORIES = {'car_wash': 'Oto yıkama', 'hairdresser': 'Kuaför/berber',
+              'beauty': 'Güzellik salonu', 'florist': 'Çiçekçi',
+              'optician': 'Optik mağazası'}
 
 
 def bbox_parse(s):
@@ -32,7 +34,9 @@ def get_osm(bbox, opener=urlopen):
     query = ('[out:json][timeout:25];('
              f'nwr["amenity"="car_wash"]({box});'
              f'nwr["shop"="hairdresser"]({box});'
-             f'nwr["shop"="beauty"]({box}););out center tags 200;')
+             f'nwr["shop"="beauty"]({box});'
+             f'nwr["shop"="florist"]({box});'
+             f'nwr["shop"="optician"]({box}););out center tags 200;')
     payload = urlencode({'data': query}).encode()
     had_empty_success = False
     for endpoint in OVERPASS_ENDPOINTS:
@@ -152,6 +156,14 @@ SECTOR_IDEAS = {
         'website': 'seans tanıtımı, hizmet kataloğu ve danışma/randevu formu',
         'automation': 'seans takvimi, randevu hatırlatmaları ve talep takibi',
     },
+    'Çiçekçi': {
+        'website': 'ürün galerisi, özel gün seçenekleri ve teslimat talep formu',
+        'automation': 'sipariş taleplerinin takibi ve teslimat planlaması',
+    },
+    'Optik mağazası': {
+        'website': 'ürün kataloğu, mağaza iletişimi ve danışma formu',
+        'automation': 'stok talep kayıtları ve müşteri bilgilendirme akışı',
+    },
 }
 
 
@@ -160,6 +172,8 @@ PREMIUM_SITE_SCOPE = {
     'Oto yıkama': 'özgün marka tasarımı, yıkama paketleri, mobil randevu veya WhatsApp talebi ve harita',
     'Kuaför/berber': 'özel tasarım, örnek çalışma galerisi, hizmet menüsü, mobil randevu ve harita',
     'Güzellik salonu': 'premium görsel tasarım, hizmet/seans tanıtımı ve mobil danışma-randevu formu',
+    'Çiçekçi': 'ürün galerisi, özel gün kampanya sayfaları ve mobil sipariş talep formu',
+    'Optik mağazası': 'ürün koleksiyonu, mağaza tanıtımı ve danışma talep formu',
 }
 
 def recommend(lead):
