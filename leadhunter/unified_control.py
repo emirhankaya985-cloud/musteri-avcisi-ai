@@ -44,7 +44,10 @@ def probe_detail(name, opener=urlopen, sleeper=None):
         retry = False
         reason = "unverified"
         try:
-            with opener(request, timeout=5) as response:
+            # Render Free web instances may be sleeping. A single 5-second
+            # timeout cannot distinguish cold boot from a dead service.
+            # Three bounded 15s attempts remain read-only GETs.
+            with opener(request, timeout=15) as response:
                 if response.geturl() != url:
                     return "unverified", "redirect"
                 code = response.status
