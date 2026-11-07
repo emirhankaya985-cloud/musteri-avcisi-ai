@@ -117,7 +117,7 @@ class OwnerOperationalTests(unittest.TestCase):
             self.assertIn("Toplam aday: 99",message)
             self.assertIn("Beş sektör",message)
             self.assertIn("Bugün Neon'a yeni aday: 32",message)
-            self.assertIn("doğrulanmadı",message)  # absent map progress
+            self.assertIn("henüz kalıcı kanıt yok",message)  # absent map progress
             self.assertEqual(calls[0]["chat_id"],"123")
             self.assertNotIn("example.invalid",message)
             self.assertLess(len(message),4096)
@@ -163,8 +163,11 @@ class OwnerOperationalTests(unittest.TestCase):
             with patch("leadhunter.review_private.connect_private_database",
                        side_effect=RuntimeError("private connection")):
                 with self.assertRaisesRegex(RuntimeError,"Private review storage"):
-                    poll(env,opener=lambda *_: (_ for _ in ()).throw(
-                        AssertionError("No owner updates may be consumed")))
+                    poll(env,opener=lambda req, timeout=None: (
+                        io.BytesIO(b'{"ok":true,"result":{"url":""}}')
+                        if req.full_url.endswith("/getWebhookInfo") else
+                        (_ for _ in ()).throw(AssertionError(
+                            "No owner updates may be consumed"))))
             self.assertFalse(Path(env["CALLBACK_OFFSET_FILE"]).exists())
 
 
