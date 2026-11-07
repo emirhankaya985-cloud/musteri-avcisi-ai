@@ -58,6 +58,9 @@ def send_test(env=None, opener=urlopen, output=print):
 def status_message(env):
     """Public state only; no contact details, tokens, or private CRM content."""
     from .core import read_seen
+    from .coverage_report import coverage_text
+    coverage = coverage_text(env.get("TILE_PROGRESS_FILE",
+                                    "data/osm_tile_progress.json"), details=True)
     seen_path = Path(env.get("STATE_FILE", "data/seen.json"))
     try:
         count = len(read_seen(seen_path))
@@ -70,6 +73,7 @@ def status_message(env):
         "📮 Gmail gönderim ve yanıt kontrolü: saatte bir.\n"
         "🔄 Komut/karar kontrolü: 15 dakikada bir; GitHub gecikebilir.\n"
         f"🗂️ OSM arşivinde görülen kayıt: {count if count is not None else 'okunamadı'}\n"
+        f"{coverage}\n"
         "🆕 Yalnızca yeni fırsatlar bildirilir; aynı kayıt tekrar gönderilmez.\n"
         "✉️ Otomatik mail yalnızca belgeli alıcı uygunluğu ve teslimat sağlığı geçerse gönderilir.\n"
         "ℹ️ İşletmePilot'un ayrı CRM veritabanındaki müşteri sayısını bu komut "
