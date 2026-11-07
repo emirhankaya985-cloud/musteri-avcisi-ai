@@ -19,6 +19,12 @@ USER_AGENT = "MusteriAvcisiAI/0.2 (small owner-only research; https://www.openst
 MAX_RESPONSE_BYTES = 8_000_000
 TILE_DEGREES = 0.005
 MAX_TILES = 2
+
+
+class OSMProviderStop(RuntimeError):
+    """Public provider rejected the request; do not retry or switch servers."""
+
+
 # Keep direct fallback's shop coverage aligned with the Overpass query.
 SUPPORTED_SHOPS = frozenset(("hairdresser", "beauty", "florist", "optician"))
 
@@ -37,7 +43,14 @@ def _get_json(url, opener, timeout=18):
         if not isinstance(data, dict) or not isinstance(data.get("elements"), list):
             raise ValueError("Unexpected OSM response format")
         return data["elements"]
-    except (HTTPError, URLError, OSError, TimeoutError, ValueError, TypeError):
+    except HTTPError as exc:
+        if exc.code in (400, 401, 403, 429):
+            # Obey rate limits, invalid requests and explicit provider denial.
+            raise OSMProviderStop(
+                "Official OSM API rejected request; no bypass or retry (HTTP " +
+                str(exc.code) + ")") from None
+        raise RuntimeError("Direct OSM API temporarily unavailable; no data invented") from None
+    except (URLError, OSError, TimeoutError, ValueError, TypeError):
         raise RuntimeError("Direct OSM API temporarily unavailable; no data invented") from None
 
 
@@ -121,6 +134,8 @@ def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, hour=None,
             for row in elements:
                 if isinstance(row, dict):
                     found.setdefault((row.get("type"), row.get("id")), row)
+        except OSMProviderStop:
+            raise
         except RuntimeError:
             pass
 
@@ -144,6 +159,10 @@ def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, hour=None,
                     tags.get("amenity") != "car_wash"):
                     continue
                 found.setdefault((row.get("type"), row.get("id")), row)
+        except OSMProviderStop:
+            if tile_results is not None:
+                tile_results.append(False)
+            raise
         except RuntimeError:
             if tile_results is not None:
                 tile_results.append(False)
