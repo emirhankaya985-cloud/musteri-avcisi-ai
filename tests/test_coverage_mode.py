@@ -1,4 +1,4 @@
-"""Production coverage mode: OSM sampling occurs even when Overpass works."""
+"""Production coverage uses bounded read-only Overpass, never OSM editing API."""
 import io
 import json
 import tempfile
@@ -25,11 +25,11 @@ class CoverageModeTests(unittest.TestCase):
                 "name":"Synthetic Flowers", "shop":"florist"}}]}
             def opener(req,timeout=None):
                 calls.append(req.full_url)
-                if "api.openstreetmap.org" in req.full_url:
+                if "/api/interpreter" in req.full_url:
                     return io.BytesIO(json.dumps(sample).encode())
                 if "/sendMessage" in req.full_url:
                     return io.BytesIO(b'{"ok":true,"result":{"message_id":18}}')
-                self.fail("Healthy direct mode must not use Overpass")
+                self.fail("Healthy read-only tile must not use editing API")
             self.assertEqual(live(env=env,opener=opener,output=output.append),1)
             region=select_bbox(env)[1]
             bbox=bbox_parse(select_bbox(env)[0])
@@ -40,7 +40,8 @@ class CoverageModeTests(unittest.TestCase):
             self.assertEqual(second["completed"],4)
             self.assertEqual(sum("/sendMessage" in url for url in calls),1)
             self.assertTrue(any("OSM_TILE_PROGRESS" in line for line in output))
-            self.assertFalse(any("/api/interpreter" in url for url in calls))
+            self.assertEqual(sum("/api/interpreter" in url for url in calls),4)
+            self.assertFalse(any("api.openstreetmap.org" in url for url in calls))
 
     def test_covered_tiles_do_not_refresh_historical_objects(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -54,13 +55,13 @@ class CoverageModeTests(unittest.TestCase):
             calls=[]
             def opener(req,timeout=None):
                 calls.append(req.full_url)
-                if "/map.json" in req.full_url:
+                if "/api/interpreter" in req.full_url:
                     return io.BytesIO(b'{"elements":[]}')
                 if "/sendMessage" in req.full_url:
                     return io.BytesIO(b'{"ok":true,"result":{"message_id":12}}')
-                self.fail("Historical ID fetch or Overpass is an unnecessary API request")
+                self.fail("Historical ID fetch or editing API is unnecessary")
             self.assertEqual(live(env=env,opener=opener,output=lambda _:None),0)
-            self.assertEqual(sum("/map.json" in url for url in calls),2)
+            self.assertEqual(sum("/api/interpreter" in url for url in calls),2)
             self.assertEqual(plan(env["TILE_PROGRESS_FILE"],select_bbox(env)[1],
                                   bbox_parse(select_bbox(env)[0]))["completed"],2)
 
@@ -76,7 +77,7 @@ class CoverageModeTests(unittest.TestCase):
             calls=[]
             def opener(req,timeout=None):
                 calls.append(req.full_url)
-                if "api.openstreetmap.org" in req.full_url:
+                if "/api/interpreter" in req.full_url:
                     raise HTTPError(req.full_url,429,"rate limited",None,None)
                 self.fail("Rate-limit bypass or Telegram delivery not permitted")
             with self.assertRaisesRegex(OSMProviderStop,"429"):
@@ -84,7 +85,7 @@ class CoverageModeTests(unittest.TestCase):
             self.assertEqual(len(calls),1)
             self.assertFalse(Path(env["TILE_PROGRESS_FILE"]).exists())
 
-    def test_failed_direct_tiles_can_use_overpass_without_false_progress(self):
+    def test_network_failure_does_not_fall_back_to_full_region_or_fake_progress(self):
         with tempfile.TemporaryDirectory() as temp:
             env = {
                 "TELEGRAM_BOT_TOKEN":"synthetic","TELEGRAM_CHAT_ID":"123",
@@ -92,21 +93,15 @@ class CoverageModeTests(unittest.TestCase):
                 "TILE_PROGRESS_FILE":str(Path(temp)/"tiles.json"),
                 "SCAN_ROTATE_BBOX":"true","SCAN_TILE_LEDGER":"true",
                 "OSM_SOURCE_MODE":"coverage", "AUTO_MAIL_ENABLED":"false"}
-            api_calls = []
+            api_calls=[]
             def opener(req,timeout=None):
-                if "api.openstreetmap.org" in req.full_url:
-                    api_calls.append(req.full_url)
-                    raise TimeoutError("synthetic provider offline")
+                api_calls.append(req.full_url)
                 if "/api/interpreter" in req.full_url:
-                    return io.BytesIO(json.dumps({"elements":[{"type":"node",
-                        "id":2002,"tags":{"name":"Synthetic Wash","amenity":"car_wash"}}]}).encode())
-                if "/sendMessage" in req.full_url:
-                    return io.BytesIO(b'{"ok":true,"result":{"message_id":19}}')
-                self.fail("Unexpected external destination")
-            self.assertEqual(live(env=env,opener=opener,output=lambda _:None),1)
-            self.assertLessEqual(len(api_calls),2)
-            # A failed tile must now leave a durable retry record, not false
-            # completed coverage. Overpass discovery may still succeed.
+                    raise TimeoutError("synthetic provider offline")
+                self.fail("No alternative host, OSM editing API or Telegram permitted")
+            with self.assertRaisesRegex(RuntimeError,"No confirmed read-only Overpass tile"):
+                live(env=env,opener=opener,output=lambda _:None)
+            self.assertEqual(len(api_calls),1)
             state=plan(env["TILE_PROGRESS_FILE"],
                        select_bbox(env)[1],bbox_parse(select_bbox(env)[0]))
             self.assertEqual(state["completed"],0)
