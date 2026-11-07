@@ -357,6 +357,7 @@ def live(env=None, opener=urlopen, output=print):
     if source_mode not in ('auto', 'direct', 'overpass', 'coverage'):
         raise ValueError('Invalid OSM_SOURCE_MODE')
     if source_mode == 'coverage':
+        from .osm_direct import OSMProviderStop
         # Production coverage cannot depend on Overpass being down. Each
         # hourly visit first attempts at most two official OSM map tiles.
         # On provider failure, fall back to the existing bounded Overpass
@@ -366,6 +367,10 @@ def live(env=None, opener=urlopen, output=print):
             if tile_plan is not None and not any(tile_results):
                 raise RuntimeError('No confirmed OSM tile in coverage mode')
             output('Kaynak: resmi OSM API, kalıcı harita ilerlemesi')
+        except OSMProviderStop:
+            # Explicit 429/rate limiting or 4xx denial is NOT a network outage.
+            # Do not evade the provider by switching to another backend.
+            raise
         except RuntimeError:
             try:
                 raw = get_osm(bbox, opener)
