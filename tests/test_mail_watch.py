@@ -135,6 +135,54 @@ class MailWatchSafetyTests(unittest.TestCase):
         self.assertFalse(matching_reply(notices[:1], "owner@example.invalid",
                                         "abcdefghijklmnopqrstuv"))
 
+    def test_explicit_optout_is_classified_without_storing_message_text(self):
+        msg = EmailMessage()
+        msg["From"] = "synthetic-recipient@example.invalid"
+        msg["In-Reply-To"] = "<abcdefghijklmnopqrstuvwx@gmail.com>"
+        msg.set_content("Lütfen tekrar e-posta göndermeyin.\n")
+        result = reply_feedback(msg.as_bytes())
+        self.assertEqual(result[2], {"intent":"opt_out"})
+        self.assertNotIn("göndermeyin",str(result))
+        msg.set_content("Görüşelim.\n")
+        self.assertEqual(reply_feedback(msg.as_bytes())[2],
+                         {"intent":"positive_review"})
+        msg.set_content("Teşekkür ederim.\nOn Sat someone wrote:\n> unsubscribe me")
+        self.assertEqual(reply_feedback(msg.as_bytes())[2],
+                         {"intent":"needs_review"})
+
+    def test_only_exact_sender_and_frozen_thread_can_record_private_optout(self):
+        from leadhunter.mail_watch import reconcile_mail
+        from contextlib import nullcontext
+        lead = {"_auto_mail":{"state":"accepted",
+                "recipient":"synthetic-recipient@example.invalid",
+                "id":"abcdefghijklmnopqrstuvwx"}}
+        class Cursor:
+            def __init__(self):
+                self.sql=[]; self.last=""
+            def execute(self,sql,params=()):
+                self.sql.append((sql,params)); self.last=sql
+            def fetchall(self):
+                if "SELECT osm_id, lead_data FROM owner_leads" in self.last:
+                    return [("node/10",lead)]
+                return []
+            def __enter__(self): return self
+            def __exit__(self,*a): return False
+        class FakeConn:
+            def __init__(self): self.cur=Cursor()
+            def cursor(self): return self.cur
+            def transaction(self): return nullcontext()
+        for sender,expected in (("synthetic-recipient@example.invalid",True),
+                                 ("wrong@example.invalid",False)):
+            db=FakeConn()
+            notices=[(sender,
+                      "reply:<abcdefghijklmnopqrstuvwx@gmail.com>",
+                      {"intent":"opt_out"})]
+            changed,_=reconcile_mail(db,notices)
+            statements=[q for q,p in db.cur.sql if q.startswith("UPDATE")]
+            self.assertEqual(any("marketing_eligibility" in s for s in statements),
+                             expected)
+            self.assertEqual(changed, int(expected))
+
     def test_missing_credentials_never_attempts_connection(self):
         with self.assertRaisesRegex(RuntimeError, "not configured"):
             read_delivery_messages({}, imap_factory=lambda *a,**kw:
