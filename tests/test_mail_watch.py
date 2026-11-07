@@ -139,14 +139,14 @@ class MailWatchSafetyTests(unittest.TestCase):
         msg = EmailMessage()
         msg["From"] = "synthetic-recipient@example.invalid"
         msg["In-Reply-To"] = "<abcdefghijklmnopqrstuvwx@gmail.com>"
-        msg.set_content("Lütfen tekrar e-posta göndermeyin.\\n")
+        msg.set_content("Lütfen tekrar e-posta göndermeyin.\n")
         result = reply_feedback(msg.as_bytes())
         self.assertEqual(result[2], {"intent":"opt_out"})
         self.assertNotIn("göndermeyin",str(result))
-        msg.set_content("Görüşelim.\\n")
+        msg.set_content("Görüşelim.\n")
         self.assertEqual(reply_feedback(msg.as_bytes())[2],
                          {"intent":"positive_review"})
-        msg.set_content("Teşekkür ederim.\\nOn Sat someone wrote:\\n> unsubscribe me")
+        msg.set_content("Teşekkür ederim.\nOn Sat someone wrote:\n> unsubscribe me")
         self.assertEqual(reply_feedback(msg.as_bytes())[2],
                          {"intent":"needs_review"})
 
