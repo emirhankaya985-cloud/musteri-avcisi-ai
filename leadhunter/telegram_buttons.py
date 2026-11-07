@@ -120,14 +120,26 @@ def process_owner_command(update, token, owner, env, opener=urlopen, review_stor
             or command not in ("/durum", "/eposta", "/yardim", "/start")):
         return False
     timestamp = message.get("date")
-    if type(timestamp) is int and abs(time.time() - timestamp) > 3600:
-        return False  # never replay a stale buffered command
+    if type(timestamp) is int and abs(time.time() - timestamp) > 24 * 3600:
+        return False  # never replay a command outside the bounded Telegram buffer
     if command == "/durum":
         text = status_message(env)
         if review_store is not None:
-            text += "\n\n" + mail_status_message(review_store)
+            try:
+                from .owner_status_private import collect, safe_text
+                text += "\n\n" + mail_status_message(review_store)
+                text += "\n\n" + safe_text(collect(review_store))
+            except Exception:
+                # Do not leak private PostgreSQL errors to Telegram or prevent
+                # a legitimate read-only owner request from receiving a reply.
+                text += "\n\n📊 Özel CRM ve son tarama/Gmail bilgisi: doğrulanamadı."
+        else:
+            text += "\n\n📊 Özel CRM ve son tarama/Gmail bilgisi: doğrulanamadı."
     elif command == "/eposta":
-        text = mail_status_message(review_store)
+        try:
+            text = mail_status_message(review_store)
+        except Exception:
+            text = "📮 Özel Gmail/SMTP geçmişi: doğrulanamadı."
     else:
         text = (
             "🤖 Müşteri Avcısı AI — yalnızca sahip Telegram sohbeti\n"
@@ -199,8 +211,16 @@ def poll(env=None, opener=urlopen, output=print):
     review_store = None
     review_conn = None
     if env.get("REVIEW_DATABASE_URL"):
-        review_conn = connect_private_database(env["REVIEW_DATABASE_URL"])
-        review_store = ReviewStore(review_conn)
+        try:
+            review_conn = connect_private_database(env["REVIEW_DATABASE_URL"])
+            review_store = ReviewStore(review_conn)
+        except Exception:
+            # Read-only owner status may still be served, but do not consume
+            # update IDs if any owner decision/mail execution path is enabled.
+            if (env.get("OWNER_APPROVED_MAIL_ENABLED") == "true" or
+                    env.get("LEGACY_REVIEW_BUTTONS_ENABLED") == "true"):
+                raise RuntimeError("Private review storage unavailable") from None
+            output("TELEGRAM_PRIVATE_REVIEW: unverified; safe owner-only status remains available")
     count = 0
     owner_receipts = []
     try:
