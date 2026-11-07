@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+      - name: Fixed public Render DNS, TCP and TLS diagnostics (no user data)
+        run: python -m leadhunter.network_layers
       - name: GET-only bounded external health verification, no tokens or CRM data
         run: |
           python - <<'PY'
