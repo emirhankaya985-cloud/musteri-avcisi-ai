@@ -21,6 +21,7 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          import time
           import socket
           import ssl
           from urllib.error import HTTPError, URLError
@@ -30,8 +31,8 @@ jobs:
           # Public global-data Overpass server; one provider, one tile, no retries,
           # no raw objects/contacts in logs, and no secrets or external messages.
           endpoint = "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
-          bbox = "41.000,28.980,41.005,28.985"
-          q = ("[out:json][timeout:20];("
+          bbox = "40.982,29.145,40.987,29.150"
+          q = ("[out:json][timeout:35];("
                'nwr["amenity"="car_wash"]('+bbox+');'
                'nwr["shop"="hairdresser"]('+bbox+');'
                'nwr["shop"="beauty"]('+bbox+');'
@@ -44,8 +45,9 @@ jobs:
                   "User-Agent":"MusteriAvcisiAI/0.3 (single bounded read-only provider check; https://www.openstreetmap.org/copyright)",
                   "Content-Type":"application/x-www-form-urlencoded",
               })
+          start = time.monotonic()
           try:
-              with urlopen(req, timeout=27) as response:
+              with urlopen(req, timeout=55) as response:
                   status = response.status
                   payload = response.read(4_000_001)
               if status != 200 or len(payload) > 4_000_000:
@@ -55,7 +57,7 @@ jobs:
                       not isinstance(body.get("elements"),list)):
                   raise ValueError("invalid_overpass_body")
               print("OVERPASS_PUBLIC_PROBE: PASS; status=200; elements=" +
-                    str(len(body["elements"])) + "; one_request=1; private_data=0")
+                    str(len(body["elements"])) + "; elapsed_s=" + str(round(time.monotonic()-start,1)) + "; one_request=1; private_data=0")
           except HTTPError as exc:
               print("OVERPASS_PUBLIC_PROBE: FAIL; class=http; code=" + str(exc.code))
               raise SystemExit(1)
