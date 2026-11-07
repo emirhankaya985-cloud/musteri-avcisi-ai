@@ -29,7 +29,7 @@ def classify(last_scan, last_gmail, now=None, max_age_minutes=180):
     return result
 
 
-def run(env=None, connection=None, output=print):
+def run(env=None, connection=None, output=print, *, now=None):
     env = os.environ if env is None else env
     own = connection is None
     if own and not env.get("REVIEW_DATABASE_URL"):
@@ -42,7 +42,7 @@ def run(env=None, connection=None, output=print):
             scan = cur.fetchone()[0]
             cur.execute("SELECT max(created_at) FROM owner_mail_watch_runs")
             gmail = cur.fetchone()[0]
-        states = classify(scan, gmail)
+        states = classify(scan, gmail, now=now)
     finally:
         if own:
             conn.close()
