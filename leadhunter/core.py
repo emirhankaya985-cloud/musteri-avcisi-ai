@@ -351,7 +351,7 @@ def live(env=None, opener=urlopen, output=print):
             return get_overpass_tiles(
                 bbox, opener=opener, rotation_period=direct_period,
                 max_tiles=tile_plan['maximum'], tile_start=tile_plan['start'],
-                tile_results=tile_results)
+                tile_results=tile_results, on_diagnostic=output)
         from .osm_direct import get_osm_direct
         options = {'rotation_period': direct_period}
         if tile_plan is not None:
