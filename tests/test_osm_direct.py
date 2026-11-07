@@ -138,6 +138,36 @@ class DirectApiTests(unittest.TestCase):
                 tiles.update(_tiles(self.BOX, day, hour=hour))
         self.assertEqual(len(tiles), expected)
 
+    def test_eight_region_hourly_cycle_eventually_reaches_every_tile(self):
+        # The scheduler visits each of the 8 regions only every eight hours.
+        # The old absolute-hour modulo indexing revisited only a fraction
+        # of 48 tiles in this bbox. The new counter counts *visits*.
+        from leadhunter.osm_direct import TILE_DEGREES
+        import math
+        expected = (math.ceil((self.BOX[2]-self.BOX[0])/TILE_DEGREES)
+                    * math.ceil((self.BOX[3]-self.BOX[1])/TILE_DEGREES))
+        cells = set()
+        previous = None
+        for day_offset in range(10):
+            current = date(2026,11,1) + timedelta(days=day_offset)
+            for hour in (5, 13, 21):  # same pilot region, three visits/day
+                batch = list(_tiles(self.BOX, current, hour=hour,
+                                    rotation_period=8))
+                self.assertLessEqual(len(batch), MAX_TILES)
+                self.assertEqual(batch, list(_tiles(
+                    self.BOX, current, hour=hour, rotation_period=8)))
+                if previous is not None and len(cells) < expected:
+                    self.assertFalse(set(batch) & set(previous))
+                cells.update(batch)
+                previous = batch
+        self.assertEqual(len(cells), expected)
+
+    def test_invalid_rotation_period_rejected_before_network(self):
+        for period in (0, -8, 7, 25, True, 1.5):
+            with self.subTest(period=period):
+                with self.assertRaises(ValueError):
+                    get_osm_direct(self.BOX, (), self.fail_network, rotation_period=period)
+
     def test_default_clock_uses_istanbul_hour_at_day_boundary(self):
         from zoneinfo import ZoneInfo
         fixed = datetime(2026,11,2,0,10,tzinfo=ZoneInfo("Europe/Istanbul"))

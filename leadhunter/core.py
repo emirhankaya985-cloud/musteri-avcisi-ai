@@ -14,7 +14,7 @@ OVERPASS_ENDPOINTS = (
     'https://overpass-api.de/api/interpreter',
     'https://lz4.overpass-api.de/api/interpreter',
 )
-from .scan_regions import DEFAULT_BBOX, select_bbox
+from .scan_regions import DEFAULT_BBOX, PILOT_BBOXES, select_bbox
 CATEGORIES = {'car_wash': 'Oto yıkama', 'hairdresser': 'Kuaför/berber',
               'beauty': 'Güzellik salonu', 'florist': 'Çiçekçi',
               'optician': 'Optik mağazası'}
@@ -327,6 +327,9 @@ def live(env=None, opener=urlopen, output=print):
     seen = read_seen(state)
     configured_bbox, scan_slot = select_bbox(env)
     bbox = bbox_parse(configured_bbox)
+    # In an eight-region schedule, each region is visited every eight
+    # hours. Advance the fallback's bounded tiles by *region visits*.
+    direct_period = len(PILOT_BBOXES) if scan_slot.startswith('pilot_') else 1
     if scan_slot != 'default':
         output('OSM tarama alanı: ' + scan_slot + ' (tek, sınırlı alan sorgusu)')
     source_mode = env.get('OSM_SOURCE_MODE', 'auto')
@@ -334,7 +337,8 @@ def live(env=None, opener=urlopen, output=print):
         raise ValueError('Invalid OSM_SOURCE_MODE')
     if source_mode == 'direct':
         from .osm_direct import get_osm_direct
-        raw = get_osm_direct(bbox, seen_ids=seen, opener=opener)
+        raw = get_osm_direct(bbox, seen_ids=seen, opener=opener,
+                                 rotation_period=direct_period)
         output('Kaynak: doğrudan OSM API (sınırlı örneklem)')
     else:
         try:
@@ -343,11 +347,13 @@ def live(env=None, opener=urlopen, output=print):
             if source_mode == 'overpass':
                 raise
             from .osm_direct import get_osm_direct
-            raw = get_osm_direct(bbox, seen_ids=seen, opener=opener)
+            raw = get_osm_direct(bbox, seen_ids=seen, opener=opener,
+                                 rotation_period=direct_period)
             output('Kaynak: Overpass yerine doğrudan OSM API (sınırlı örneklem)')
         if not raw and seen and configured_bbox == DEFAULT_BBOX and source_mode == 'auto':
             from .osm_direct import get_osm_direct
-            raw = get_osm_direct(bbox, seen_ids=seen, opener=opener)
+            raw = get_osm_direct(bbox, seen_ids=seen, opener=opener,
+                                 rotation_period=direct_period)
             output('Kaynak: boş Overpass yerine doğrulanmış OSM API')
     if not raw and seen and configured_bbox == DEFAULT_BBOX:
         # There are previously confirmed OSM objects in this same area.
