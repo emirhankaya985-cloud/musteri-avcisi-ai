@@ -113,7 +113,8 @@ class TelegramOwnerOnlyTests(unittest.TestCase):
             env = {"TELEGRAM_BOT_TOKEN": "fixture", "TELEGRAM_CHAT_ID": "123",
                    "CALLBACK_OFFSET_FILE": str(Path(tmp) / "cursor.json"),
                    "STATE_FILE": str(Path(tmp) / "seen.json"),
-                   "DIGEST_DAY_STATE_FILE": str(Path(tmp) / "digest.json")}
+                   "DIGEST_DAY_STATE_FILE": str(Path(tmp) / "digest.json"),
+                   "OWNER_COMMAND_RECEIPT_FILE": str(Path(tmp) / "receipt.json")}
             updates = [
                 {"update_id": 37, **message()},
                 {"update_id": 38, **message(owner_id=444)},
@@ -123,6 +124,11 @@ class TelegramOwnerOnlyTests(unittest.TestCase):
             self.assertEqual(calls[1][1]["allowed_updates"], ["callback_query", "message"])
             self.assertEqual(json.loads(Path(env["CALLBACK_OFFSET_FILE"]).read_text()),
                              {"next_offset": 39})
+            metadata = json.loads(Path(env["OWNER_COMMAND_RECEIPT_FILE"]).read_text())
+            self.assertEqual(metadata, {"update_id":37, "command":"durum",
+                                       "telegram_message_id":88})
+            self.assertNotIn("chat_id", metadata)
+            self.assertNotIn("token", metadata)
 
 
 if __name__ == "__main__":
