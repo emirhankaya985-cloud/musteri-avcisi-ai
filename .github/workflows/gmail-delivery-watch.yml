@@ -4,7 +4,7 @@ on:
   # One-time live acceptance when this workflow changes on main.
   push:
     branches: [main]
-    paths: ['.github/workflows/gmail-delivery-watch.yml', 'leadhunter/mail_watch.py', 'leadhunter/daily_status.py']
+    paths: ['.github/workflows/gmail-delivery-watch.yml', 'leadhunter/mail_watch.py', 'leadhunter/daily_status.py', 'leadhunter/mail_outcome.py']
   schedule:
     - cron: '7 * * * *'
 permissions:
@@ -39,3 +39,7 @@ jobs:
         env:
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
         run: python -m leadhunter.recipient_audit --dry-run
+      - name: Read-only SMTP acceptance versus delivery audit (no addresses)
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: python -m leadhunter.mail_outcome
