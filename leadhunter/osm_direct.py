@@ -41,14 +41,20 @@ def _get_json(url, opener, timeout=18):
         raise RuntimeError("Direct OSM API temporarily unavailable; no data invented") from None
 
 
-def _tiles(box, day, maximum=MAX_TILES, *, hour=0):
+def _tiles(box, day, maximum=MAX_TILES, *, hour=0, rotation_period=1):
     south, west, north, east = box
+    if (type(rotation_period) is not int or rotation_period < 1
+            or 24 % rotation_period != 0):
+        raise ValueError("Invalid OSM region rotation period")
     rows = max(1, math.ceil((north - south) / TILE_DEGREES))
     cols = max(1, math.ceil((east - west) / TILE_DEGREES))
-    # Advance each hour, matching the owner's hourly research schedule.
-    # Retries in the same hour reuse the same bounded sample.
+    # For N hourly regions, this bbox is visited once every N hours.
+    # Index by *visits to the region*, not wall-clock hours, otherwise
+    # modulo arithmetic gets stuck on the same N-tile residue classes.
+    # Re-runs in the same hour always inspect the same bounded sample.
     count = min(maximum, rows * cols)
-    start = (day.toordinal() * 24 + hour) * maximum % (rows * cols)
+    visits = (day.toordinal() * 24 + hour) // rotation_period
+    start = visits * maximum % (rows * cols)
     for i in range(count):
         index = (start + i) % (rows * cols)
         row, col = divmod(index, cols)
@@ -62,7 +68,7 @@ def _tiles(box, day, maximum=MAX_TILES, *, hour=0):
 
 
 def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, hour=None,
-                   max_tiles=MAX_TILES):
+                   max_tiles=MAX_TILES, rotation_period=1):
     """Fetch previous public OSM IDs + tiny rotating tiles, fail closed.
 
     This is intentionally a degraded small-area fallback. It must not be
@@ -82,6 +88,9 @@ def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, hour=None,
         hour = 0
     if type(hour) is not int or not 0 <= hour <= 23:
         raise ValueError("Invalid direct OSM scan hour")
+    if (type(rotation_period) is not int or rotation_period < 1
+            or 24 % rotation_period != 0):
+        raise ValueError("Invalid direct OSM region period")
     found, successes = {}, 0
     # At most 150 previously visible public OSM IDs, no private list.
     ids = {"node": [], "way": [], "relation": []}
@@ -106,7 +115,8 @@ def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, hour=None,
         except RuntimeError:
             pass
 
-    for west, south, east, north in _tiles(bbox, day, max_tiles, hour=hour):
+    for west, south, east, north in _tiles(
+            bbox, day, max_tiles, hour=hour, rotation_period=rotation_period):
         url = MAIN_API + "/map.json?" + urlencode(
             {"bbox": f"{west},{south},{east},{north}"})
         try:
