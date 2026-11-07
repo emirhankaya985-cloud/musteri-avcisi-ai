@@ -55,7 +55,7 @@ class NetworkLayerTests(unittest.TestCase):
                          'tcp_timeout')
         conn = Conn()
         self.assertEqual(inspect_layers('yorumpilot',resolver,
-                         lambda *args:conn,lambda:TLS(fail=True)),
+                         lambda address, timeout:conn,lambda:TLS(fail=True)),
                          'tls_handshake')
         self.assertTrue(conn.closed)
 
