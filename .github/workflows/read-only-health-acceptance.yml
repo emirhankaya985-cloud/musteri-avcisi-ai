@@ -1,0 +1,33 @@
+name: External Service Read-Only Health Acceptance
+on:
+  # One time on merge; do not trigger customer scans or messages.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/read-only-health-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: musteri-avcisi-readonly-health-acceptance
+  cancel-in-progress: false
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: GET-only bounded external health verification, no tokens or CRM data
+        run: |
+          python - <<'PY'
+          from leadhunter.unified_control import SERVICES, probe_detail
+          results = {name: probe_detail(name) for name in SERVICES}
+          for name, (state, reason) in results.items():
+              print(f"HEALTH_ACCEPTANCE: service={name}; state={state}; diagnostic={reason}")
+          if any(state != "http_200" for state, _reason in results.values()):
+              raise SystemExit("HEALTH_ACCEPTANCE: PARTIAL; external HTTP status unverified")
+          print("HEALTH_ACCEPTANCE: PASS; public HTTP endpoints only; OAuth/CRM unverified; smtp_sent=0")
+          PY
