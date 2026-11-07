@@ -42,6 +42,28 @@ class CoverageModeTests(unittest.TestCase):
             self.assertTrue(any("OSM_TILE_PROGRESS" in line for line in output))
             self.assertFalse(any("/api/interpreter" in url for url in calls))
 
+    def test_covered_tiles_do_not_refresh_historical_objects(self):
+        with tempfile.TemporaryDirectory() as temp:
+            env={"TELEGRAM_BOT_TOKEN":"synthetic","TELEGRAM_CHAT_ID":"123",
+                 "STATE_FILE":str(Path(temp)/"seen.json"),
+                 "TILE_PROGRESS_FILE":str(Path(temp)/"tiles.json"),
+                 "SCAN_ROTATE_BBOX":"true","SCAN_TILE_LEDGER":"true",
+                 "OSM_SOURCE_MODE":"coverage","AUTO_MAIL_ENABLED":"false"}
+            from leadhunter.core import save_seen
+            save_seen(Path(env["STATE_FILE"]),{"node/123","way/456","relation/789"})
+            calls=[]
+            def opener(req,timeout=None):
+                calls.append(req.full_url)
+                if "/map.json" in req.full_url:
+                    return io.BytesIO(b'{"elements":[]}')
+                if "/sendMessage" in req.full_url:
+                    return io.BytesIO(b'{"ok":true,"result":{"message_id":12}}')
+                self.fail("Historical ID fetch or Overpass is an unnecessary API request")
+            self.assertEqual(live(env=env,opener=opener,output=lambda _:None),0)
+            self.assertEqual(sum("/map.json" in url for url in calls),2)
+            self.assertEqual(plan(env["TILE_PROGRESS_FILE"],select_bbox(env)[1],
+                                  bbox_parse(select_bbox(env)[0]))["completed"],2)
+
     def test_failed_direct_tiles_can_use_overpass_without_false_progress(self):
         with tempfile.TemporaryDirectory() as temp:
             env = {
