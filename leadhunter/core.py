@@ -343,6 +343,15 @@ def live(env=None, opener=urlopen, output=print):
                '; confirmed_before=' + str(tile_plan['completed']) +
                '; total=' + str(tile_plan['total']))
     def fetch_direct():
+        if tile_plan is not None and env.get('OSM_SOURCE_MODE') == 'coverage':
+            # OSM core /api/0.6 is an *editing* API, not the supported
+            # endpoint for scheduled read-only data extraction. Use a single
+            # public Overpass reader and persist only verified tiny tiles.
+            from .osm_overpass_tiles import get_overpass_tiles
+            return get_overpass_tiles(
+                bbox, opener=opener, rotation_period=direct_period,
+                max_tiles=tile_plan['maximum'], tile_start=tile_plan['start'],
+                tile_results=tile_results)
         from .osm_direct import get_osm_direct
         options = {'rotation_period': direct_period}
         if tile_plan is not None:
@@ -366,12 +375,26 @@ def live(env=None, opener=urlopen, output=print):
             raw = fetch_direct()
             if tile_plan is not None and not any(tile_results):
                 raise RuntimeError('No confirmed OSM tile in coverage mode')
-            output('Kaynak: resmi OSM API, kalıcı harita ilerlemesi')
+            output('Kaynak: salt-okunur Overpass API, kalıcı harita ilerlemesi')
         except OSMProviderStop:
-            # Explicit 429/rate limiting or 4xx denial is NOT a network outage.
-            # Do not evade the provider by switching to another backend.
+            # Explicit 429 or 4xx denial: stop and mark only a failed visit.
+            # Do NOT evade a provider with another mirror or editing API.
+            if tile_plan is not None and tile_results:
+                from .tile_progress import commit as commit_tile_progress
+                commit_tile_progress(tile_path, scan_slot, bbox,
+                                     tile_plan['start'], 0,
+                                     attempted=len(tile_results))
             raise
         except RuntimeError:
+            if tile_plan is not None:
+                # No full-region scan fallback from a tiny tile outage.
+                # That would exceed the promised small-area request budget.
+                if tile_results:
+                    from .tile_progress import commit as commit_tile_progress
+                    commit_tile_progress(tile_path, scan_slot, bbox,
+                                         tile_plan['start'], 0,
+                                         attempted=len(tile_results))
+                raise
             try:
                 raw = get_osm(bbox, opener)
             except RuntimeError:
