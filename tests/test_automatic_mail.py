@@ -59,6 +59,18 @@ class AutomaticMailTests(unittest.TestCase):
         self.assertEqual(len(calls),1)
         self.assertEqual(flush_reports(store,self.env,opener),0)
 
+    def test_disabled_auto_outreach_never_prepares_claims_or_sends(self):
+        class ExplodingStore:
+            def prepare(self, *args):
+                raise AssertionError("disabled SMTP must never open a claim")
+        def forbidden(*args, **kwargs):
+            self.fail("disabled SMTP must not send")
+        for setting in ({}, {"AUTO_MAIL_ENABLED":"false"}, {"AUTO_MAIL_ENABLED":"FALSE"}):
+            with self.subTest(setting=setting):
+                self.assertEqual(deliver({"id":"node/1"}, ExplodingStore(),
+                                         setting, forbidden, mail_sender=forbidden),
+                                 "paused")
+
     def test_failed_telegram_report_does_not_resend_mail(self):
         store=MemoryStore();mail=MagicMock()
         deliver({'id':'node/1'},store,self.env,None,mail)

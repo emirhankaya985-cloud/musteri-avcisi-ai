@@ -274,6 +274,11 @@ class AutoMailStore:
 
 
 def deliver(lead, store, env, opener, mail_sender=send_mail):
+    # This function is the last pre-SMTP boundary, not just an orchestration
+    # helper. Never prepare, claim or send when the global safety switch is off,
+    # even if a different caller accidentally invokes deliver directly.
+    if env.get('AUTO_MAIL_ENABLED') != 'true':
+        return 'paused'
     record = store.prepare(lead,env,opener)
     if not record or record['state'] != 'draft':
         return 'not_actionable'
