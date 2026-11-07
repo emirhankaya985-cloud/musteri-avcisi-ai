@@ -132,6 +132,53 @@ def bounce_feedback(raw):
     return (evidence[:200_000], state, details) if details else (evidence[:200_000], state)
 
 
+# Restrict labels to explicit first-line intent. An unknown reply always
+# requires owner review; it is never a legal instruction to send more mail.
+OPT_OUT_PHRASES = (
+    "iletisim istemiyorum", "iletişim istemiyorum",
+    "tekrar e-posta göndermeyin", "tekrar mail göndermeyin",
+    "do not contact", "please unsubscribe", "unsubscribe me",
+    "remove me from your list",
+)
+INTEREST_PHRASES = (
+    "görüşelim", "teklifinizi değerlendirebiliriz",
+    "teklifinizi değerlendirmek isteriz",
+    "let's discuss", "interested in your proposal",
+)
+
+
+def reply_intent(message):
+    """Coarse reply classification without retaining private message text."""
+    fragments = []
+    for part in message.walk():
+        if part.get_content_type() != "text/plain":
+            continue
+        try:
+            body = part.get_content()
+        except (TypeError, UnicodeError, LookupError):
+            continue
+        if not isinstance(body, str):
+            continue
+        # Inspect the first unquoted reply block only. Ignore quoted prior
+        # outreach to avoid auto-suppressing based on our own unsubscribe line.
+        for line in body.splitlines()[:20]:
+            if line.lstrip().startswith((">", "On ", "From:", "Kimden:")):
+                break
+            if not line.strip():
+                continue
+            fragments.append(line.strip())
+            if sum(map(len,fragments)) >= 500:
+                break
+        if fragments:
+            break
+    first = " ".join(fragments).casefold()[:500]
+    if any(phrase in first for phrase in OPT_OUT_PHRASES):
+        return "opt_out"
+    if any(phrase in first for phrase in INTEREST_PHRASES):
+        return "positive_review"
+    return "needs_review"
+
+
 def reply_feedback(raw):
     """Candidate reply metadata only; full text must never enter private ledger."""
     if len(raw) > 500_000:
@@ -143,7 +190,7 @@ def reply_feedback(raw):
     if (not sender or sender in BOUNCE_SENDERS or
             not refs.strip() or "@" not in sender or len(refs) > 20_000):
         return None
-    return sender, "reply:" + refs.casefold()
+    return sender, "reply:" + refs.casefold(), {"intent": reply_intent(message)}
 
 
 def read_delivery_messages(env, imap_factory=None, days=35):
@@ -280,7 +327,18 @@ def reconcile_mail(conn, notices):
                 # A reply requires an exact frozen outgoing Message-ID.
                 has_reply = matching_reply(notices, recipient, mail_id)
                 if has_reply and not record.get("reply_feedback"):
+                    matching_intents = [
+                        (n[2].get("intent") if len(n) > 2 and isinstance(n[2],dict)
+                         else "needs_review")
+                        for n in notices if len(n) >= 2 and
+                        str(n[1]).startswith("reply:") and n[0] == recipient and
+                        ("<"+mail_id+"@") in n[1]
+                    ]
+                    intent = ("opt_out" if "opt_out" in matching_intents else
+                              "positive_review" if "positive_review" in matching_intents
+                              else "needs_review")
                     reply_data = {"state": "sender_matched_reply",
+                                  "intent": intent,
                                   "observed_at": datetime.now(timezone.utc).isoformat()}
                     cur.execute(
                         "UPDATE owner_leads SET lead_data=jsonb_set("
@@ -289,6 +347,16 @@ def reconcile_mail(conn, notices):
                         "lead_data->'_auto_mail'->>'state' IN ('accepted','sending','uncertain')",
                         (json.dumps(reply_data), lead_id))
                     changed += 1
+                    if intent == "opt_out":
+                        # A verified reply from the frozen recipient explicitly
+                        # refused further communication. Record this privately
+                        # and block all new send claims, without deleting mail.
+                        cur.execute(
+                            "UPDATE owner_leads SET lead_data=jsonb_set("
+                            "lead_data,'{marketing_eligibility}',"
+                            "COALESCE(lead_data->'marketing_eligibility','{}'::jsonb) || "
+                            "'{\"opted_out\":true}'::jsonb,true),updated_at=now() "
+                            "WHERE osm_id=%s",(lead_id,))
                 before = record.get("delivery_feedback") or {}
                 if not state or before.get("state") == "failed" and state != "failed":
                     continue
