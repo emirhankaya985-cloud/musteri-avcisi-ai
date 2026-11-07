@@ -22,7 +22,7 @@ jobs:
           python-version: '3.12'
       - name: Fixed public Render DNS, TCP and TLS diagnostics (no user data)
         run: python -m leadhunter.network_layers
-      - name: GET-only bounded external health verification, no tokens or CRM data
+      - name: Recheck external GET health with bounded exponential backoff, no tokens or CRM data
         run: |
           python - <<'PY'
           from leadhunter.unified_control import SERVICES, probe_detail
