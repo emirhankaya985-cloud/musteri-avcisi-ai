@@ -489,7 +489,8 @@ def live(env=None, opener=urlopen, output=print):
         from .hourly_summary import eligible_run, compose as hourly_compose
         if eligible_run(env):
             try:
-                send_telegram(hourly_compose(stats, sent, scan_slot),
+                mail_aggregate = store.mail_summary() if store is not None else None
+                send_telegram(hourly_compose(stats, sent, scan_slot, mail_aggregate),
                               token, chat_id, opener)
                 output('HOURLY_OWNER_REPORT: receipt_confirmed=1; business_mail_sent=0')
             except Exception:

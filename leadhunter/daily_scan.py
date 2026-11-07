@@ -43,9 +43,22 @@ def run(env=None, handler=None, sender=None, output=print, today=None):
     except Exception:
         token, chat_id = env.get("TELEGRAM_BOT_TOKEN"), env.get("TELEGRAM_CHAT_ID")
         if token and chat_id:
+            limited = env.get("OWNER_ERROR_ALERT_DAILY_GUARD") == "true"
+            if limited:
+                from .alert_gate import alerted_today, mark_attempt
+                alert_path = Path(env.get("ERROR_ALERT_STATE_FILE", "data/last_scan_alert.json"))
+                if alerted_today(alert_path, day):
+                    output("Owner scan failure alert suppressed: already attempted today")
+                    raise
+                # A Telegram timeout may be an ambiguous, already accepted send.
+                # Mark first and keep this public-date state via the always() commit.
+                mark_attempt(alert_path, day)
             try:
-                sender(ALERT, token, chat_id)
-                output("Owner scan failure alert: Telegram delivery accepted")
+                receipt = sender(ALERT, token, chat_id)
+                if type(receipt) is int and receipt > 0:
+                    output("Owner scan failure alert: Telegram receipt confirmed")
+                else:
+                    output("Owner scan failure alert: receipt unverified; no automatic replay")
             except Exception:
                 output("Owner scan failure alert failed; details redacted")
         raise
