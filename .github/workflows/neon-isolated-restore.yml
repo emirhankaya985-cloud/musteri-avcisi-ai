@@ -1,0 +1,59 @@
+name: Neon Isolated Restore Acceptance
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/neon-isolated-restore.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: musteri-avcisi-neon-restore-readonly
+  cancel-in-progress: false
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: synthetic
+          POSTGRES_PASSWORD: synthetic
+          POSTGRES_DB: synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U synthetic"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install free PostgreSQL v16 dump tools and Python driver
+        run: |
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq postgresql-client-16 >/dev/null
+          python -m pip install -q 'psycopg[binary]==3.2.12'
+      - name: Read-only production dump, isolated local restore, private full-row comparison
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+          ISOLATED_POSTGRES_URL: postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$REVIEW_DATABASE_URL" || { echo "RESTORE_ACCEPTANCE: unconfigured"; exit 1; }
+          WORKDIR="$(mktemp -d)"
+          trap 'rm -rf "$WORKDIR"' EXIT
+          # No raw data, connection strings or archives printed/uploaded.
+          if ! /usr/lib/postgresql/16/bin/pg_dump --format=custom               --no-owner --no-acl --schema=public               --file="$WORKDIR/backup.dump" "$REVIEW_DATABASE_URL"               > /dev/null 2>&1; then
+            echo 'RESTORE_ACCEPTANCE: dump_unavailable; no production writes'
+            exit 1
+          fi
+          if ! /usr/lib/postgresql/16/bin/pg_restore               --no-owner --no-privileges --exit-on-error               --dbname="$ISOLATED_POSTGRES_URL" "$WORKDIR/backup.dump"               > /dev/null 2>&1; then
+            echo 'RESTORE_ACCEPTANCE: restore_unavailable; production unchanged'
+            exit 1
+          fi
+          python -m leadhunter.restore_acceptance
