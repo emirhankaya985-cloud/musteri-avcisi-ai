@@ -19,5 +19,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Eight bounded OSM queries (one per region, no DB or customer mail)
+      - name: Eight bounded Overpass probes with one-tile official OSM fallback
+        # Main API sample success is not full-bbox coverage; never report a
+        # complete discovery result from the degraded provider.
         run: python -m leadhunter.live_region_audit

@@ -38,6 +38,21 @@ class RegionAcceptanceTests(unittest.TestCase):
         self.assertEqual(sleeps,[2]*7)
         self.assertIn('PASS',logs[-1])
 
+    def test_english_five_sector_main_api_fallback_is_explicitly_a_sample(self):
+        calls = []
+        def fake(req, timeout=None):
+            calls.append(req.full_url)
+            if req.full_url.endswith('/api/interpreter'):
+                raise TimeoutError("Overpass unreachable")
+            self.assertIn('/api/0.6/map.json?', req.full_url)
+            return io.BytesIO(json.dumps({'elements': [
+                {'type':'node','id':781,'tags':{'shop':'florist','name':'Synthetic florist'}},
+                {'type':'node','id':782,'tags':{'shop':'optician','name':'Synthetic optician'}},
+            ]}).encode())
+        self.assertEqual(inspect_one(PILOT_BBOXES[0], fake),
+                         ('main_api_sample',2,2))
+        self.assertEqual(len(calls),2)
+
     def test_rate_limit_stops_all_requests_and_fails_closed(self):
         calls=[]
         def fake(req, timeout):

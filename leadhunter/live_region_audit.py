@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 
 from .scan_regions import PILOT_BBOXES
 from .core import bbox_parse, lead_from_osm, OVERPASS_ENDPOINTS
+from .osm_direct import get_osm_direct
 
 
 def osm_query(box):
@@ -24,6 +25,24 @@ def osm_query(box):
                  'nwr["shop"="florist"]',
                  'nwr["shop"="optician"]')
     return '[out:json][timeout:12];(' + ''.join(x+'('+bbox+');' for x in selectors) + ');out center tags 200;'
+
+
+def fallback_sample(box, opener, failure):
+    """One tiny official OSM API tile if Overpass is temporarily unreachable.
+
+    Success validates only that tile, never full bbox coverage. 429 and
+    authorization failures must not be bypassed with another provider.
+    """
+    if failure not in ("network", "http_500", "http_502", "http_503", "http_504"):
+        return failure, 0, 0
+    try:
+        raw = get_osm_direct(bbox_parse(box), seen_ids=(), opener=opener,
+                             max_tiles=1)
+    except (RuntimeError, ValueError):
+        return failure, 0, 0
+    valid = {lead['id'] for item in raw
+             if (lead := lead_from_osm(item)) is not None}
+    return "main_api_sample", len(raw), len(valid)
 
 
 def inspect_one(box, opener=urlopen):
@@ -45,10 +64,11 @@ def inspect_one(box, opener=urlopen):
                  if (lead := lead_from_osm(item)) is not None}
         return 'ok', len(raw), len(valid)
     except HTTPError as exc:
-        # In particular do not retry 429 to respect public capacity.
-        return 'http_'+str(exc.code if exc.code in (400,401,403,429,500,502,503,504) else 'other'),0,0
+        # Never evade 401/403/429; bounded official fallback on transient 5xx.
+        reason = 'http_'+str(exc.code if exc.code in (400,401,403,429,500,502,503,504) else 'other')
+        return fallback_sample(box, opener, reason)
     except (URLError, OSError, TimeoutError):
-        return 'network',0,0
+        return fallback_sample(box, opener, "network")
     except (ValueError, TypeError, UnicodeError):
         return 'invalid_response',0,0
 
@@ -65,9 +85,9 @@ def run(opener=urlopen, sleeper=time.sleep, output=print):
             # Respect provider rate limiting; report unchecked slots as
             # unverified instead of retrying or claiming full coverage.
             break
-    if len(statuses) != 8 or any(state!='ok' for state in statuses):
+    if len(statuses) != 8 or any(state not in ("ok","main_api_sample") for state in statuses):
         raise RuntimeError("REGION_ACCEPTANCE: PARTIAL; eight live provider replies not confirmed")
-    output("REGION_ACCEPTANCE: PASS; all eight bounded regions replied; no CRM writes")
+    output("REGION_ACCEPTANCE: PASS; eight bounded region probes replied (main_api_sample covers one tile only); no CRM writes")
     return statuses
 
 
