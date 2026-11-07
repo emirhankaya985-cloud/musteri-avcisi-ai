@@ -22,6 +22,9 @@ def compose(stats, sent, slot, mail=None, *, coverage_path="data/osm_tile_progre
         raise ValueError("Invalid owner delivery count")
     label = slot if re.fullmatch(r"pilot_[0-9]+_of_[0-9]+|default|explicit_override", slot) else "unverified"
     status = "📮 Gmail/SMTP geçmişi: doğrulanamadı\n"
+    total = ""
+    if isinstance(mail, dict) and type(mail.get("total")) is int and mail["total"] >= 0:
+        total = f"🗂️ Güncel CRM adayı: {mail['total']}\n"
     if isinstance(mail, dict) and all(type(mail.get(k)) is int and mail[k] >= 0
                                        for k in ("accepted", "failed", "replied")):
         status = (f"📮 Geçmiş SMTP kabul: {mail['accepted']} | "
@@ -37,7 +40,7 @@ def compose(stats, sent, slot, mail=None, *, coverage_path="data/osm_tile_progre
         f"🔁 Önceden görülen: {stats['already_seen']} | Tekrar: {stats['duplicates']}\n"
         f"⏭️ Geçersiz/eksik: {stats['rejected']}\n"
         f"📩 Sahibe yeni fırsat bildirimi: {sent}\n"
-        + coverage + "\n" + status +
+        + coverage + "\n" + total + status +
         "⛔ Müşterilere otomatik SMTP gönderimi: 0\n"
         "ℹ️ Bu tarama bir satış veya alıcı izni kanıtı değildir."
     )

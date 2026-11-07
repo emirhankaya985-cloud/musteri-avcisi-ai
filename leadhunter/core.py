@@ -529,22 +529,6 @@ def live(env=None, opener=urlopen, output=print):
             from .scan_metrics import persist
             persist(conn, metric_run, metric_day, stats['fetched'],
                     metric_before, metric_ids)
-        # One owner-only hourly aggregate per first CI attempt; a failed
-        # Telegram acknowledgement is uncertain, never auto-replayed.
-        from .hourly_summary import eligible_run, compose as hourly_compose
-        if eligible_run(env):
-            try:
-                mail_aggregate = store.mail_summary() if store is not None else None
-                receipt_id = send_telegram(
-                    hourly_compose(stats, sent, scan_slot, mail_aggregate),
-                    token, chat_id, opener)
-                # Telegram returns a positive integer only after API acceptance.
-                # Message ID is a receipt, not proof the human read the text.
-                output('HOURLY_OWNER_REPORT: receipt_confirmed=1; '
-                       'telegram_message_id=' + str(receipt_id) +
-                       '; business_mail_sent=0')
-            except Exception:
-                output('HOURLY_OWNER_REPORT: receipt_confirmed=0; no automatic replay')
         if tile_plan is not None and tile_results:
             # Only a contiguous prefix of successful public map reads counts.
             # Failed map tiles are retried at the next *actual* region visit;
@@ -565,6 +549,22 @@ def live(env=None, opener=urlopen, output=print):
                    '; cycle=' + str(updated['cycle']) +
                    '; pending_retry=' + str(int(len(tile_results) > prefix)) +
                    '; consecutive_stalls=' + str(updated['stalls']))
+        # One owner-only hourly aggregate per first CI attempt; a failed
+        # Telegram acknowledgement is uncertain, never auto-replayed.
+        from .hourly_summary import eligible_run, compose as hourly_compose
+        if eligible_run(env):
+            try:
+                mail_aggregate = store.mail_summary() if store is not None else None
+                receipt_id = send_telegram(
+                    hourly_compose(stats, sent, scan_slot, mail_aggregate, coverage_path=tile_path),
+                    token, chat_id, opener)
+                # Telegram returns a positive integer only after API acceptance.
+                # Message ID is a receipt, not proof the human read the text.
+                output('HOURLY_OWNER_REPORT: receipt_confirmed=1; '
+                       'telegram_message_id=' + str(receipt_id) +
+                       '; business_mail_sent=0')
+            except Exception:
+                output('HOURLY_OWNER_REPORT: receipt_confirmed=0; no automatic replay')
     finally:
         if conn is not None:
             conn.close()
