@@ -42,7 +42,8 @@ class FreshnessTests(unittest.TestCase):
 
     def test_aggregate_only_no_retries_or_smtp(self):
         messages=[]
-        state=run(env={},connection=Conn([self.now,self.now]),output=messages.append)
+        state=run(env={},connection=Conn([self.now,self.now]),
+                  output=messages.append,now=self.now)
         self.assertEqual(state,{"scan":"fresh","gmail":"fresh"})
         self.assertEqual(len(messages),1)
         self.assertIn("new_smtp_sent=0",messages[0])
@@ -53,7 +54,7 @@ class FreshnessTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,"PARTIAL"):
             run(env={},connection=Conn([self.now-timedelta(days=2),
                                        self.now-timedelta(days=2)]),
-                output=logs.append)
+                output=logs.append,now=self.now)
         self.assertIn("stale",logs[0])
 
 
