@@ -41,7 +41,8 @@ def _get_json(url, opener, timeout=18):
         raise RuntimeError("Direct OSM API temporarily unavailable; no data invented") from None
 
 
-def _tiles(box, day, maximum=MAX_TILES, *, hour=0, rotation_period=1):
+def _tiles(box, day, maximum=MAX_TILES, *, hour=0, rotation_period=1,
+           start_index=None):
     south, west, north, east = box
     if (type(rotation_period) is not int or rotation_period < 1
             or 24 % rotation_period != 0):
@@ -55,6 +56,11 @@ def _tiles(box, day, maximum=MAX_TILES, *, hour=0, rotation_period=1):
     count = min(maximum, rows * cols)
     visits = (day.toordinal() * 24 + hour) // rotation_period
     start = visits * maximum % (rows * cols)
+    if start_index is not None:
+        if type(start_index) is not int or not 0 <= start_index < rows * cols:
+            raise ValueError("Invalid persisted OSM map tile cursor")
+        start = start_index
+        count = min(count, rows * cols - start)
     for i in range(count):
         index = (start + i) % (rows * cols)
         row, col = divmod(index, cols)
@@ -68,7 +74,8 @@ def _tiles(box, day, maximum=MAX_TILES, *, hour=0, rotation_period=1):
 
 
 def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, hour=None,
-                   max_tiles=MAX_TILES, rotation_period=1):
+                   max_tiles=MAX_TILES, rotation_period=1,
+                   tile_start=None, tile_results=None):
     """Fetch previous public OSM IDs + tiny rotating tiles, fail closed.
 
     This is intentionally a degraded small-area fallback. It must not be
@@ -91,6 +98,8 @@ def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, hour=None,
     if (type(rotation_period) is not int or rotation_period < 1
             or 24 % rotation_period != 0):
         raise ValueError("Invalid direct OSM region period")
+    if tile_results is not None and not isinstance(tile_results, list):
+        raise ValueError("Tile scan result collector must be a list")
     found, successes = {}, 0
     # At most 150 previously visible public OSM IDs, no private list.
     ids = {"node": [], "way": [], "relation": []}
@@ -116,12 +125,15 @@ def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, hour=None,
             pass
 
     for west, south, east, north in _tiles(
-            bbox, day, max_tiles, hour=hour, rotation_period=rotation_period):
+            bbox, day, max_tiles, hour=hour, rotation_period=rotation_period,
+            start_index=tile_start):
         url = MAIN_API + "/map.json?" + urlencode(
             {"bbox": f"{west},{south},{east},{north}"})
         try:
             elements = _get_json(url, opener)
             successes += 1
+            if tile_results is not None:
+                tile_results.append(True)
             for row in elements:
                 if not isinstance(row, dict):
                     continue
@@ -133,6 +145,8 @@ def get_osm_direct(bbox, seen_ids=(), opener=urlopen, *, day=None, hour=None,
                     continue
                 found.setdefault((row.get("type"), row.get("id")), row)
         except RuntimeError:
+            if tile_results is not None:
+                tile_results.append(False)
             pass
     if successes == 0:
         raise RuntimeError("All direct OSM API reads failed; no leads sent")
