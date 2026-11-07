@@ -63,7 +63,12 @@ class CoverageModeTests(unittest.TestCase):
                 self.fail("Unexpected external destination")
             self.assertEqual(live(env=env,opener=opener,output=lambda _:None),1)
             self.assertLessEqual(len(api_calls),2)
-            self.assertFalse(Path(env["TILE_PROGRESS_FILE"]).exists())
+            # A failed tile must now leave a durable retry record, not false
+            # completed coverage. Overpass discovery may still succeed.
+            state=plan(env["TILE_PROGRESS_FILE"],
+                       select_bbox(env)[1],bbox_parse(select_bbox(env)[0]))
+            self.assertEqual(state["completed"],0)
+            self.assertEqual(state["stalls"],1)
 
 
 if __name__ == "__main__":
