@@ -46,8 +46,13 @@ jobs:
         run: python -m leadhunter.telegram_buttons poll
       - name: Store only numeric update offset
         run: |
-          if [ -f data/telegram_demo_offset.json ]; then
-            git add data/telegram_demo_offset.json
+          if [ -f data/telegram_demo_offset.json ] || [ -f data/telegram_owner_command_receipt.json ]; then
+            if [ -f data/telegram_demo_offset.json ]; then
+              git add data/telegram_demo_offset.json
+            fi
+            if [ -f data/telegram_owner_command_receipt.json ]; then
+              git add data/telegram_owner_command_receipt.json
+            fi
             if ! git diff --cached --quiet; then
               git config user.name "github-actions[bot]"
               git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
