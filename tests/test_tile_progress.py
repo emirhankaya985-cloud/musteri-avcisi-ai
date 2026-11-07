@@ -88,6 +88,29 @@ class TileProgressTests(unittest.TestCase):
         commit(self.path,self.slot,self.box,0,1)
         self.assertEqual(plan(self.path,self.slot,self.box)["start"],1)
 
+    def test_failed_tile_retry_is_persistent_without_false_progress(self):
+        for i in range(3):
+            updated = commit(self.path, self.slot, self.box, 0, 0, attempted=2)
+            self.assertEqual(updated["completed"],0)
+            self.assertEqual(updated["stalls"],i+1)
+            self.assertEqual(plan(self.path,self.slot,self.box)["start"],0)
+        # A later successful visit resumes from the same first failed tile.
+        updated = commit(self.path, self.slot, self.box, 0, 2, attempted=2)
+        self.assertEqual(updated["completed"],2)
+        self.assertEqual(updated["stalls"],0)
+
+    def test_partial_tile_failure_retries_only_failed_suffix(self):
+        first = commit(self.path,self.slot,self.box,0,1,attempted=2)
+        self.assertEqual(first["completed"],1)
+        self.assertEqual(first["stalls"],1)
+        second = plan(self.path,self.slot,self.box)
+        self.assertEqual(second["start"],1)
+        next_ = commit(self.path,self.slot,self.box,1,2,attempted=2)
+        self.assertEqual(next_["completed"],3)
+        self.assertEqual(next_["stalls"],0)
+        with self.assertRaises(ValueError):
+            commit(self.path,self.slot,self.box,3,0,attempted=3)
+
     def test_does_not_advance_when_all_tiles_fail(self):
         results=[]
         with self.assertRaisesRegex(RuntimeError,"All direct OSM API reads failed"):

@@ -38,7 +38,9 @@ def _load(path):
         if (not isinstance(entry, dict) or
                 any(type(entry.get(k)) is not int for k in ("next", "total", "cycle")) or
                 entry["total"] < 1 or entry["cycle"] < 0 or
-                not 0 <= entry["next"] <= entry["total"]):
+                not 0 <= entry["next"] <= entry["total"] or
+                type(entry.get("stalls", 0)) is not int or
+                not 0 <= entry.get("stalls", 0) <= 1_000_000):
             raise RuntimeError("Invalid tile progress; fail closed")
     return document
 
@@ -56,10 +58,11 @@ def plan(path, slot, bbox):
     start = 0 if cursor == total else cursor
     return {"start": start, "maximum": min(MAX_TILES, total - start),
             "total": total, "completed": cursor,
-            "cycle": (entry["cycle"] if entry else 0) + int(cursor == total)}
+            "cycle": (entry["cycle"] if entry else 0) + int(cursor == total),
+            "stalls": entry.get("stalls", 0) if entry else 0}
 
 
-def commit(path, slot, bbox, expected_start, successful_prefix):
+def commit(path, slot, bbox, expected_start, successful_prefix, *, attempted=None):
     """Commit only consecutive successful map tiles after owner/CRM side effects."""
     _validate_slot(slot)
     if type(successful_prefix) is not int or not 0 <= successful_prefix <= MAX_TILES:
@@ -69,11 +72,18 @@ def commit(path, slot, bbox, expected_start, successful_prefix):
         raise RuntimeError("Tile cursor changed while scanning; abort stale commit")
     if successful_prefix > current["maximum"]:
         raise ValueError("Tile success exceeds requested bounded window")
-    if successful_prefix == 0:
+    if attempted is not None and (type(attempted) is not int or
+                                  not successful_prefix <= attempted <= current["maximum"]):
+        raise ValueError("Invalid number of attempted map tiles")
+    failed = attempted is not None and attempted > successful_prefix
+    if successful_prefix == 0 and not failed:
         return current
     data = _load(path)
     completed = expected_start + successful_prefix
-    entry = {"next": completed, "total": current["total"], "cycle": current["cycle"]}
+    stalls = (current["stalls"] + 1 if failed and not successful_prefix else
+              1 if failed else 0)
+    entry = {"next": completed, "total": current["total"], "cycle": current["cycle"],
+             "stalls": min(stalls, 1_000_000)}
     data["regions"][slot] = entry
     file = Path(path)
     file.parent.mkdir(parents=True, exist_ok=True)
@@ -82,7 +92,8 @@ def commit(path, slot, bbox, expected_start, successful_prefix):
                    encoding="utf-8")
     tmp.replace(file)
     return {"start": completed, "maximum": min(MAX_TILES, current["total"] - completed),
-            "total": current["total"], "completed": completed, "cycle": entry["cycle"]}
+            "total": current["total"], "completed": completed, "cycle": entry["cycle"],
+            "stalls": entry["stalls"]}
 
 
 def aggregate(path):
