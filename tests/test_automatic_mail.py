@@ -34,8 +34,12 @@ class AutomaticMailTests(unittest.TestCase):
                   'MAIL_AI_API_KEY':'fixture','MAIL_AI_MODEL':'fixture','MAIL_AI_URL':'https://example.invalid',
                   'TELEGRAM_BOT_TOKEN':'fixture','TELEGRAM_CHAT_ID':'123'}
 
-    def test_configuration_must_be_complete_before_network(self):
+    def test_configuration_must_be_complete_before_network_and_quota_has_no_five_ceiling(self):
         check_config(self.env)
+        check_config({**self.env,'AUTO_MAIL_DAILY_LIMIT':'0'})
+        check_config({**self.env,'AUTO_MAIL_DAILY_LIMIT':'25'})
+        with self.assertRaises(RuntimeError):
+            check_config({**self.env,'AUTO_MAIL_DAILY_LIMIT':'unlimited'})
         for key in ('MAIL_AI_API_KEY','REVIEW_DATABASE_URL','GMAIL_APP_PASSWORD'):
             with self.subTest(key=key), self.assertRaises(RuntimeError):
                 check_config({**self.env,key:''})
@@ -204,7 +208,7 @@ class AutomaticScanTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             live({'AUTO_MAIL_ENABLED':'true'},lambda *a,**k:self.fail('unexpected network'))
 
-    def test_auto_scan_limits_businesses_and_has_no_approval_buttons(self):
+    def test_auto_scan_processes_all_eligible_leads_without_approval_buttons(self):
         import tempfile
         from pathlib import Path
         from leadhunter.core import live
@@ -222,10 +226,11 @@ class AutomaticScanTests(unittest.TestCase):
             'leadhunter.review_private.ReviewStore',return_value=review),patch(
             'leadhunter.automatic_mail.AutoMailStore',return_value=auto),patch(
             'leadhunter.automatic_mail.deliver') as deliver_mock,patch(
-            'leadhunter.automatic_mail.flush_reports',side_effect=[0,1,1,1,1,1]):
-            self.assertEqual(live({**env.env,'STATE_FILE':str(Path(tmp)/'seen.json')},
-                                  opener,lambda *_:None),5)
-            self.assertEqual(deliver_mock.call_count,5)
+            'leadhunter.automatic_mail.flush_reports',side_effect=[0]+[1]*10):
+            self.assertEqual(live({**env.env,'AUTO_MAIL_DAILY_LIMIT':'0',
+                                   'STATE_FILE':str(Path(tmp)/'seen.json')},
+                                  opener,lambda *_:None),10)
+            self.assertEqual(deliver_mock.call_count,10)
             self.assertEqual(json.loads((Path(tmp)/'seen.json').read_text())['seen_ids'],
-                             [f'node/{i}' for i in range(5)])
+                             [f'node/{i}' for i in range(10)])
             review.presented.assert_not_called()
