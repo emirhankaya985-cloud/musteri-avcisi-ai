@@ -86,7 +86,7 @@ jobs:
           # This scheduled job researches leads and reports privately; no customer SMTP.
           AUTO_MAIL_ENABLED: 'true'
           MAIL_PREVIEW_IN_TELEGRAM: 'true'
-          AUTO_MAIL_DAILY_LIMIT: '5'
+          AUTO_MAIL_DAILY_LIMIT: '0'
           MAIL_DRAFT_MODE: template
           # Hourly checks must not be suppressed after one owner notification per day.
           # Previously seen OSM IDs and private contacted businesses remain protected.
