@@ -82,8 +82,8 @@ jobs:
           # At most one owner error-alert attempt per Turkey-local day.
           OWNER_ERROR_ALERT_DAILY_GUARD: 'true'
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
-          # Historical outreach remains BLOCKED independent of current bounce counts.
-          # This scheduled job researches leads and reports privately; no customer SMTP.
+          # Owner-authorized automatic mail; each recipient must pass fresh private
+          # consent/IYS, opt-out, duplicate, and sender-reputation checks.
           AUTO_MAIL_ENABLED: 'true'
           MAIL_PREVIEW_IN_TELEGRAM: 'true'
           AUTO_MAIL_DAILY_LIMIT: '0'
