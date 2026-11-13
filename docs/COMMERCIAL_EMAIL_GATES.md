@@ -27,7 +27,7 @@ bilgileri için diğer uygulanabilir veri koruma hükümleri de değerlendirilir
   alıcıya kesinlikle yeniden otomatik mail gönderilmez.
 - Gmail DSN `failed` / `delayed` ise kayıt tekrar gönderime kapalıdır.
 - Eski yüksek bounce oranı gönderici itibar korumasını tetikler.
-- Cron job `AUTO_MAIL_ENABLED: 'false'` olarak kalır.
+- 13 Kasım 2026 owner talimatıyla saatlik `lead-digest` iş akışındaki genel `AUTO_MAIL_ENABLED` anahtarı açıldı. Bu anahtar tek başına alıcı izni değildir: her gönderimde özel Postgres kaydı için `eligible_recipient` kontrolü zorunludur; güncel, doğrulanmış izin/İYS kaydı olmayan adres gönderilmez. Günlük üst sınır 5'tir.
 - Hiçbir dokümantasyon, test, API sağlık sonucu veya kullanıcıya
   gönderilmiş Telegram taslağı e-posta gönderim izni oluşturmaz.
 
