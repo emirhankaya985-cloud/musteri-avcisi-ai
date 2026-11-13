@@ -33,7 +33,7 @@ def verify_tracked_files() -> None:
     if tracked.returncode != 0:
         print("NOTE: no Git checkout; tracked-file verification unavailable")
         return
-    paths = {p.decode("utf-8") for p in tracked.stdout.split(b"\\0") if p}
+    paths = {p.decode("utf-8") for p in tracked.stdout.split(bytes([0])) if p}
     offenders = [
         path for path in paths
         if path in RESTRICTED or path.startswith(".env.")
