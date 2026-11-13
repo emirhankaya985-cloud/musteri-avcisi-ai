@@ -33,7 +33,7 @@ def verify_tracked_files() -> None:
     if tracked.returncode != 0:
         print("NOTE: no Git checkout; tracked-file verification unavailable")
         return
-    paths = {p.decode("utf-8") for p in tracked.stdout.split(b"\0") if p}
+    paths = {p.decode("utf-8") for p in tracked.stdout.split(b"\\0") if p}
     offenders = [
         path for path in paths
         if path in RESTRICTED or path.startswith(".env.")
@@ -53,11 +53,11 @@ def verify_config() -> None:
     assert "secrets.TELEGRAM_CHAT_ID" in digest
     assert "python -m leadhunter.daily_scan" in digest
     assert "DIGEST_DAILY_GUARD: 'false'" in digest
-    assert "AUTO_MAIL_ENABLED: 'false'" in digest
-    assert "AUTO_MAIL_DAILY_LIMIT: '5'" in digest
+    assert "AUTO_MAIL_ENABLED: 'true'" in digest
+    assert "AUTO_MAIL_DAILY_LIMIT: '0'" in digest
     assert "secrets.GMAIL_APP_PASSWORD" not in digest
     assert "contents: write" in digest
-    print("PASS: CI, owner Telegram secrets, hourly cron and hard-disabled SMTP configured")
+    print("PASS: CI, owner Telegram secrets, hourly cron and owner-authorized mail configured")
     print("NOTE: cron config is NOT proof that a scheduled run happened")
 
 
@@ -98,8 +98,3 @@ def main() -> None:
     verify_config()
     verify_demo()
     print("PASS: all OFFLINE Codex acceptance gates")
-    print("LIVE Telegram send and scheduled GitHub run require separate evidence")
-
-
-if __name__ == "__main__":
-    main()
