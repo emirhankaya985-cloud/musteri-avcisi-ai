@@ -27,7 +27,7 @@ bilgileri için diğer uygulanabilir veri koruma hükümleri de değerlendirilir
   alıcıya kesinlikle yeniden otomatik mail gönderilmez.
 - Gmail DSN `failed` / `delayed` ise kayıt tekrar gönderime kapalıdır.
 - Eski yüksek bounce oranı gönderici itibar korumasını tetikler.
-- 13 Kasım 2026 owner talimatıyla saatlik `lead-digest` iş akışındaki genel `AUTO_MAIL_ENABLED` anahtarı açıldı. Bu anahtar tek başına alıcı izni değildir: her gönderimde özel Postgres kaydı için `eligible_recipient` kontrolü zorunludur; güncel, doğrulanmış izin/İYS kaydı olmayan adres gönderilmez. Günlük adet kotası owner talimatıyla kaldırıldı; her alıcı için doğrulanmış güncel izin/İYS, ret, mükerrerlik ve gönderici-itibar kontrolleri korunur.
+- 13 Kasım 2026 owner talimatıyla saatlik `lead-digest` iş akışındaki genel `AUTO_MAIL_ENABLED` anahtarı açıldı. Bu anahtar tek başına alıcı izni değildir: her gönderimde özel Postgres kaydı için `eligible_recipient` kontrolü zorunludur; güncel, doğrulanmış izin/İYS kaydı olmayan adres gönderilmez. Günlük adet kotası owner talimatıyla kaldırıldı; her alıcı için doğrulanmış güncel izin/İYS, ret, mükerrerlik ve gönderici-itibar kontrolleri korunur. İş akışı, Gmail gönderici adresi/uygulama parolası ve özel Postgres bağlantısını yalnızca GitHub Actions secret'larından runtime'a aktarır; değerleri loglamaz. Bu secret'lardan biri eksik/geçersizse tarama ve Telegram raporu devam eder, otomatik e-posta kapalı kalır. OSM/MX adresi tek başına gönderim izni sayılmaz.
 - Hiçbir dokümantasyon, test, API sağlık sonucu veya kullanıcıya
   gönderilmiş Telegram taslağı e-posta gönderim izni oluşturmaz.
 
