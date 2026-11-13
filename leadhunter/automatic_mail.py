@@ -13,15 +13,22 @@ from .outreach import draft_mail, send_mail, valid_recipient
 from .gmail_selftest import sender_credentials
 
 
+def daily_mail_limit(env):
+    """Zero means no per-day count cap; other stops remain fail-closed."""
+    raw = str(env.get('AUTO_MAIL_DAILY_LIMIT', '0')).strip()
+    if not raw.isdigit():
+        raise RuntimeError('Automatic daily mail quota must be a non-negative integer')
+    value = int(raw)
+    return None if value == 0 else value
+
+
 def check_config(env):
     if env.get('AUTO_MAIL_ENABLED') != 'true':
         raise RuntimeError('Automatic mail is disabled')
     if not env.get('REVIEW_DATABASE_URL'):
         raise RuntimeError('Automatic mail requires private storage')
     sender_credentials(env)
-    cap = str(env.get('AUTO_MAIL_DAILY_LIMIT', '5'))
-    if not cap.isdigit() or int(cap) < 1 or int(cap) > 5:
-        raise RuntimeError('Automatic daily mail quota must be 1..5')
+    daily_mail_limit(env)
     mode = env.get('MAIL_DRAFT_MODE', 'template')
     if mode not in ('template', 'ai'):
         raise RuntimeError('Invalid mail draft mode')
@@ -164,9 +171,7 @@ class AutoMailStore:
         # Serialize recipient, daily quota and reputation checks on the SAME
         # committed PostgreSQL transaction; no public-file counters or resets.
         env = {} if env is None else env
-        cap = str(env.get('AUTO_MAIL_DAILY_LIMIT','5'))
-        if not cap.isdigit() or not (1 <= int(cap) <= 5):
-            raise RuntimeError('Automatic daily quota must be 1..5')
+        cap = daily_mail_limit(env)
         local_day = datetime.now(ZoneInfo('Europe/Istanbul')).date().isoformat()
         with self.db.transaction():
             with self.db.cursor() as cur:
@@ -240,7 +245,7 @@ class AutoMailStore:
                         # Keep draft eligible for later after genuine remediation;
                         # never consume a daily slot or fabricate a mail claim.
                         return None
-                    if int(used or 0) >= int(cap):
+                    if cap is not None and int(used or 0) >= cap:
                         return None
                     record['state'] = 'sending'
                     record['claimed_day'] = local_day
