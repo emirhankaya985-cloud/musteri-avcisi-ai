@@ -55,7 +55,9 @@ def verify_config() -> None:
     assert "DIGEST_DAILY_GUARD: 'false'" in digest
     assert "AUTO_MAIL_ENABLED: 'true'" in digest
     assert "AUTO_MAIL_DAILY_LIMIT: '0'" in digest
-    assert "secrets.GMAIL_APP_PASSWORD" not in digest
+    assert "GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}" in digest
+    assert "GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}" in digest
+    assert "OWNER_APPROVED_MAIL_ENABLED: 'true'" in digest
     assert "contents: write" in digest
     print("PASS: CI, owner Telegram secrets, hourly cron and owner-authorized mail configured")
     print("NOTE: cron config is NOT proof that a scheduled run happened")
