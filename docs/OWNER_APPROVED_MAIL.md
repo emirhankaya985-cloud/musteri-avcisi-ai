@@ -10,7 +10,7 @@
 
 Kullanıcı doğrudan gönderim ve sonrasında Telegram'da tam metin/sonuç istedi; önceki tekil Telegram onayı bu otomatik yol için kaldırıldı.
 
-Üretim digest workflow'u `AUTO_MAIL_ENABLED=true` ile çalışır. Mevcut hafta içi 10:23 TRT ve 11:53 TRT yedek saatleri değişmedi. Push iş fırsatı taraması veya işletme e-postası başlatmaz. Her taramada en fazla beş aday işlenir. Eski reddedilmiş/bekletilmiş kayıtlar otomatik işlenmez. Eski onay bekleyen kayıtlar da otomatik toplu kuyruğa alınmaz.
+Üretim digest workflow'u `AUTO_MAIL_ENABLED=true` ile çalışır. Mevcut hafta içi 10:23 TRT ve 11:53 TRT yedek saatleri değişmedi. Push iş fırsatı taraması veya işletme e-postası başlatmaz. Sabit günlük 5 sınırı 13 Kasım 2026 owner talimatıyla kaldırıldı. Her yeni adayı gönderimden önce güncel ve doğrulanmış alıcı uygunluğu, mükerrerlik, ret ve gönderici-itibar kontrolleri süzer; uygun olmayanlar gönderilmez. Eski reddedilmiş/bekletilmiş kayıtlar otomatik işlenmez. Eski onay bekleyen kayıtlar da otomatik toplu kuyruğa alınmaz.
 
 - OSM kaydındaki `contact:email` veya `email` kullanılır; adres tahmin edilmez. Kaynağa kaydedilmiş adresin güncel olduğu garanti edilmez.
 - Eksik/geçersiz adres atlanır ve Telegram'a bildirilir. Aynı OSM işletmesi veya aynı alıcı adresi tekrar gönderilmez. Otomatik takip maili yoktur.
