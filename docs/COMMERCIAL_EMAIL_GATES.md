@@ -31,7 +31,8 @@ bilgileri için diğer uygulanabilir veri koruma hükümleri de değerlendirilir
 - Hiçbir dokümantasyon, test, API sağlık sonucu veya kullanıcıya
   gönderilmiş Telegram taslağı e-posta gönderim izni oluşturmaz.
 
-Yetkili, kanıtlı alıcı kaydı bulunmadan, İYS/ret doğrulaması yapılmadan ve
-gönderici itibar devresi düzeltilmeden SMTP etkinleştirilmez. SMTP kabulü
-alıcı posta kutusuna teslim kanıtı değildir; Gmail DSN ve kesin eşleşmiş
-yanıtlar ayrı kaydedilir. Uygun alıcı bulunmadığında doğru sonuç **0 gönderim**dir.
+Genel otomatik gönderim anahtarı açık olsa da her alıcı için özel kayıttaki
+güncel uygunluk, ret/İYS, mükerrerlik ve itibar kontrolleri SMTP çağrısından önce
+çalışır. Bu kontroller geçmeyen alıcıya gönderim yapılmaz. SMTP kabulü alıcı
+posta kutusuna teslim kanıtı değildir; Gmail DSN ve kesin eşleşmiş yanıtlar
+ayrı kaydedilir. Uygun alıcı bulunmadığında doğru sonuç **0 gönderim**dir.
