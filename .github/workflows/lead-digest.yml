@@ -82,6 +82,9 @@ jobs:
           # At most one owner error-alert attempt per Turkey-local day.
           OWNER_ERROR_ALERT_DAILY_GUARD: 'true'
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+          GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          OWNER_APPROVED_MAIL_ENABLED: 'true'
           # Owner-authorized automatic mail; each recipient must pass fresh private
           # consent/IYS, opt-out, duplicate, and sender-reputation checks.
           AUTO_MAIL_ENABLED: 'true'
