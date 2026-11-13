@@ -488,8 +488,6 @@ def live(env=None, opener=urlopen, output=print):
                             and lead['id'] not in selected_ids and auto_store.actionable(lead['id'])):
                         chosen.append(lead)
                         selected_ids.add(lead['id'])
-                    if len(chosen) == 5:
-                        break
             else:
                 chosen = prioritized_leads(
                     selection_statuses, eligible, deferred_fallback=store.deferred(),
