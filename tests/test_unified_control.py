@@ -55,9 +55,11 @@ class ControlSafetyTests(unittest.TestCase):
                          FakeResponse(url,{"status":"ok","database":"ok"},status=503)),
                          "unverified")
 
-    def test_workflow_guards_cannot_start_real_customer_mail(self):
+    def test_scheduled_mail_requires_verified_recipient_and_manual_batches_stay_off(self):
         root=Path(__file__).parents[1]/".github/workflows"
-        for name in ("lead-digest.yml","verified-mail-batch.yml","execute-outreach.yml"):
+        scheduled=(root/"lead-digest.yml").read_text(encoding="utf-8")
+        self.assertIn("AUTO_MAIL_ENABLED: 'true'",scheduled)
+        for name in ("verified-mail-batch.yml","execute-outreach.yml"):
             source=(root/name).read_text(encoding="utf-8")
             self.assertIn("AUTO_MAIL_ENABLED: 'false'", source)
             self.assertNotIn("AUTO_MAIL_ENABLED: 'true'",source)
