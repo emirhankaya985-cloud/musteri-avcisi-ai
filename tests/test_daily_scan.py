@@ -61,7 +61,7 @@ class DailyScannerTests(unittest.TestCase):
         self.assertIn("cron: '13 * * * *'",source)
         self.assertNotIn("cron: '23 7 * * 1-5'",source)
         self.assertIn("AUTO_MAIL_ENABLED: 'true'",source)
-        self.assertIn("AUTO_MAIL_DAILY_LIMIT: '5'",source)
+        self.assertIn("AUTO_MAIL_DAILY_LIMIT: '0'",source)
         self.assertNotIn("secrets.GMAIL_APP_PASSWORD",source)
         self.assertIn("eligible_recipient(data, recipient)",mail)
         self.assertIn("DIGEST_DAILY_GUARD: 'false'",source)
