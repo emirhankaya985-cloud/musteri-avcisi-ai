@@ -81,7 +81,7 @@ def collect(env, ledger_path="data/osm_tile_progress.json"):
     if scanned not in OUTCOMES or mirrored not in OUTCOMES:
         raise RuntimeError("Explicit GitHub step outcome required")
     region=before=after=provider=http=None
-    reason="none" if scanned=="success" else "unverified"
+    reason="unverified"  # Missing source observation is never a verified clean scan.
     try:
         obj=json.loads(_path(env).read_text(encoding="utf-8"))
     except (OSError,ValueError):
