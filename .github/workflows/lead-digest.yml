@@ -66,6 +66,7 @@ jobs:
           OWNER_MAIL_REPORT_NOTICES: 'false'
         run: python -m leadhunter.report_recovery
       - name: Find opportunities and send Telegram report
+        id: scan
         env:
           TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{secrets.TELEGRAM_CHAT_ID }}
@@ -106,10 +107,18 @@ jobs:
         if: success()
         run: python -m leadhunter.unified_control
       - name: Mirror all 402 tile states to private Neon (no contact data)
+        id: mirror
         if: always()
         env:
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
         run: python -m leadhunter.tile_neon_sync
+      - name: Persist this GitHub scan attempt in private Neon even after source error
+        if: always()
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+          SCAN_STEP_OUTCOME: ${{ steps.scan.outcome }}
+          MIRROR_STEP_OUTCOME: ${{ steps.mirror.outcome }}
+        run: python -m leadhunter.scan_attempts
       - name: Commit seen IDs (also after partial send failure)
         if: always()
         run: |
