@@ -13,6 +13,13 @@ def run(env=None, output=print):
     count = 0
     try:
         store = AutoMailStore(ReviewStore(db))
+        if env.get("OWNER_MAIL_REPORT_NOTICES") == "false":
+            # Audit-only mode: old SMTP records and unsent Telegram receipts
+            # remain immutable. Do not block live research on message backlog.
+            pending = len(store.pending_reports())
+            output("OWNER_REPORT_RECOVERY: mode=crm_only; pending=" +
+                   str(pending) + "; telegram_sent=0; business_mail_sent=0")
+            return 0
         # Bounded drain; successful reports are persisted, never SMTP-retried.
         for _ in range(20):
             batch = flush_reports(store, env, urlopen)

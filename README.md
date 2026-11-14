@@ -54,3 +54,11 @@ Saatlik workflow artık `AUTO_MAIL_ENABLED=true` gönderim talebini taşır; **b
 - En az 10 SMTP kabul kaydında **%15 veya üzeri başarısız teslimat** varsa küresel gönderim durur. Mevcut 15 kabul / 3 başarısız teslimat = %20, bu nedenle **bugün gerçek mail gönderilmeyecek**. Bot yalnızca sahibine yeni fırsat ve gönderilmemiş taslak gösterecektir.
 
 İYS bağlantısı henüz gerçek hayatta yapılmadı; hiçbir müşteri kaydına sahte onay veya ret doğrulaması işlenmedi. Bu engeller çözülmeden SMTP sonucunu başarı olarak raporlama.
+
+
+## Güncel işletim politikası — 14 Kasım 2026
+- Saatlik taramalar GitHub Actions üzerinde sürer. Normal yeni müşteri Telegram bildirimleri, saatlik başarı raporları ve zamanlanmış günlük raporlar **kapalı**; yeni adaylar yalnızca özel Neon CRM'e kaydedilir.
+- Otomatik ticari SMTP akışının zamanlanmış anahtarı **kapalı**; eski 15 kabul, 4 başarısız teslimat ve kayıtlı Gmail mesaj eşleştirmeleri silinmez. İzin/İYS ve gönderen itibarı doğrulanmadan yeniden etkinleştirilmez.
+- `migrations/004_owner_osm_tile_ledger.sql` özel Neon'da 402 harita parçasını `confirmed/pending/retry/blocked` şeklinde takip eder. Public tile ledger tekrar başlama kaynağıdır; Neon panelin salt-okunur kopyasıdır.
+- `control_center_musteri_v1` toplulaştırılmış veri sözleşmesidir; merkezi panelin ayrı deposu ve canlı Render dağıtımı doğrulanana kadar *entegre edildi* denmez.
+- Eski README'deki düzenli Telegram fırsat ve aktif SMTP anlatımları geçmişteki ayarları açıklar; bu bölümdeki güncel çalışma politikası geçerlidir.

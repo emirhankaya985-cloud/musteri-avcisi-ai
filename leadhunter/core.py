@@ -334,6 +334,14 @@ def live(env=None, opener=urlopen, output=print):
         output('OSM tarama alanı: ' + scan_slot + ' (tek, sınırlı alan sorgusu)')
     tile_path = Path(env.get('TILE_PROGRESS_FILE', 'data/osm_tile_progress.json'))
     tile_plan, tile_results = None, []
+    tile_failure_reasons = []
+    def tile_diagnostic(value):
+        # Only known safe enum values are captured, never raw source responses.
+        output(value)
+        match = __import__("re").search(
+            r"^OVERPASS_TILE_FAILURE: class=([a-z_0-9]+);", value)
+        if match:
+            tile_failure_reasons.append(match.group(1))
     if env.get('SCAN_TILE_LEDGER') == 'true' and scan_slot.startswith('pilot_'):
         from .tile_progress import plan as tile_plan_next
         tile_plan = tile_plan_next(tile_path, scan_slot, bbox)
@@ -351,7 +359,7 @@ def live(env=None, opener=urlopen, output=print):
             return get_overpass_tiles(
                 bbox, opener=opener, rotation_period=direct_period,
                 max_tiles=tile_plan['maximum'], tile_start=tile_plan['start'],
-                tile_results=tile_results, on_diagnostic=output,
+                tile_results=tile_results, on_diagnostic=tile_diagnostic,
                 provider_state_path=env.get('OVERPASS_PROVIDER_STATE_FILE',
                     str(tile_path.with_name('overpass_provider_state.json'))))
         from .osm_direct import get_osm_direct
@@ -385,7 +393,9 @@ def live(env=None, opener=urlopen, output=print):
                 from .tile_progress import commit as commit_tile_progress
                 commit_tile_progress(tile_path, scan_slot, bbox,
                                      tile_plan['start'], 0,
-                                     attempted=len(tile_results))
+                                     attempted=len(tile_results),
+                                     last_error=(tile_failure_reasons[-1]
+                                                 if tile_failure_reasons else None))
             raise
         except RuntimeError:
             if tile_plan is not None:
@@ -395,7 +405,9 @@ def live(env=None, opener=urlopen, output=print):
                     from .tile_progress import commit as commit_tile_progress
                     commit_tile_progress(tile_path, scan_slot, bbox,
                                          tile_plan['start'], 0,
-                                         attempted=len(tile_results))
+                                         attempted=len(tile_results),
+                                         last_error=(tile_failure_reasons[-1]
+                                                     if tile_failure_reasons else None))
                 raise
             try:
                 raw = get_osm(bbox, opener)
@@ -525,6 +537,14 @@ def live(env=None, opener=urlopen, output=print):
                 # owner an unsent proposal, not SMTP, never drop the lead.
             if store:
                 store.register(item)  # private persistence before Telegram send
+            if env.get("OWNER_NEW_LEAD_NOTICES") == "false":
+                # CRM stays authoritative. Never consume an unseen lead into
+                # public seen-state unless it is durably stored privately.
+                if store is None:
+                    raise RuntimeError("Silent lead capture requires private CRM")
+                seen.add(item['id'])
+                save_seen(state, seen)
+                continue
             message = compact_telegram(item)
             if env.get('MAIL_PREVIEW_IN_TELEGRAM') == 'true':
                 # Prepare the mail proposal locally; owner sees it privately.
@@ -569,7 +589,10 @@ def live(env=None, opener=urlopen, output=print):
             from .tile_progress import commit as commit_tile_progress
             updated = commit_tile_progress(
                 tile_path, scan_slot, bbox, tile_plan['start'], prefix,
-                attempted=len(tile_results))
+                attempted=len(tile_results),
+                last_error=(tile_failure_reasons[-1]
+                            if len(tile_results) > prefix and tile_failure_reasons
+                            else None))
             output('OSM_TILE_PROGRESS: region=' + scan_slot +
                    '; confirmed_new=' + str(prefix) +
                    '; covered=' + str(updated['completed']) +

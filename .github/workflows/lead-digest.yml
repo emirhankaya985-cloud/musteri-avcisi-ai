@@ -63,6 +63,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+          OWNER_MAIL_REPORT_NOTICES: 'false'
         run: python -m leadhunter.report_recovery
       - name: Find opportunities and send Telegram report
         env:
@@ -79,6 +80,7 @@ jobs:
           OSM_SOURCE_MODE: 'coverage'
           # Owner-only run summary, never re-send when run attempt is retried.
           OWNER_HOURLY_SUMMARY: 'false'
+          OWNER_NEW_LEAD_NOTICES: 'false'
           # At most one owner error-alert attempt per Turkey-local day.
           OWNER_ERROR_ALERT_DAILY_GUARD: 'true'
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
@@ -87,9 +89,9 @@ jobs:
           OWNER_APPROVED_MAIL_ENABLED: 'true'
           # Owner-authorized automatic mail; each recipient must pass fresh private
           # consent/IYS, opt-out, duplicate, and sender-reputation checks.
-          AUTO_MAIL_ENABLED: 'true'
-          MAIL_PREVIEW_IN_TELEGRAM: 'true'
-          AUTO_MAIL_DAILY_LIMIT: '0'
+          AUTO_MAIL_ENABLED: 'false'
+          MAIL_PREVIEW_IN_TELEGRAM: 'false'
+          AUTO_MAIL_DAILY_LIMIT: '5'
           MAIL_DRAFT_MODE: template
           # Hourly checks must not be suppressed after one owner notification per day.
           # Previously seen OSM IDs and private contacted businesses remain protected.
@@ -103,6 +105,11 @@ jobs:
       - name: Check unified project HTTP readiness (GET only, no SMTP or reviews)
         if: success()
         run: python -m leadhunter.unified_control
+      - name: Mirror all 402 tile states to private Neon (no contact data)
+        if: always()
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: python -m leadhunter.tile_neon_sync
       - name: Commit seen IDs (also after partial send failure)
         if: always()
         run: |
