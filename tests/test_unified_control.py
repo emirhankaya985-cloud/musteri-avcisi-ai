@@ -58,7 +58,8 @@ class ControlSafetyTests(unittest.TestCase):
     def test_scheduled_mail_requires_verified_recipient_and_manual_batches_stay_off(self):
         root=Path(__file__).parents[1]/".github/workflows"
         scheduled=(root/"lead-digest.yml").read_text(encoding="utf-8")
-        self.assertIn("AUTO_MAIL_ENABLED: 'true'",scheduled)
+        self.assertIn("AUTO_MAIL_ENABLED: 'false'",scheduled)
+        self.assertNotIn("AUTO_MAIL_ENABLED: 'true'",scheduled)
         for name in ("verified-mail-batch.yml","execute-outreach.yml"):
             source=(root/name).read_text(encoding="utf-8")
             self.assertIn("AUTO_MAIL_ENABLED: 'false'", source)
