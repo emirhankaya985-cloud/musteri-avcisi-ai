@@ -33,6 +33,8 @@ jobs:
           fi
       - name: Check Python syntax
         run: python -m compileall -q leadhunter tests tools
+      - name: Hourly production preflight regression suite (offline, no messages)
+        run: python -m unittest discover -s tests -v
       - name: Codex acceptance suite (offline, no secrets)
         run: python tools/codex_acceptance.py
       - name: Check automatic mail configuration without contacting businesses
