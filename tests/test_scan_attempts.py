@@ -58,9 +58,8 @@ class ScanAttemptTests(unittest.TestCase):
         self.assertIsNone(row[7])
 
     def test_invalid_metadata_fails_closed(self):
-        with self.assertRaises(ValueError):
-            begin(self.env,"pilot_9_of_8",0,0)
-        self.assertFalse(self.path.exists()) if False else None
+        self.assertFalse(begin(self.env,"pilot_9_of_8",0,0))
+        self.assertFalse(self.path.exists())
         with self.assertRaises(ValueError):
             note_failure(self.env,"secret raw HTTP response")
         self.assertTrue(begin(self.env,"pilot_7_of_8",0,0))
