@@ -7,7 +7,9 @@ from .review_private import ReviewStore, connect_private_database
 
 def run(env=None, output=print):
     env = os.environ if env is None else env
-    if not env.get('TELEGRAM_BOT_TOKEN') or not str(env.get('TELEGRAM_CHAT_ID', '')).isdigit():
+    if env.get('OWNER_MAIL_REPORT_NOTICES') != 'false' and (
+            not env.get('TELEGRAM_BOT_TOKEN') or
+            not str(env.get('TELEGRAM_CHAT_ID', '')).isdigit()):
         raise RuntimeError('Owner report credentials missing or invalid')
     db = connect_private_database(env.get('REVIEW_DATABASE_URL'))
     count = 0
