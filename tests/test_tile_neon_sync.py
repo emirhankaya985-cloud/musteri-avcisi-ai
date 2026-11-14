@@ -52,5 +52,19 @@ class TileNeonSnapshotTests(unittest.TestCase):
             region_rows(self.path)
 
 
+    def test_explicit_429_is_retry_but_403_is_blocked(self):
+        for status,expected in ((429,"retry"),(403,"blocked"),(406,"blocked")):
+            with self.subTest(status=status):
+                self.write({"version":1,"regions":{
+                    "pilot_1_of_8":{"next":1,"total":48,"cycle":0,
+                                    "stalls":1,"last_error":"provider_refusal",
+                                    "last_http_status":status}
+                }})
+                rows=region_rows(self.path)
+                self.assertEqual(rows[0][2],"confirmed")
+                self.assertEqual(rows[1][2],expected)
+                self.assertEqual(len(rows),402)
+
+
 if __name__=="__main__":
     unittest.main()

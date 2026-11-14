@@ -86,5 +86,31 @@ class NextVisitProviderTests(unittest.TestCase):
         self.assertEqual(calls, [])
 
 
+    def test_second_tile_explicit_refusal_preserves_first_and_never_switches(self):
+        for status in (403, 429):
+            with self.subTest(status=status):
+                if self.state.exists():
+                    self.state.unlink()
+                calls, results, messages = [], [], []
+                def read(req, timeout=None):
+                    calls.append(req.full_url)
+                    if len(calls)==2:
+                        raise HTTPError(req.full_url,status,"synthetic",None,None)
+                    return io.BytesIO(json.dumps({"elements":[
+                        {"type":"node","id":123,
+                         "tags":{"name":"Synthetic florist","shop":"florist"}}
+                    ]}).encode())
+                rows=self.query(read,tile_results=results,
+                                on_diagnostic=messages.append)
+                self.assertEqual(results,[True,False])
+                self.assertEqual(len(rows),1)
+                self.assertEqual(rows[0]["id"],123)
+                self.assertEqual(calls,[READONLY_PROVIDERS[0]]*2)
+                self.assertFalse(self.state.exists())
+                self.assertEqual(messages,[(
+                    "OVERPASS_TILE_FAILURE: class=provider_refusal; http_status="
+                    +str(status)+"; tile_offset=1")])
+
+
 if __name__ == "__main__":
     unittest.main()

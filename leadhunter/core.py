@@ -335,6 +335,11 @@ def live(env=None, opener=urlopen, output=print):
     tile_path = Path(env.get('TILE_PROGRESS_FILE', 'data/osm_tile_progress.json'))
     tile_plan, tile_results = None, []
     tile_failure_reasons = []
+    tile_failure_http_statuses = []
+    def tile_refusal_status():
+        return (tile_failure_http_statuses[-1]
+                if tile_failure_reasons and tile_failure_reasons[-1] == 'provider_refusal'
+                and tile_failure_http_statuses else None)
     def tile_diagnostic(value):
         # Only known safe enum values are captured, never raw source responses.
         output(value)
@@ -342,6 +347,10 @@ def live(env=None, opener=urlopen, output=print):
             r"^OVERPASS_TILE_FAILURE: class=([a-z_0-9]+);", value)
         if match:
             tile_failure_reasons.append(match.group(1))
+            if match.group(1) == 'provider_refusal':
+                code = __import__('re').search(r'; http_status=([0-9]+);', value)
+                if code:
+                    tile_failure_http_statuses.append(int(code.group(1)))
     if env.get('SCAN_TILE_LEDGER') == 'true' and scan_slot.startswith('pilot_'):
         from .tile_progress import plan as tile_plan_next
         tile_plan = tile_plan_next(tile_path, scan_slot, bbox)
@@ -350,6 +359,12 @@ def live(env=None, opener=urlopen, output=print):
                '; count=' + str(tile_plan['maximum']) +
                '; confirmed_before=' + str(tile_plan['completed']) +
                '; total=' + str(tile_plan['total']))
+        if (tile_plan['stalls'] and
+                tile_plan['last_http_status'] in (400,401,403,406)):
+            # Provider explicitly denied this tile. Do not retry or switch
+            # sources automatically without a separate compliance review.
+            raise RuntimeError('OSM region blocked by explicit provider refusal; '
+                               'no automatic source bypass')
     def fetch_direct():
         if tile_plan is not None and env.get('OSM_SOURCE_MODE') == 'coverage':
             # OSM core /api/0.6 is an *editing* API, not the supported
@@ -395,7 +410,8 @@ def live(env=None, opener=urlopen, output=print):
                                      tile_plan['start'], 0,
                                      attempted=len(tile_results),
                                      last_error=(tile_failure_reasons[-1]
-                                                 if tile_failure_reasons else None))
+                                                 if tile_failure_reasons else None),
+                                     last_http_status=tile_refusal_status())
             raise
         except RuntimeError:
             if tile_plan is not None:
@@ -407,7 +423,8 @@ def live(env=None, opener=urlopen, output=print):
                                          tile_plan['start'], 0,
                                          attempted=len(tile_results),
                                          last_error=(tile_failure_reasons[-1]
-                                                     if tile_failure_reasons else None))
+                                                     if tile_failure_reasons else None),
+                                         last_http_status=tile_refusal_status())
                 raise
             try:
                 raw = get_osm(bbox, opener)
@@ -606,7 +623,9 @@ def live(env=None, opener=urlopen, output=print):
                 attempted=len(tile_results),
                 last_error=(tile_failure_reasons[-1]
                             if len(tile_results) > prefix and tile_failure_reasons
-                            else None))
+                            else None),
+                last_http_status=(tile_refusal_status()
+                                  if len(tile_results) > prefix else None))
             output('OSM_TILE_PROGRESS: region=' + scan_slot +
                    '; confirmed_new=' + str(prefix) +
                    '; covered=' + str(updated['completed']) +

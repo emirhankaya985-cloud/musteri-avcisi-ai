@@ -181,6 +181,7 @@ def get_overpass_tiles(bbox, opener=urlopen, *, day=None, hour=None,
     found = {}
     successful = 0
     had_transient = False
+    had_refusal = False
     for offset, (west, south, east, north) in enumerate(_tiles(
             bbox, day, max_tiles, hour=hour, rotation_period=rotation_period,
             start_index=tile_start)):
@@ -213,7 +214,13 @@ def get_overpass_tiles(bbox, opener=urlopen, *, day=None, hour=None,
             if on_diagnostic is not None:
                 on_diagnostic("OVERPASS_TILE_FAILURE: class=provider_refusal; http_status=" +
                               str(exc.http_status) + "; tile_offset=" + str(offset))
-            raise
+            had_refusal = True
+            if successful == 0:
+                # With no confirmed prefix there is nothing safe to persist.
+                raise
+            # Preserve the already read prefix for CRM ingestion, but stop
+            # immediately on the refusal. Never try another tile or host.
+            break
         except OverpassTransient as exc:
             had_transient = True
             _record_provider(provider_state_path, provider_index, exc.reason)
@@ -228,6 +235,6 @@ def get_overpass_tiles(bbox, opener=urlopen, *, day=None, hour=None,
             break
     if not successful:
         raise RuntimeError("No confirmed read-only Overpass tile; cursor unchanged")
-    if not had_transient:
+    if not had_transient and not had_refusal:
         _record_provider(provider_state_path, provider_index, "ok")
     return list(found.values())

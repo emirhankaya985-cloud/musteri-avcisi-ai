@@ -33,8 +33,13 @@ def region_rows(path):
             "provider_remark", "provider_refusal"):
             reason = "unverified_source_failure"
         for tile in range(total):
+            # 429 remains a delayed retry, NEVER a mirror hop. Permanent
+            # 400/401/403/406 refusals are blocked pending owner review.
+            # Unknown legacy refusal codes remain blocked fail-closed.
+            permanent_refusal = (reason == "provider_refusal" and
+                                 entry.get("last_http_status") != 429)
             state = ("confirmed" if tile < completed else
-                     "blocked" if tile == completed and stalls and reason == "provider_refusal" else
+                     "blocked" if tile == completed and stalls and permanent_refusal else
                      "retry" if tile == completed and stalls else "pending")
             states.append((region, tile, state,
                            reason if state in ("retry", "blocked") else None))

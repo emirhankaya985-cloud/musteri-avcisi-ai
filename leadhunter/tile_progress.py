@@ -10,6 +10,8 @@ import re
 from pathlib import Path
 from .osm_direct import TILE_DEGREES, MAX_TILES
 
+EXPLICIT_REFUSALS = (400, 401, 403, 406, 429)
+
 
 def tile_total(bbox):
     south, west, north, east = bbox
@@ -44,7 +46,10 @@ def _load(path):
                 entry.get("last_error") not in (None,"timeout","dns","tls",
                 "connection","network","http_5xx","http_other",
                 "response_oversize","response_invalid","provider_remark",
-                "provider_refusal")):
+                "provider_refusal") or
+                entry.get("last_http_status") not in (None, *EXPLICIT_REFUSALS) or
+                (entry.get("last_http_status") is not None and
+                 entry.get("last_error") != "provider_refusal")):
             raise RuntimeError("Invalid tile progress; fail closed")
     return document
 
@@ -63,11 +68,13 @@ def plan(path, slot, bbox):
     return {"start": start, "maximum": min(MAX_TILES, total - start),
             "total": total, "completed": cursor,
             "cycle": (entry["cycle"] if entry else 0) + int(cursor == total),
-            "stalls": entry.get("stalls", 0) if entry else 0}
+            "stalls": entry.get("stalls", 0) if entry else 0,
+            "last_error": entry.get("last_error") if entry else None,
+            "last_http_status": entry.get("last_http_status") if entry else None}
 
 
 def commit(path, slot, bbox, expected_start, successful_prefix, *, attempted=None,
-           last_error=None):
+           last_error=None, last_http_status=None):
     """Commit only consecutive successful map tiles after owner/CRM side effects."""
     _validate_slot(slot)
     if type(successful_prefix) is not int or not 0 <= successful_prefix <= MAX_TILES:
@@ -88,6 +95,11 @@ def commit(path, slot, bbox, expected_start, successful_prefix, *, attempted=Non
         raise ValueError("Invalid safe tile failure reason")
     if not failed and last_error is not None:
         raise ValueError("Successful tile visit cannot have failure reason")
+    if last_http_status is not None and (
+            type(last_http_status) is not int or
+            last_http_status not in EXPLICIT_REFUSALS or
+            last_error != "provider_refusal"):
+        raise ValueError("HTTP refusal status must be a recognized 4xx")
     if successful_prefix == 0 and not failed:
         return current
     data = _load(path)
@@ -96,7 +108,8 @@ def commit(path, slot, bbox, expected_start, successful_prefix, *, attempted=Non
               1 if failed else 0)
     entry = {"next": completed, "total": current["total"], "cycle": current["cycle"],
              "stalls": min(stalls, 1_000_000),
-             "last_error": last_error if failed else None}
+             "last_error": last_error if failed else None,
+             "last_http_status": last_http_status if failed else None}
     data["regions"][slot] = entry
     file = Path(path)
     file.parent.mkdir(parents=True, exist_ok=True)
