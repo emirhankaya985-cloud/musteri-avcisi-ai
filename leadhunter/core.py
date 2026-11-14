@@ -346,11 +346,20 @@ def live(env=None, opener=urlopen, output=print):
         match = __import__("re").search(
             r"^OVERPASS_TILE_FAILURE: class=([a-z_0-9]+);", value)
         if match:
-            tile_failure_reasons.append(match.group(1))
-            if match.group(1) == 'provider_refusal':
+            reason = match.group(1)
+            tile_failure_reasons.append(reason)
+            status = None
+            if reason == 'provider_refusal':
                 code = __import__('re').search(r'; http_status=([0-9]+);', value)
                 if code:
-                    tile_failure_http_statuses.append(int(code.group(1)))
+                    status = int(code.group(1))
+                    tile_failure_http_statuses.append(status)
+            if env.get("GITHUB_RUN_ID"):
+                try:
+                    from .scan_attempts import note_failure
+                    note_failure(env, reason, status)
+                except (OSError, ValueError):
+                    output("SCAN_OBSERVATION: failure_marker_unverified")
     if env.get('SCAN_TILE_LEDGER') == 'true' and scan_slot.startswith('pilot_'):
         from .tile_progress import plan as tile_plan_next
         tile_plan = tile_plan_next(tile_path, scan_slot, bbox)
@@ -359,6 +368,21 @@ def live(env=None, opener=urlopen, output=print):
                '; count=' + str(tile_plan['maximum']) +
                '; confirmed_before=' + str(tile_plan['completed']) +
                '; total=' + str(tile_plan['total']))
+        if env.get("GITHUB_RUN_ID"):
+            try:
+                from .scan_attempts import begin
+                from .osm_overpass_tiles import _provider_index
+                provider_path = env.get(
+                    'OVERPASS_PROVIDER_STATE_FILE',
+                    str(tile_path.with_name('overpass_provider_state.json')))
+                provider_id = (_provider_index(provider_path)
+                               if env.get('OSM_SOURCE_MODE') == 'coverage' else None)
+                begin(env, scan_slot, tile_plan['completed'], provider_id)
+            except (OSError, ValueError, RuntimeError):
+                # Observability must never trigger SMTP, repeat a public request
+                # or prevent already-safe CRM research. The final Neon run
+                # receipt will report its region as unverified.
+                output("SCAN_OBSERVATION: start_unverified")
         if (tile_plan['stalls'] and
                 tile_plan['last_http_status'] in (400,401,403,406)):
             # Provider explicitly denied this tile. Do not retry or switch
