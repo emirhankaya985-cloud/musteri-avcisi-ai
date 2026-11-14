@@ -22,6 +22,42 @@ def current_day():
     return datetime.now(ZoneInfo("Europe/Istanbul")).date().isoformat()
 
 
+
+def actionable_failure(env):
+    """Only persistent, source-confirmed outages warrant routine Telegram alerts.
+
+    Unknown failures or hard HTTP refusals remain immediately actionable.
+    Evidence errors fail open for owner alerts, never for business SMTP.
+    """
+    if not (env.get("OSM_SOURCE_MODE") == "coverage"
+            and env.get("SCAN_TILE_LEDGER") == "true"
+            and str(env.get("GITHUB_RUN_ID","")).isdigit()):
+        return True
+    try:
+        from .scan_attempts import REGION, _path
+        from .tile_progress import _load
+        observed=json.loads(_path(env).read_text(encoding="utf-8"))
+        if (not isinstance(observed,dict)
+                or observed.get("run_id") != env["GITHUB_RUN_ID"]
+                or not REGION.fullmatch(str(observed.get("region","")))):
+            return True
+        reason=observed.get("source_reason")
+        if reason == "provider_refusal":
+            if observed.get("source_http_status") != 429:
+                return True
+        elif reason not in ("timeout","dns","tls","connection","network",
+                "http_5xx","http_other","response_oversize","response_invalid",
+                "provider_remark"):
+            return True
+        tile_path=Path(env.get("TILE_PROGRESS_FILE","data/osm_tile_progress.json"))
+        entry=_load(tile_path)["regions"].get(observed["region"])
+        if not entry or entry.get("last_error") != reason:
+            return True
+        return entry.get("stalls",0) >= 3
+    except (OSError,RuntimeError,ValueError,TypeError,KeyError):
+        return True
+
+
 def run(env=None, handler=None, sender=None, output=print, today=None):
     from .core import live, send_telegram
     env = os.environ if env is None else env
@@ -41,6 +77,10 @@ def run(env=None, handler=None, sender=None, output=print, today=None):
     try:
         sent = handler(env=env, output=output)
     except Exception:
+        if not actionable_failure(env):
+            output("Owner alert suppressed: temporary source failure under "
+                   "3 confirmed consecutive region attempts")
+            raise
         token, chat_id = env.get("TELEGRAM_BOT_TOKEN"), env.get("TELEGRAM_CHAT_ID")
         if token and chat_id:
             limited = env.get("OWNER_ERROR_ALERT_DAILY_GUARD") == "true"
