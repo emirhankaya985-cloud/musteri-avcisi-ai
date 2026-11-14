@@ -10,7 +10,7 @@
 - `migrations/004_owner_osm_tile_ledger.sql` kaynak DB'ye uygulanır. Rol yetkisi açıkça oluşturulmadan panel bağlantısı kurulmaz.
 
 ## Kaynak read-only rolü
-Kaynak sahibi ayrı bir `control_center_musteri_reader` LOGIN rolü için **benzersiz parola** üretir; parolayı GitHub veya bu public repoya yazmaz. Bir kez özel yönetim kanalında:
+Kaynakta **NOLOGIN** `control_center_musteri_reader` yetki rolü hazırdır. Canlı panelin kimliği doğrulanmadan bu role giriş yetkisi veya veritabanı parolası verilmez. Merkez uygulama sahibi, ayrı salt-okunur oturum rolünü özel kanaldan yapılandırdıktan sonra bu izinler üzerinden veri okur:
 
 ```sql
 REVOKE ALL ON public.control_center_musteri_v1 FROM PUBLIC;
@@ -41,3 +41,12 @@ Merkez depo/servis bulunmazsa **entegrasyon şeması hazır, panel bağlantısı
 ## Gerçek özel Neon hazırlığı (14 Kasım 2026)
 - `control_center_musteri_reader` rolü `NOLOGIN` olarak oluşturuldu; view için `SELECT` ve schema için `USAGE` izni verildi. `owner_leads` veya tile tablosunda SELECT/UPDATE yetkisi yok.
 - Merkezi uygulama deposu ve sunucu dağıtımı doğrulanmadığından role hiçbir LOGIN hesap bağlanmadı ve parola üretilmedi. Bu, panelin şu anda entegre edildiği anlamına gelmez.
+
+## Yeni canlı tarama denetim sözleşmesi (PR #80)
+- `migrations/005_owner_scan_attempts.sql` yalnızca gelecekteki gerçek GitHub Actions çalışma kimliklerini saklar. Önceki 158 başarılı run metriğini başarısız denetim kaydı gibi **yeniden yorumlamayın**.
+- `control_center_musteri_runs_v1`: `scan_run_id`, `region`, `outcome` (success/partial/failure/skipped/cancelled), `source_reason`, izinli HTTP 4xx sınıfı, `provider_index`, doğrulanmış önce/sonra cursor, `mirror_outcome`, `recorded_at`. `NULL` cursor = doğrulanmamış; başarı veya sıfır gibi gösterilmez.
+- `control_center_musteri_provider_v1`: kaynak başına gözlemlenen çalışma, HTTP 5xx, timeout ve explicit refusal toplamları. Hiç çalışması olmayan kaynağın durumu **henüz doğrulanmadı** olarak gösterilir.
+- Bunlar ayrı security-barrier, aggregate/operational read-only görünümlerdir; müşteri adresi, site, ad, e-posta içeriği veya API tokenı içermez.
+- `control_center_musteri_reader` NOLOGIN rolüne yalnızca bu view'larda SELECT verilmiştir, CRM tablosunda SELECT/UPDATE yoktur.
+- Aktif GitHub cron `13 * * * *` UTC ve zamanlamanın gerçek başlangıcı farklı olabilir; panelde hedef zaman ile gerçek çalışma tarihini ayrı gösterin.
+- Merkez uygulama erişimi doğrulanıncaya kadar **panel canlı entegrasyonu bekliyor** olarak kalır.
