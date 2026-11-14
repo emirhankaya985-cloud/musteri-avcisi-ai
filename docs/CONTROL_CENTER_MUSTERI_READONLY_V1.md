@@ -10,12 +10,12 @@
 - `migrations/004_owner_osm_tile_ledger.sql` kaynak DB'ye uygulanır. Rol yetkisi açıkça oluşturulmadan panel bağlantısı kurulmaz.
 
 ## Kaynak read-only rolü
-Kaynak sahibi ayrı bir `control_center_reader` LOGIN rolü için **benzersiz parola** üretir; parolayı GitHub veya bu public repoya yazmaz. Bir kez özel yönetim kanalında:
+Kaynak sahibi ayrı bir `control_center_musteri_reader` LOGIN rolü için **benzersiz parola** üretir; parolayı GitHub veya bu public repoya yazmaz. Bir kez özel yönetim kanalında:
 
 ```sql
 REVOKE ALL ON public.control_center_musteri_v1 FROM PUBLIC;
-GRANT USAGE ON SCHEMA public TO control_center_reader;
-GRANT SELECT ON public.control_center_musteri_v1 TO control_center_reader;
+GRANT USAGE ON SCHEMA public TO control_center_musteri_reader;
+GRANT SELECT ON public.control_center_musteri_v1 TO control_center_musteri_reader;
 ```
 
 Bu rol için kaynak tablolara doğrudan SELECT, DML veya DDL yetkisi verilmez. Merkez yalnızca sunucu tarafı bağlantısından `SELECT * FROM public.control_center_musteri_v1` yapar. Satır düzeyinde müşteri, alıcı, e-posta gövdesi, token, Message-ID ve yasal izin belgeleri hiçbir zaman bu view'dan verilmez. Talep gelirse hassas geçmiş için ayrı yetkili kaynağa git; bu sözleşmeyi genişletme.
@@ -37,3 +37,7 @@ Bu rol için kaynak tablolara doğrudan SELECT, DML veya DDL yetkisi verilmez. M
 5. Panel arızasında saatlik scan aksatılmamalıdır. Eksik değer gizlenmez: son doğrulanmış değer, gözlem zamanı ve kaynak hata durumu gösterilir.
 
 Merkez depo/servis bulunmazsa **entegrasyon şeması hazır, panel bağlantısı engelli** olarak raporlanır.
+
+## Gerçek özel Neon hazırlığı (14 Kasım 2026)
+- `control_center_musteri_reader` rolü `NOLOGIN` olarak oluşturuldu; view için `SELECT` ve schema için `USAGE` izni verildi. `owner_leads` veya tile tablosunda SELECT/UPDATE yetkisi yok.
+- Merkezi uygulama deposu ve sunucu dağıtımı doğrulanmadığından role hiçbir LOGIN hesap bağlanmadı ve parola üretilmedi. Bu, panelin şu anda entegre edildiği anlamına gelmez.
