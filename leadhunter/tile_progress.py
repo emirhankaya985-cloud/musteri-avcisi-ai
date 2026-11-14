@@ -40,7 +40,11 @@ def _load(path):
                 entry["total"] < 1 or entry["cycle"] < 0 or
                 not 0 <= entry["next"] <= entry["total"] or
                 type(entry.get("stalls", 0)) is not int or
-                not 0 <= entry.get("stalls", 0) <= 1_000_000):
+                not 0 <= entry.get("stalls", 0) <= 1_000_000 or
+                entry.get("last_error") not in (None,"timeout","dns","tls",
+                "connection","network","http_5xx","http_other",
+                "response_oversize","response_invalid","provider_remark",
+                "provider_refusal")):
             raise RuntimeError("Invalid tile progress; fail closed")
     return document
 
@@ -62,7 +66,8 @@ def plan(path, slot, bbox):
             "stalls": entry.get("stalls", 0) if entry else 0}
 
 
-def commit(path, slot, bbox, expected_start, successful_prefix, *, attempted=None):
+def commit(path, slot, bbox, expected_start, successful_prefix, *, attempted=None,
+           last_error=None):
     """Commit only consecutive successful map tiles after owner/CRM side effects."""
     _validate_slot(slot)
     if type(successful_prefix) is not int or not 0 <= successful_prefix <= MAX_TILES:
@@ -76,6 +81,13 @@ def commit(path, slot, bbox, expected_start, successful_prefix, *, attempted=Non
                                   not successful_prefix <= attempted <= current["maximum"]):
         raise ValueError("Invalid number of attempted map tiles")
     failed = attempted is not None and attempted > successful_prefix
+    if last_error is not None and last_error not in (
+            "timeout","dns","tls","connection","network","http_5xx",
+            "http_other","response_oversize","response_invalid",
+            "provider_remark","provider_refusal"):
+        raise ValueError("Invalid safe tile failure reason")
+    if not failed and last_error is not None:
+        raise ValueError("Successful tile visit cannot have failure reason")
     if successful_prefix == 0 and not failed:
         return current
     data = _load(path)
@@ -83,7 +95,8 @@ def commit(path, slot, bbox, expected_start, successful_prefix, *, attempted=Non
     stalls = (current["stalls"] + 1 if failed and not successful_prefix else
               1 if failed else 0)
     entry = {"next": completed, "total": current["total"], "cycle": current["cycle"],
-             "stalls": min(stalls, 1_000_000)}
+             "stalls": min(stalls, 1_000_000),
+             "last_error": last_error if failed else None}
     data["regions"][slot] = entry
     file = Path(path)
     file.parent.mkdir(parents=True, exist_ok=True)
