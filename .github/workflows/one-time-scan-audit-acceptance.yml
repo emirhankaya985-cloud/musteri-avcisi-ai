@@ -1,0 +1,77 @@
+name: One-time Scan Attempt Neon Acceptance (No Messages)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/one-time-scan-audit-acceptance.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: musteri-avcisi-one-time-scan-audit-acceptance
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install free Neon Postgres driver
+        run: python -m pip install 'psycopg[binary]==3.2.12'
+      - name: Transactionally verify real Neon run ledger without sending or persisting test data
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: |
+          python - <<'PY'
+          import json,os,tempfile
+          from pathlib import Path
+          from leadhunter.review_private import connect_private_database
+          from leadhunter.scan_attempts import begin,note_failure,collect,persist
+          class Rollback(Exception): pass
+          synthetic='999999999999992'
+          with tempfile.TemporaryDirectory() as d:
+              ledger=Path(d)/'ledger.json'
+              ledger.write_text(json.dumps({'version':1,'regions':{
+                  'pilot_7_of_8':{'next':1,'total':54,'cycle':0,'stalls':1,
+                                  'last_error':'http_5xx'}
+              }}))
+              env={'GITHUB_RUN_ID':synthetic,
+                   'SCAN_OBSERVATION_FILE':str(Path(d)/'observed.json'),
+                   'SCAN_STEP_OUTCOME':'success','MIRROR_STEP_OUTCOME':'success'}
+              assert begin(env,'pilot_7_of_8',0,0)
+              assert note_failure(env,'http_5xx')
+              row=collect(env,ledger)
+              assert row[2]=='partial' and row[3]=='http_5xx'
+              assert row[6]==0 and row[7]==1
+              conn=connect_private_database(os.environ['REVIEW_DATABASE_URL'])
+              try:
+                  with conn.cursor() as cur:
+                      cur.execute('SELECT count(*) FROM owner_scan_attempts WHERE scan_run_id=%s',(synthetic,))
+                      assert cur.fetchone()[0]==0, 'synthetic ID conflict, refusing modification'
+                  try:
+                      with conn.transaction():
+                          assert persist(conn,row) is True
+                          assert persist(conn,row) is False
+                          with conn.cursor() as cur:
+                              cur.execute('SELECT region,outcome,source_reason FROM owner_scan_attempts WHERE scan_run_id=%s',(synthetic,))
+                              assert cur.fetchone()==('pilot_7_of_8','partial','http_5xx')
+                          raise Rollback()
+                  except Rollback:
+                      pass
+                  with conn.cursor() as cur:
+                      cur.execute('SELECT count(*) FROM owner_scan_attempts WHERE scan_run_id=%s',(synthetic,))
+                      assert cur.fetchone()[0]==0, 'synthetic record survived rollback'
+                      cur.execute("SELECT rolcanlogin,has_table_privilege("
+                                  "'control_center_musteri_reader',"
+                                  "'public.control_center_musteri_runs_v1','SELECT'),"
+                                  "has_table_privilege('control_center_musteri_reader',"
+                                  "'public.owner_leads','SELECT') "
+                                  "FROM pg_roles WHERE rolname='control_center_musteri_reader'")
+                      assert cur.fetchone()==(False,True,False)
+                  print("PASS: idempotent private Neon scan audit; 8-region contract; "
+                        "transaction rollback; no customer data, Telegram or SMTP")
+              finally:
+                  conn.close()
+          PY
