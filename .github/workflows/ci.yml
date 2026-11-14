@@ -8,6 +8,7 @@ on:
     paths-ignore:
       - 'data/seen.json'
       - 'data/last_digest_day.json'
+      - 'data/overpass_provider_state.json'
       - 'data/mail_sent.json'
   workflow_dispatch:
   pull_request:
