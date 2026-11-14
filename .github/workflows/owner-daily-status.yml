@@ -1,9 +1,6 @@
 name: Müşteri Avcısı Owner Daily Telegram Summary
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/owner-daily-status.yml']
   # Manual owner request only; no routine Telegram daily digest.
 permissions:
   contents: read
