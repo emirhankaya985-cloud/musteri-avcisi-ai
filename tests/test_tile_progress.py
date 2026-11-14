@@ -120,5 +120,21 @@ class TileProgressTests(unittest.TestCase):
         self.assertEqual(commit(self.path,self.slot,self.box,0,0)["completed"],0)
 
 
+    def test_refusal_status_survives_restart_and_no_false_success(self):
+        for code in (403,429):
+            with self.subTest(code=code):
+                if self.path.exists(): self.path.unlink()
+                updated=commit(self.path,self.slot,self.box,0,1,attempted=2,
+                               last_error="provider_refusal",last_http_status=code)
+                self.assertEqual(updated["completed"],1)
+                stored=plan(self.path,self.slot,self.box)
+                self.assertEqual(stored["start"],1)
+                self.assertEqual(stored["last_error"],"provider_refusal")
+                self.assertEqual(stored["last_http_status"],code)
+                with self.assertRaises(ValueError):
+                    commit(self.path,self.slot,self.box,1,0,attempted=1,
+                           last_error="http_5xx",last_http_status=code)
+
+
 if __name__ == "__main__":
     unittest.main()
