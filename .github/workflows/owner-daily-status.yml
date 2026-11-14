@@ -4,8 +4,7 @@ on:
   push:
     branches: [main]
     paths: ['.github/workflows/owner-daily-status.yml']
-  schedule:
-    - cron: '55 20 * * *' # 23:55 Europe/Istanbul year-round
+  # Manual owner request only; no routine Telegram daily digest.
 permissions:
   contents: read
 concurrency:
