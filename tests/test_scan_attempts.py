@@ -54,7 +54,7 @@ class ScanAttemptTests(unittest.TestCase):
     def test_preexisting_legacy_result_is_unverified_if_no_marker(self):
         row=collect(self.env,self.ledger)
         self.assertEqual(row[2],"success")
-        self.assertEqual(row[3],"none")
+        self.assertEqual(row[3],"unverified")
         self.assertIsNone(row[7])
 
     def test_invalid_metadata_fails_closed(self):
