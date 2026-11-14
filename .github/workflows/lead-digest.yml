@@ -105,6 +105,11 @@ jobs:
       - name: Check unified project HTTP readiness (GET only, no SMTP or reviews)
         if: success()
         run: python -m leadhunter.unified_control
+      - name: Mirror all 402 tile states to private Neon (no contact data)
+        if: always()
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: python -m leadhunter.tile_neon_sync
       - name: Commit seen IDs (also after partial send failure)
         if: always()
         run: |
