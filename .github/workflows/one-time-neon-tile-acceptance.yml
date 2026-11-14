@@ -1,0 +1,58 @@
+name: One-time 402 Tile Neon Acceptance (No Messages)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/one-time-neon-tile-acceptance.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: musteri-avcisi-neon-tile-acceptance
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install private Neon driver
+        run: python -m pip install 'psycopg[binary]==3.2.12'
+      - name: Persist source 402 tile ledger in Neon; no Telegram, Overpass or SMTP
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: python -m leadhunter.tile_neon_sync
+      - name: Verify Neon and isolated read-only aggregate view
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: |
+          python - <<'PY'
+          import os
+          from leadhunter.review_private import connect_private_database
+          db=connect_private_database(os.environ['REVIEW_DATABASE_URL'])
+          try:
+              with db.cursor() as cur:
+                  cur.execute("SELECT count(*), count(*) FILTER (WHERE state='confirmed'),"
+                              " count(DISTINCT region) FROM owner_osm_tile_ledger")
+                  total, confirmed, regions=map(int,cur.fetchone())
+                  assert total==402 and 0<=confirmed<=402 and regions==8
+                  cur.execute("SELECT leads_total,leads_in_review,smtp_acceptance_rows,"
+                              " observed_delivery_failures,confirmed_tiles,total_tiles "
+                              "FROM control_center_musteri_v1")
+                  stats=tuple(map(int,cur.fetchone()))
+                  assert stats[0]>=158 and stats[2]>=15
+                  assert stats[4]==confirmed and stats[5]==402
+                  cur.execute("SELECT count(*),count(DISTINCT "
+                              "lead_data#>>'{_auto_mail,gmail_api_message_id}') "
+                              "FROM owner_leads WHERE status='email_sent' AND "
+                              "lead_data#>>'{_auto_mail,gmail_api_message_id}' IS NOT NULL")
+                  mapped, unique=map(int,cur.fetchone())
+                  assert mapped==unique==15
+              print("PASS: private_402_tile_states=402; regions=8; "
+                    "confirmed="+str(confirmed)+"; gmail_sent_api_ids=15; "
+                    "view=aggregate_only; telegram_sent=0; smtp_sent=0")
+          finally:
+              db.close()
+          PY
