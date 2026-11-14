@@ -353,7 +353,7 @@ def live(env=None, opener=urlopen, output=print):
                 max_tiles=tile_plan['maximum'], tile_start=tile_plan['start'],
                 tile_results=tile_results, on_diagnostic=output,
                 provider_state_path=env.get('OVERPASS_PROVIDER_STATE_FILE',
-                    str(tile_path.with_name('overpass_provider_state.json')))
+                    str(tile_path.with_name('overpass_provider_state.json'))))
         from .osm_direct import get_osm_direct
         options = {'rotation_period': direct_period}
         if tile_plan is not None:
