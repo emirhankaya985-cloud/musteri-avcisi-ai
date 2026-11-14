@@ -74,7 +74,7 @@ class ScanAttemptTests(unittest.TestCase):
         self.env["GITHUB_RUN_ID"]="43634315994"
         self.assertFalse(note_failure(self.env,"timeout"))
         row=collect(self.env,self.ledger)
-        self.assertEqual(row[3],"none")
+        self.assertEqual(row[3],"unverified")
         self.assertIsNone(row[1])
 
 
