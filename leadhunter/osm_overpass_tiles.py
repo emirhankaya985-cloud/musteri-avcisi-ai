@@ -179,6 +179,7 @@ def get_overpass_tiles(bbox, opener=urlopen, *, day=None, hour=None,
     endpoint = READONLY_PROVIDERS[provider_index]
     found = {}
     successful = 0
+    had_transient = False
     for offset, (west, south, east, north) in enumerate(_tiles(
             bbox, day, max_tiles, hour=hour, rotation_period=rotation_period,
             start_index=tile_start)):
@@ -213,6 +214,7 @@ def get_overpass_tiles(bbox, opener=urlopen, *, day=None, hour=None,
                               str(exc.http_status) + "; tile_offset=" + str(offset))
             raise
         except OverpassTransient as exc:
+            had_transient = True
             _record_provider(provider_state_path, provider_index, exc.reason)
             if tile_results is not None:
                 tile_results.append(False)
@@ -225,6 +227,6 @@ def get_overpass_tiles(bbox, opener=urlopen, *, day=None, hour=None,
             break
     if not successful:
         raise RuntimeError("No confirmed read-only Overpass tile; cursor unchanged")
-    if not (tile_results and False in tile_results):
+    if not had_transient:
         _record_provider(provider_state_path, provider_index, "ok")
     return list(found.values())
