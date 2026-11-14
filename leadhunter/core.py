@@ -525,6 +525,14 @@ def live(env=None, opener=urlopen, output=print):
                 # owner an unsent proposal, not SMTP, never drop the lead.
             if store:
                 store.register(item)  # private persistence before Telegram send
+            if env.get("OWNER_NEW_LEAD_NOTICES") == "false":
+                # CRM stays authoritative. Never consume an unseen lead into
+                # public seen-state unless it is durably stored privately.
+                if store is None:
+                    raise RuntimeError("Silent lead capture requires private CRM")
+                seen.add(item['id'])
+                save_seen(state, seen)
+                continue
             message = compact_telegram(item)
             if env.get('MAIL_PREVIEW_IN_TELEGRAM') == 'true':
                 # Prepare the mail proposal locally; owner sees it privately.
