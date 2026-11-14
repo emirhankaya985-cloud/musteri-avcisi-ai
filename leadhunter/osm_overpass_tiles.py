@@ -9,6 +9,7 @@ import json
 import socket
 import ssl
 from datetime import datetime
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -22,6 +23,52 @@ from .osm_direct import (_tiles, MAX_RESPONSE_BYTES, MAX_TILES,
 # Queue delay observed near 23s in GitHub runner; 55s is the bounded client deadline.
 # One fixed host per visit, no parallel requests and no rate-limit evasions.
 READONLY_OVERPASS = "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+# Both instances are listed for global coverage in the OpenStreetMap wiki.
+# A transient outage changes the provider ONLY for the next scheduled visit.
+# A denial (429/403 and other explicit refusals) never triggers provider switching.
+READONLY_PROVIDERS = (
+    READONLY_OVERPASS,
+    "https://overpass.private.coffee/api/interpreter",
+)
+
+
+def _provider_index(state_path):
+    if state_path is None:
+        return 0
+    try:
+        raw = Path(state_path).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return 0
+    except OSError:
+        raise RuntimeError("Overpass provider state inaccessible; fail closed") from None
+    try:
+        state = json.loads(raw)
+    except (ValueError, TypeError):
+        raise RuntimeError("Corrupt Overpass provider state; fail closed") from None
+    if (not isinstance(state, dict) or state.get("version") != 1 or
+            type(state.get("provider_index")) is not int or
+            not 0 <= state["provider_index"] < len(READONLY_PROVIDERS) or
+            state.get("last_result") not in (
+                "ok", "timeout", "dns", "tls", "connection", "network",
+                "http_5xx", "response_oversize", "response_invalid")):
+        raise RuntimeError("Invalid Overpass provider state; fail closed")
+    return state["provider_index"]
+
+
+def _record_provider(state_path, index, result):
+    if state_path is None:
+        return
+    if result not in ("ok", "timeout", "dns", "tls", "connection", "network",
+                      "http_5xx", "response_oversize", "response_invalid"):
+        return  # Never switch servers on 429/403/4xx or provider remarks.
+    next_index = index if result == "ok" else (index + 1) % len(READONLY_PROVIDERS)
+    file = Path(state_path)
+    file.parent.mkdir(parents=True, exist_ok=True)
+    tmp = file.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"version": 1, "provider_index": next_index,
+                               "last_result": result}, sort_keys=True) + "\n",
+                   encoding="utf-8")
+    tmp.replace(file)
 
 
 class OverpassTransient(RuntimeError):
@@ -74,10 +121,10 @@ def _query(bbox):
     )
 
 
-def _read_one(box, opener):
+def _read_one(box, opener, endpoint=READONLY_OVERPASS):
     query = _query(box)
     req = Request(
-        READONLY_OVERPASS,
+        endpoint,
         data=urlencode({"data":query}).encode("utf-8"),
         headers={"User-Agent":USER_AGENT,
                  "Content-Type":"application/x-www-form-urlencoded"},
@@ -116,7 +163,7 @@ def _read_one(box, opener):
 def get_overpass_tiles(bbox, opener=urlopen, *, day=None, hour=None,
                        rotation_period=1, max_tiles=MAX_TILES,
                        tile_start=None, tile_results=None,
-                       on_diagnostic=None):
+                       on_diagnostic=None, provider_state_path=None):
     """No source switching; only two small sequential read-only requests."""
     if type(max_tiles) is not int or not 0 <= max_tiles <= MAX_TILES:
         raise ValueError("Unsafe Overpass tile count")
@@ -128,13 +175,15 @@ def get_overpass_tiles(bbox, opener=urlopen, *, day=None, hour=None,
         hour = current.hour if hour is None else hour
     elif hour is None:
         hour = 0
+    provider_index = _provider_index(provider_state_path)
+    endpoint = READONLY_PROVIDERS[provider_index]
     found = {}
     successful = 0
     for offset, (west, south, east, north) in enumerate(_tiles(
             bbox, day, max_tiles, hour=hour, rotation_period=rotation_period,
             start_index=tile_start)):
         try:
-            elements = _read_one((south, west, north, east), opener)
+            elements = _read_one((south, west, north, east), opener, endpoint)
             successful += 1
             if tile_results is not None:
                 tile_results.append(True)
@@ -164,6 +213,7 @@ def get_overpass_tiles(bbox, opener=urlopen, *, day=None, hour=None,
                               str(exc.http_status) + "; tile_offset=" + str(offset))
             raise
         except OverpassTransient as exc:
+            _record_provider(provider_state_path, provider_index, exc.reason)
             if tile_results is not None:
                 tile_results.append(False)
             if on_diagnostic is not None:
@@ -175,4 +225,6 @@ def get_overpass_tiles(bbox, opener=urlopen, *, day=None, hour=None,
             break
     if not successful:
         raise RuntimeError("No confirmed read-only Overpass tile; cursor unchanged")
+    if not (tile_results and False in tile_results):
+        _record_provider(provider_state_path, provider_index, "ok")
     return list(found.values())
