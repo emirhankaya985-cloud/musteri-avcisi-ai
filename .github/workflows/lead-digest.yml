@@ -78,7 +78,7 @@ jobs:
           # no HTTP 429/403 mirror hopping or full-region fallback.
           OSM_SOURCE_MODE: 'coverage'
           # Owner-only run summary, never re-send when run attempt is retried.
-          OWNER_HOURLY_SUMMARY: 'true'
+          OWNER_HOURLY_SUMMARY: 'false'
           # At most one owner error-alert attempt per Turkey-local day.
           OWNER_ERROR_ALERT_DAILY_GUARD: 'true'
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
@@ -115,6 +115,9 @@ jobs:
           fi
           if [ -f data/osm_tile_progress.json ]; then
             git add data/osm_tile_progress.json
+          fi
+          if [ -f data/overpass_provider_state.json ]; then
+            git add data/overpass_provider_state.json
           fi
           if ! git diff --cached --quiet; then
             git config user.name "github-actions[bot]"
