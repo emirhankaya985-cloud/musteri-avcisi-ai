@@ -398,7 +398,17 @@ def reconcile_mail(conn, notices):
     return changed, pending
 
 
+def select_alert_events(pending, critical_only=False):
+    """A delay stays in private CRM; only hard failure or reply requires action."""
+    if not critical_only:
+        return list(pending)
+    return [(lead_id, state) for lead_id, state in pending
+            if state in ("failed", "reply")]
+
+
 def deliver_pending(conn, pending, env, opener=None):
+    pending = select_alert_events(
+        pending, env.get("MAIL_CRITICAL_ALERTS_ONLY") == "true")
     if not pending:
         return 0
     if not env.get("TELEGRAM_BOT_TOKEN") or not str(
