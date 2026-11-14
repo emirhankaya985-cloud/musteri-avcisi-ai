@@ -30,7 +30,7 @@ jobs:
 
           # Public global-data Overpass server; one provider, one tile, no retries,
           # no raw objects/contacts in logs, and no secrets or external messages.
-          endpoint = "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+          endpoint = "https://overpass.private.coffee/api/interpreter"
           bbox = "40.982,29.145,40.987,29.150"
           q = ("[out:json][timeout:35];("
                'nwr["amenity"="car_wash"]('+bbox+');'
