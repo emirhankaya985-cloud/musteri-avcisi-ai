@@ -51,6 +51,47 @@ class SilentDiscoveryTests(unittest.TestCase):
             self.assertEqual(read_seen(state),{"node/42"})
             self.assertEqual(sum("sendMessage" in url for url in calls),0)
 
+    def test_silent_capture_all_businesses_not_legacy_five_preview_cap(self):
+        class Connection:
+            def close(self): pass
+        class Review:
+            def __init__(self):
+                self.records = {}
+            def statuses(self):
+                return dict(self.records)
+            def deferred(self):
+                return []
+            def register(self, item):
+                self.records[item["id"]] = "review"
+        review = Review()
+        calls = []
+        sample = {"elements":[
+            {"type":"node","id":i,
+             "tags":{"name":"Synthetic Flower "+str(i),"shop":"florist"}}
+            for i in range(100,111)]}
+        def opener(req,timeout=None):
+            calls.append(req.full_url)
+            if "sendMessage" in req.full_url:
+                self.fail("CRM-only mode must not contact Telegram")
+            return io.BytesIO(json.dumps(sample).encode())
+        with tempfile.TemporaryDirectory() as d:
+            state=Path(d)/"seen.json"
+            env={"TELEGRAM_BOT_TOKEN":"fake","TELEGRAM_CHAT_ID":"123",
+                 "STATE_FILE":str(state),"OWNER_NEW_LEAD_NOTICES":"false",
+                 "REVIEW_DATABASE_URL":"postgresql://synthetic/?sslmode=require"}
+            with patch("leadhunter.review_private.connect_private_database",
+                       return_value=Connection()),patch(
+                       "leadhunter.review_private.ReviewStore",
+                       return_value=review),patch(
+                       "leadhunter.mail_tracking.assess_contact",
+                       side_effect=lambda lead,discover:lead):
+                self.assertEqual(live(env=env,opener=opener,output=lambda _:None),0)
+                self.assertEqual(len(review.records),11)
+                self.assertEqual(len(read_seen(state)),11)
+                self.assertEqual(live(env=env,opener=opener,output=lambda _:None),0)
+                self.assertEqual(len(review.records),11)
+        self.assertFalse(any("sendMessage" in url for url in calls))
+
     def test_report_backlog_audit_only_never_sends_or_blocks_scan(self):
         class DB:
             def close(self): pass

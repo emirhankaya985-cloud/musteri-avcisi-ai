@@ -502,7 +502,21 @@ def live(env=None, opener=urlopen, output=print):
                             and lead['id'] not in selected_ids and auto_store.actionable(lead['id'])):
                         chosen.append(lead)
                         selected_ids.add(lead['id'])
+            elif env.get("OWNER_NEW_LEAD_NOTICES") == "false":
+                # A tile is advanced after research is persisted. The legacy
+                # five-notification limit must NOT truncate private CRM capture:
+                # that would silently lose businesses when the tile is marked
+                # confirmed and never fetched again.
+                candidates = {}
+                for lead in eligible + legacy:
+                    lead_id = lead["id"]
+                    if (statuses.get(lead_id) in (None, "review")
+                            and (lead_id not in seen or lead_id not in statuses)):
+                        candidates[lead_id] = lead
+                chosen = sorted(candidates.values(),
+                                key=lambda x: (-x["score"], x["id"]))
             else:
+                # Five Telegram previews is an intentional UI limit only.
                 chosen = prioritized_leads(
                     selection_statuses, eligible, deferred_fallback=store.deferred(),
                     legacy_fallback=legacy, maximum=5)
