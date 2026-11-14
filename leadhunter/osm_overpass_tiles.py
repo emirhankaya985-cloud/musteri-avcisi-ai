@@ -22,13 +22,14 @@ from .osm_direct import (_tiles, MAX_RESPONSE_BYTES, MAX_TILES,
 # Switch away from the provider repeatedly timing out in production.
 # Queue delay observed near 23s in GitHub runner; 55s is the bounded client deadline.
 # One fixed host per visit, no parallel requests and no rate-limit evasions.
-READONLY_OVERPASS = "https://overpass.private.coffee/api/interpreter"
-# Both instances are listed for global coverage in the OpenStreetMap wiki.
+READONLY_OVERPASS = "https://overpass-api.de/api/interpreter"
+# Listed global-coverage sources; fewer than 100 recurring requests/day.
 # A transient outage changes the provider ONLY for the next scheduled visit.
 # A denial (429/403 and other explicit refusals) never triggers provider switching.
 READONLY_PROVIDERS = (
     READONLY_OVERPASS,
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
 )
 
 
