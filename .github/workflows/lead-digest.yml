@@ -3,6 +3,11 @@ on:
   # Start automatically when the repository changes from private to public.
   public:
   workflow_dispatch:
+  # A single explicit live production acceptance; no triggers on code changes.
+  push:
+    branches: [main]
+    paths:
+      - '.github/ops/one-time-scan-acceptance-20261114.txt'
   # Owner-only opportunity research runs once every hour, every day.
   # Avoid GitHub Actions' crowded :00 UTC trigger; actual starts may be delayed.
   # Never start an extra scan merely because workflow code changed.

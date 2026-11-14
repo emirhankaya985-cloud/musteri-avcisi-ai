@@ -1,0 +1,13 @@
+One-time owner-requested production scan acceptance, 2026-11-14.
+
+Purpose: verify the repaired hourly scanner #83 with real bounded source access,
+zero external customer email, no routine Telegram notices, and private Neon
+progress / attempt receipts. This is an explicit one-time exception to the
+hourly schedule, not a recurring trigger.
+
+Safety: same existing concurrency group as the hourly scan; one provider per
+visit; maximum two 0.005-degree tiles; stop on 403/429 without mirror hopping;
+SMTP and manual owner-approval flags remain false. No secrets in this file.
+
+Do not edit this marker again. Future changes to Python/workflows must NOT
+trigger extra scan runs.
