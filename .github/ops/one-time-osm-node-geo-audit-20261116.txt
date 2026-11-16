@@ -1,0 +1,6 @@
+One-time, owner-authorized location comparison for 20 private
+potential duplicate company pairs (25 distinct existing OSM node IDs).
+One small OSM 0.6 batch read, no bulk extraction, no retry on 403/429,
+no 402-cell re-scan, no CRM modification, no customer messages or SMTP.
+Only distance evidence is saved into private Neon; no automatic merging.
+Do not edit this immutable trigger marker.
