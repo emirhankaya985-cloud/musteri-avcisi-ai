@@ -124,6 +124,11 @@ jobs:
           SCAN_STEP_OUTCOME: ${{ steps.scan.outcome }}
           MIRROR_STEP_OUTCOME: ${{ steps.mirror.outcome }}
         run: python -m leadhunter.scan_attempts
+      - name: Maintain private company-identity duplicate review queue
+        if: always()
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: python -m leadhunter.duplicate_review
       - name: Commit seen IDs (also after partial send failure)
         if: always()
         run: |
