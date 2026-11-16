@@ -29,6 +29,15 @@ def classify(last_scan, last_gmail, now=None, max_age_minutes=180):
     return result
 
 
+def classify_source(source_at, now=None):
+    """A historical source snapshot is not an hourly scan receipt."""
+    now=now or datetime.now(timezone.utc)
+    if (source_at is None or source_at.tzinfo is None or
+            source_at > now or now-source_at > timedelta(days=10)):
+        return "stale_or_unverified"
+    return "fresh"
+
+
 def run(env=None, connection=None, output=print, *, now=None):
     env = os.environ if env is None else env
     own = connection is None
@@ -38,18 +47,31 @@ def run(env=None, connection=None, output=print, *, now=None):
         env["REVIEW_DATABASE_URL"])
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT max(created_at) FROM owner_scan_run_metrics")
+            # After 402/402 coverage, a successful hourly source *skip*
+            # is a valid automation receipt, but never a new customer scan.
+            cur.execute(
+                "SELECT max(recorded_at) FROM owner_scan_attempts "
+                "WHERE outcome IN ('success','partial','skipped')")
             scan = cur.fetchone()[0]
             cur.execute("SELECT max(created_at) FROM owner_mail_watch_runs")
             gmail = cur.fetchone()[0]
+            cur.execute(
+                "SELECT greatest("
+                "coalesce((SELECT max(source_data_at) FROM "
+                "owner_osm_tile_snapshot_provenance),'epoch'::timestamptz),"
+                "coalesce((SELECT max(source_data_at) FROM "
+                "owner_osm_incremental_runs),'epoch'::timestamptz))")
+            source_at=cur.fetchone()[0]
         states = classify(scan, gmail, now=now)
+        states["source"] = classify_source(source_at, now=now)
     finally:
         if own:
             conn.close()
     # Stable classes only: don't print connection strings, recipients,
     # private dates, record names or sensitive Gmail messages.
-    output("OPS_FRESHNESS: scan=" + states["scan"] +
+    output("OPS_FRESHNESS: scan_heartbeat=" + states["scan"] +
            "; gmail=" + states["gmail"] +
+           "; osm_source=" + states["source"] +
            "; new_smtp_sent=0; automatic_duplicate_scan=0")
     if any(state != "fresh" for state in states.values()):
         raise RuntimeError("OPS_FRESHNESS: PARTIAL; stale or unverified recurring job")

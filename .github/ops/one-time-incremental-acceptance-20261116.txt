@@ -1,0 +1,7 @@
+One-time post-coverage production acceptance, November 16 2026.
+Run exact registered incremental freshness preflight on real private Neon.
+Initial Geofabrik source snapshot is newer than 3 days, therefore skip
+a redundant country download and all 402 already-confirmed map cells.
+No SMTP, Telegram messages or old CRM updates. The twice-weekly future
+refresh workflow remains enabled independently of hourly health checks.
+Do not edit this marker again.
