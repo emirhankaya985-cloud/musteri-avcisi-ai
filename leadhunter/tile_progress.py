@@ -64,10 +64,13 @@ def plan(path, slot, bbox):
     if entry and entry["total"] != total:
         raise RuntimeError("OSM pilot geometry changed; migration required")
     cursor = entry["next"] if entry else 0
-    start = 0 if cursor == total else cursor
+    # A complete 402-cell source scan is historical verified coverage.
+    # Never rewind to zero and count previously confirmed cells as incomplete.
+    # Revalidation requires an explicit separate, provenance-preserving plan.
+    start = cursor
     return {"start": start, "maximum": min(MAX_TILES, total - start),
             "total": total, "completed": cursor,
-            "cycle": (entry["cycle"] if entry else 0) + int(cursor == total),
+            "cycle": entry["cycle"] if entry else 0,
             "stalls": entry.get("stalls", 0) if entry else 0,
             "last_error": entry.get("last_error") if entry else None,
             "last_http_status": entry.get("last_http_status") if entry else None}
