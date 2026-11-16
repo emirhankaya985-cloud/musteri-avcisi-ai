@@ -1,0 +1,88 @@
+name: One-time Verified OSM Pilot Snapshot Coverage (No Messages)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/ops/one-time-geofabrik-coverage-20261116.txt'
+  workflow_dispatch:
+permissions:
+  contents: write
+# The normal hourly owner scan and this snapshot writer share a single
+# GitHub lock; never update the public tile cursor concurrently.
+concurrency:
+  group: telegram-lead-digest
+  cancel-in-progress: false
+jobs:
+  verified-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Offline regressions before any download
+        run: python -m unittest discover -s tests -p 'test_snapshot_coverage.py' -v
+      - name: Install free open-source PBF reader and private Neon driver
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq osmium-tool
+          python -m pip install 'osmium==4.2.0' 'psycopg[binary]==3.2.12'
+      - name: Fetch and verify one free country-level OSM snapshot
+        id: fetch
+        timeout-minutes: 20
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/musteri-osm-pilot
+          cd /tmp/musteri-osm-pilot
+          url='https://download.geofabrik.de/europe/turkey-latest.osm.pbf'
+          curl --fail --location --silent --show-error --retry 1             --connect-timeout 30 --max-time 900 "$url" -o turkey-latest.osm.pbf
+          curl --fail --location --silent --show-error --retry 1             --connect-timeout 30 --max-time 45 "$url.md5" -o turkey-latest.osm.pbf.md5
+          md5sum --check turkey-latest.osm.pbf.md5
+          test "$(stat -c %s turkey-latest.osm.pbf)" -gt 100000000
+          sha="$(sha256sum turkey-latest.osm.pbf | cut -d' ' -f1)"
+          timestamp="$(osmium fileinfo -g header.option.osmosis_replication_timestamp turkey-latest.osm.pbf)"
+          test -n "$timestamp"
+          echo "sha256=$sha" >> "$GITHUB_OUTPUT"
+          echo "source_timestamp=$timestamp" >> "$GITHUB_OUTPUT"
+          echo 'SNAPSHOT_SOURCE: https Geofabrik country PBF; verified checksum and embedded source timestamp'
+      - name: Clip small Istanbul pilot with complete way and multipolygon topology
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          osmium extract --bbox 29.015,40.946,29.175,41.031             --strategy=smart --option types=multipolygon             -o /tmp/musteri-osm-pilot/pilot.osm.pbf             /tmp/musteri-osm-pilot/turkey-latest.osm.pbf
+          test "$(stat -c %s /tmp/musteri-osm-pilot/pilot.osm.pbf)" -gt 4096
+          echo 'SNAPSHOT_CLIP: complete geometry pilot extracted from verified country source'
+      - name: Register every eligible real OSM business and checkpoint each remaining cell
+        id: ingest
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+          OSM_PILOT_FILE: /tmp/musteri-osm-pilot/pilot.osm.pbf
+          OSM_SNAPSHOT_SHA256: ${{ steps.fetch.outputs.sha256 }}
+          OSM_SNAPSHOT_TIMESTAMP: ${{ steps.fetch.outputs.source_timestamp }}
+          AUTO_MAIL_ENABLED: 'false'
+          OWNER_APPROVED_MAIL_ENABLED: 'false'
+          OWNER_NEW_LEAD_NOTICES: 'false'
+          OWNER_HOURLY_SUMMARY: 'false'
+          MAIL_PREVIEW_IN_TELEGRAM: 'false'
+        run: python -m leadhunter.snapshot_coverage
+      - name: Mirror actual confirmed cells to private Neon
+        if: always()
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: python -m leadhunter.tile_neon_sync
+      - name: Persist verified success-only tile cursor to source GitHub
+        if: always()
+        run: |
+          set -e
+          git add data/osm_tile_progress.json
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'chore: checkpoint verified independent OSM snapshot tiles'
+            git push
+          fi
+      - name: Verify local no-SMTP invariant
+        if: always()
+        run: |
+          echo 'SNAPSHOT_SAFETY: outbound_business_email=disabled; Telegram_notices=disabled'
