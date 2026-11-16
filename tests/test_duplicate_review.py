@@ -53,6 +53,30 @@ class CompanyDuplicateReviewTests(unittest.TestCase):
         self.assertIsNone(domain("https://www.instagram.com/brand"))
         self.assertEqual(domain("www.example.org/about"),"example.org")
 
+    def test_shared_booking_directory_website_is_not_first_party_identity(self):
+        # Real production failure: unrelated shops on the same booking
+        # marketplace hostname were incorrectly queued as one company.
+        rows=[
+            ("node/14078849201",lead(
+                "Nail & Beauty Ataşehir","Güzellik salonu",
+                "https://www.kolayrandevu.com/isletme/nail-beauty-atasehir",
+                address="Ataşehir")),
+            ("node/8956716395",lead(
+                "Sacha Curl","Kuaför/berber",
+                "https://www.kolayrandevu.com/isletme/sacha-curl-kuafor-guzellik",
+                address="Kadıköy")),
+        ]
+        self.assertIsNone(domain("https://www.kolayrandevu.com/isletme/foo"))
+        self.assertIsNone(domain("kolayrandevu.com/isletme/bar"))
+        self.assertEqual(candidates(rows),{})
+        # Genuine shared first-party website is still a review candidate.
+        real=[
+            ("node/1",lead("Studio One",website="https://www.nailyuba.com/")),
+            ("node/2",lead("Studio Two",website="https://nailyuba.com")),
+        ]
+        self.assertIn("same_first_party_domain",
+                      candidates(real)[("node/1","node/2")])
+
     def test_normalization_and_repeat_determinism(self):
         rows=[
             ("node/1",lead("   SALON  CEDAR  ","Kuaför/berber")),
