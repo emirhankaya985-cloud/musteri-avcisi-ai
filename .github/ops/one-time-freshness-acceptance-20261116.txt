@@ -1,0 +1,6 @@
+Single post-baseline read-only schedule and source freshness acceptance.
+Check the real recent owner_scan_attempts hourly success or completed-source skip,
+the separate Gmail watch, and the timestamp of the last checksum-verified
+Geofabrik snapshot. Never trigger another source download or a 402-tile rescan.
+No Telegram customer alerts, no SMTP, no private CRM mutation.
+This is a one-time production acceptance marker; do not edit again.
