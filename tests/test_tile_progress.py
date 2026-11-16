@@ -57,7 +57,7 @@ class TileProgressTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             commit(self.path,self.slot,self.box,2,3)
 
-    def test_full_cycle_then_next_cycle_only_on_next_success(self):
+    def test_complete_coverage_never_rewinds_or_rescans_completed_cells(self):
         first=plan(self.path,self.slot,self.box)
         total=first["total"]
         while plan(self.path,self.slot,self.box)["completed"] < total:
@@ -65,11 +65,12 @@ class TileProgressTests(unittest.TestCase):
             commit(self.path,self.slot,self.box,item["start"],item["maximum"])
         final=plan(self.path,self.slot,self.box)
         self.assertEqual(final["completed"],total)
-        self.assertEqual(final["start"],0)
-        self.assertEqual(final["cycle"],1)
-        new=commit(self.path,self.slot,self.box,0,1)
-        self.assertEqual(new["completed"],1)
-        self.assertEqual(new["cycle"],1)
+        self.assertEqual(final["start"],total)
+        self.assertEqual(final["maximum"],0)
+        self.assertEqual(final["cycle"],0)
+        with self.assertRaisesRegex(RuntimeError,"cursor changed"):
+            commit(self.path,self.slot,self.box,0,1)
+        self.assertEqual(aggregate(self.path)[0],total)
 
     def test_official_api_failed_second_tile_not_advanced(self):
         calls=[]
