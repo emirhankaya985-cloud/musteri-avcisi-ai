@@ -21,7 +21,8 @@ SHARED_HOSTS=frozenset((
     "wa.me","whatsapp.com","linktr.ee","bit.ly","tinyurl.com",
     "sites.google.com","maps.google.com","google.com",
     "youtube.com","x.com","twitter.com","business.site",
-    "wixsite.com","blogspot.com","wordpress.com"))
+    "wixsite.com","blogspot.com","wordpress.com",
+    "kolayrandevu.com"))
 MAX_CANDIDATE_PAIRS=25000
 
 
