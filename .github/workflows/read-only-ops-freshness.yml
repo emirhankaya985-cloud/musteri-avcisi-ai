@@ -2,7 +2,9 @@ name: Read Only Automation Freshness
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/read-only-ops-freshness.yml']
+    paths:
+      - '.github/workflows/read-only-ops-freshness.yml'
+      - '.github/ops/one-time-freshness-acceptance-20261116.txt'
   workflow_dispatch:
   # Low-cost watchdog every three hours; no customer messages or retries.
   schedule:
