@@ -49,6 +49,18 @@ def begin(env, region, confirmed_before, provider_index=None):
     return True
 
 
+
+def mark_complete(env, region, confirmed):
+    """Record a no-query success-only checkpoint as SKIPPED, not a scan."""
+    if not begin(env,region,confirmed):
+        return False
+    path=_path(env)
+    obj=json.loads(path.read_text(encoding="utf-8"))
+    obj["coverage_complete"]=True
+    _write(path,obj)
+    return True
+
+
 def note_failure(env, reason, status=None):
     """Only enum + recognized 4xx code; never persist raw response/URL."""
     if reason not in REASONS - {"none","unverified"}:
@@ -113,7 +125,13 @@ def collect(env, ledger_path="data/osm_tile_progress.json"):
         # Never guess an "after" state if a public file is missing.
         if after is not None and after<before:
             raise RuntimeError("Tile ledger regressed")
-    outcome=("partial" if scanned=="success" and reason not in ("none","unverified")
+    source_complete=(isinstance(obj,dict) and obj.get("run_id")==run_id
+                     and obj.get("coverage_complete") is True
+                     and region is not None and before is not None
+                     and after==before and
+                     _load(ledger_path)["regions"].get(region,{}).get("total")==before)
+    outcome=("skipped" if scanned=="success" and source_complete else
+             "partial" if scanned=="success" and reason not in ("none","unverified")
              else scanned)
     if scanned!="success" and reason=="none":
         reason="unverified"
