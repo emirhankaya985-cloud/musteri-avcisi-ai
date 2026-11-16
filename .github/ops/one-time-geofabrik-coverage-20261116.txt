@@ -1,0 +1,8 @@
+One-time coverage request for the eight already defined Istanbul OSM pilot regions.
+GitHub main push of this unique file triggers exactly one verified independent
+source snapshot ingestion. No new emails or routine Telegram messages.
+No source rate-limit evasion: this reads one public daily downloadable
+OpenStreetMap Geofabrik PBF instead of repeatedly querying busy Overpass APIs.
+© OpenStreetMap contributors (ODbL). Data timestamp and SHA256 persisted in
+private Neon for every successful new 0.005-degree map cell.
+DO NOT edit this marker later or repeatedly re-download the country extract.
