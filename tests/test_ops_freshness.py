@@ -1,15 +1,22 @@
 """Synthetic read-only freshness checks; no Neon customer rows copied."""
 import unittest
 from datetime import datetime, timedelta, timezone
-from leadhunter.ops_freshness import classify, run
+from leadhunter.ops_freshness import classify, classify_source, run
 
 
 class Cursor:
     def __init__(self, timestamps):
         self.values = iter(timestamps)
     def execute(self, sql):
-        assert sql in ("SELECT max(created_at) FROM owner_scan_run_metrics",
-                       "SELECT max(created_at) FROM owner_mail_watch_runs")
+        assert sql in (
+            "SELECT max(recorded_at) FROM owner_scan_attempts "
+            "WHERE outcome IN ('success','partial','skipped')",
+            "SELECT max(created_at) FROM owner_mail_watch_runs",
+            "SELECT greatest("
+            "coalesce((SELECT max(source_data_at) FROM "
+            "owner_osm_tile_snapshot_provenance),'epoch'::timestamptz),"
+            "coalesce((SELECT max(source_data_at) FROM "
+            "owner_osm_incremental_runs),'epoch'::timestamptz))")
     def fetchone(self):
         return (next(self.values),)
     def __enter__(self):
@@ -42,9 +49,9 @@ class FreshnessTests(unittest.TestCase):
 
     def test_aggregate_only_no_retries_or_smtp(self):
         messages=[]
-        state=run(env={},connection=Conn([self.now,self.now]),
+        state=run(env={},connection=Conn([self.now,self.now,self.now-timedelta(days=1)]),
                   output=messages.append,now=self.now)
-        self.assertEqual(state,{"scan":"fresh","gmail":"fresh"})
+        self.assertEqual(state,{"scan":"fresh","gmail":"fresh","source":"fresh"})
         self.assertEqual(len(messages),1)
         self.assertIn("new_smtp_sent=0",messages[0])
         self.assertNotIn("@",messages[0])
@@ -53,9 +60,19 @@ class FreshnessTests(unittest.TestCase):
         logs=[]
         with self.assertRaisesRegex(RuntimeError,"PARTIAL"):
             run(env={},connection=Conn([self.now-timedelta(days=2),
-                                       self.now-timedelta(days=2)]),
+                                       self.now-timedelta(days=2),
+                                       self.now-timedelta(days=9)]),
                 output=logs.append,now=self.now)
         self.assertIn("stale",logs[0])
+
+    def test_source_version_is_independent_of_hourly_receipts(self):
+        self.assertEqual(classify_source(
+            self.now-timedelta(days=1),self.now),"fresh")
+        self.assertEqual(classify_source(
+            self.now-timedelta(days=11),self.now),"stale_or_unverified")
+        self.assertEqual(classify_source(None,self.now),"stale_or_unverified")
+        self.assertEqual(classify_source(
+            self.now+timedelta(minutes=1),self.now),"stale_or_unverified")
 
 
 if __name__ == "__main__":
