@@ -1,0 +1,5 @@
+Owner explicitly requested a single genuine Telegram bot acceptance.
+An immutable private Neon unique claim protects against retries or duplicated
+Actions dispatches. No customer contact, SMTP or routine hourly alerts.
+Token, chat ID and API error bodies are redacted from CI logs.
+Do not edit this acceptance marker again.
