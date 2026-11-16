@@ -369,6 +369,9 @@ def live(env=None, opener=urlopen, output=print):
                '; confirmed_before=' + str(tile_plan['completed']) +
                '; total=' + str(tile_plan['total']))
         if tile_plan['maximum'] == 0:
+            if env.get("GITHUB_RUN_ID"):
+                from .scan_attempts import mark_complete
+                mark_complete(env, scan_slot, tile_plan['completed'])
             # All cells are already verified from a real source snapshot.
             # Never re-query/rewind them, even if this hourly visit rotates
             # back to the same region. Gmail and private mirror are separate.

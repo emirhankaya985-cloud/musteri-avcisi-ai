@@ -1,0 +1,74 @@
+name: One-time Private Company Duplicate Queue Acceptance (No Messages)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/ops/one-time-duplicate-acceptance-20261116.txt'
+permissions:
+  contents: read
+concurrency:
+  group: telegram-lead-digest
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Offline source, duplicate and audit regressions
+        run: |
+          python -m unittest discover -s tests -p 'test_duplicate_review.py' -v
+          python -m unittest discover -s tests -p 'test_scan_attempts.py' -v
+          python -m unittest discover -s tests -p 'test_tile_progress.py' -v
+      - name: Install free private Neon driver
+        run: python -m pip install 'psycopg[binary]==3.2.12'
+      - name: Verify live 402-tile source and idempotent private company review
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+          AUTO_MAIL_ENABLED: 'false'
+          OWNER_APPROVED_MAIL_ENABLED: 'false'
+          OWNER_NEW_LEAD_NOTICES: 'false'
+        run: |
+          python - <<'PY'
+          import os
+          from leadhunter.review_private import connect_private_database
+          from leadhunter.duplicate_review import run
+          assert os.environ['AUTO_MAIL_ENABLED']=='false'
+          assert os.environ['OWNER_APPROVED_MAIL_ENABLED']=='false'
+          assert os.environ['OWNER_NEW_LEAD_NOTICES']=='false'
+          db=connect_private_database(os.environ['REVIEW_DATABASE_URL'])
+          try:
+              with db.cursor() as cur:
+                  cur.execute("SELECT count(*),count(DISTINCT osm_id) FROM owner_leads")
+                  before,distinct=map(int,cur.fetchone())
+                  assert before==distinct and before>=174
+                  cur.execute("SELECT count(*) FROM owner_osm_tile_ledger WHERE state='confirmed'")
+                  assert int(cur.fetchone()[0])==402
+                  cur.execute("SELECT count(*) FROM owner_osm_tile_snapshot_provenance")
+                  assert int(cur.fetchone()[0])==317
+              first=run(conn=db)
+              second=run(conn=db)
+              assert first[0]==second[0], 'Non-deterministic duplicate discovery'
+              assert second[1]==0, 'Second pass was not idempotent'
+              with db.cursor() as cur:
+                  cur.execute("SELECT count(*),count(DISTINCT osm_id) FROM owner_leads")
+                  after,unique=map(int,cur.fetchone())
+                  assert (after,unique)==(before,distinct),'CRM historical records modified'
+                  cur.execute("SELECT count(*) FROM owner_duplicate_review_pairs")
+                  reviewed=int(cur.fetchone()[0])
+                  assert reviewed>=first[0]
+                  cur.execute("SELECT has_table_privilege("
+                              "'control_center_musteri_reader',"
+                              "'public.control_center_musteri_duplicate_review_v1','SELECT'),"
+                              "has_table_privilege('control_center_musteri_reader',"
+                              "'public.owner_duplicate_review_pairs','SELECT')")
+                  assert cur.fetchone()==(True,False)
+              print("DUPLICATE_ACCEPTANCE: passed=1; private_candidates="+
+                    str(reviewed)+"; CRM_records="+str(after)+
+                    "; source_tiles=402; auto_merge=0; business_mail_sent=0")
+          finally:
+              db.close()
+          PY

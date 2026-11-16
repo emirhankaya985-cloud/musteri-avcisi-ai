@@ -1,0 +1,5 @@
+One-time production acceptance for private CRM company duplicate review.
+The 402 OSM pilot cells were already verified from a free Geofabrik source
+snapshot. This job performs no external source queries, no automatic merging,
+no deletion, no SMTP, and no Telegram notifications.
+Do not edit this marker again.

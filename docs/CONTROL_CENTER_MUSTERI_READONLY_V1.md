@@ -50,3 +50,17 @@ Merkez depo/servis bulunmazsa **entegrasyon şeması hazır, panel bağlantısı
 - `control_center_musteri_reader` NOLOGIN rolüne yalnızca bu view'larda SELECT verilmiştir, CRM tablosunda SELECT/UPDATE yoktur.
 - Aktif GitHub cron `13 * * * *` UTC ve zamanlamanın gerçek başlangıcı farklı olabilir; panelde hedef zaman ile gerçek çalışma tarihini ayrı gösterin.
 - Merkez uygulama erişimi doğrulanıncaya kadar **panel canlı entegrasyonu bekliyor** olarak kalır.
+
+
+## Tamamlanmış kaynak taramasının doğru gösterimi (16 Kasım 2026)
+- Ücretsiz Geofabrik Türkiye OSM PBF dökümü, canlı Overpass API'nin 5xx/timeout engellerini aşmak için **ek sorgu bombardımanı olmadan** bir kez indirildi ve bütünlüğü doğrulandı (SHA256, MD5, başlık kaynak zamanı).
+- Sekiz İstanbul pilotunun 402 adet 0,005 derecelik hücresinin tümü **aynı tarihli gerçek OSM anlık görüntüsü** üzerinden tarandı. Zaten başarılı 85 hücreye dokunulmadı, kalan 317'si `owner_osm_tile_snapshot_provenance` tablosunda SHA256 ve `source_data_at` ile kayıtlıdır.
+- Kaynak zamanı **2026-11-15T21:22:28Z**; bunu tarama tarihi veya canlı API tazeliği olarak sunma. View: `control_center_musteri_snapshot_v1` alanları `snapshot_confirmed_tiles`, `oldest_snapshot_data_at`, `newest_snapshot_data_at`, `distinct_source_files`, `last_snapshot_verified_at`, `new_private_crm_records`.
+- `owner_osm_tile_ledger` doğrulanmış 402 hücreyi, `data/osm_tile_progress.json` bağımsız resume/cursor'u tutar. Hiçbirini tekrar sıfırlama. Tamamlandıktan sonraki saatlik kaynak denemesini `skipped` olarak kaydet; yalnızca kontrol, Gmail takibi ve CRM denetimi devam etsin.
+- Bu sonuç 402 canlı Overpass isteği değil, 402 ayrı hücre için doğrulanmış kaynak **anlık görüntüsü** analizidir. E-posta gönderimini açmaz.
+
+## Şirket eşleştirme ve gizlilik
+- `owner_duplicate_review_pairs` özel tabloda eşleşme adayları yalnızca **inceleme** amacıyla saklanır: aynı şirket sitesi, telefon, ad/adres/kategori ya da ad/kategori sinyalleri. Farklı şubeler yanlışlıkla birleştirilmez ve tarihsel müşteri kayıtları silinmez.
+- `control_center_musteri_duplicate_review_v1` yalnızca `review_needed_pairs`, `dismissed_pairs`, `confirmed_duplicate_pairs`, `last_duplicate_audit_at` aggregate değerlerini içerir. Salt-okunur role SELECT, özel aday çiftleri tablosuna doğrudan erişim **verilmedi**.
+- `source_data_at` ile `snapshot_at` ayrıdır. Güncel tarama yoksa son doğrulanmış gerçek tarih ve gerekçeyi göster. `NULL` bilinmeyen, 0 ise gerçek sıfırdır. Açıklamasız `N/A` kullanma.
+- Merkezi servis oluşturulup yetkili server-to-server gizli bağlantı sağlanmadıkça girişsiz `control_center_musteri_reader` rolüyle gerçek bağlantı varmış gibi bildirme. Render/merkez mevcut değilse sözleşme hazır, dağıtım engelli durumunu koru.

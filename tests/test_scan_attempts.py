@@ -3,7 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from leadhunter.scan_attempts import begin,note_failure,collect
+from leadhunter.scan_attempts import begin,note_failure,collect,mark_complete
 
 
 class ScanAttemptTests(unittest.TestCase):
@@ -76,6 +76,17 @@ class ScanAttemptTests(unittest.TestCase):
         row=collect(self.env,self.ledger)
         self.assertEqual(row[3],"unverified")
         self.assertIsNone(row[1])
+
+
+    def test_all_verified_cells_are_skipped_without_false_new_scan(self):
+        self.write_tiles(54)
+        self.assertTrue(mark_complete(self.env,"pilot_7_of_8",54))
+        row=collect(self.env,self.ledger)
+        self.assertEqual(row[1],"pilot_7_of_8")
+        self.assertEqual(row[2],"skipped")
+        self.assertEqual(row[3],"none")
+        self.assertEqual(row[6:8],(54,54))
+        self.assertEqual(row[8],"success")
 
 
 if __name__=="__main__":
