@@ -118,16 +118,16 @@ def parse_pilot(pbf):
                     raise ValueError("missing location")
                 xy=(float(n.location.lat),float(n.location.lon))
             except (ValueError,AttributeError):
-                tags=dict(n.tags)
+                tags={t.k:t.v for t in n.tags}
                 if lead_from_osm({"type":"node","id":int(n.id),"tags":tags}):
                     raise RuntimeError("Relevant node has no verified location") from None
                 return
             self.nodes[int(n.id)]=xy
-            tags=dict(n.tags)
+            tags={t.k:t.v for t in n.tags}
             self._lead("node",n,(xy[0],xy[1],xy[0],xy[1]),tags)
         def way(self,w):
             self.seen["way"]+=1
-            tags=dict(w.tags)
+            tags={t.k:t.v for t in w.tags}
             coords=[]
             for member in w.nodes:
                 xy=self.nodes.get(int(member.ref))
@@ -145,7 +145,7 @@ def parse_pilot(pbf):
             self._lead("way",w,b,tags)
         def relation(self,r):
             self.seen["relation"]+=1
-            tags=dict(r.tags)
+            tags={t.k:t.v for t in r.tags}
             if not lead_from_osm({"type":"relation","id":int(r.id),"tags":tags}):
                 return
             parts=[]
