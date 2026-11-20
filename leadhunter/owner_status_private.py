@@ -30,7 +30,8 @@ def collect(review_store, now=None):
             "SELECT coalesce(lead_data->>'category',''),count(*) "
             "FROM owner_leads GROUP BY 1")
         category_rows = cur.fetchall()
-        cur.execute("SELECT max(created_at) FROM owner_scan_run_metrics")
+        cur.execute("SELECT max(recorded_at) FROM owner_scan_attempts "
+                    "WHERE outcome IN ('success','partial','skipped')")
         last_scan = cur.fetchone()[0]
         cur.execute("SELECT max(created_at) FROM owner_mail_watch_runs")
         last_gmail = cur.fetchone()[0]
