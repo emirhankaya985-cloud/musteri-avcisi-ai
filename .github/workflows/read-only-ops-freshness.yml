@@ -29,3 +29,11 @@ jobs:
         env:
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
         run: python -m leadhunter.ops_freshness
+      - name: Send deduplicated critical error to owner's private Telegram only
+        if: failure()
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          AUTO_MAIL_ENABLED: 'false'
+        run: python -m leadhunter.ops_freshness_alert

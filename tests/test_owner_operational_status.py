@@ -23,7 +23,7 @@ class Cursor:
     def fetchone(self):
         if "COALESCE(sum(new_registered)" in self.last:
             return (32,)
-        if "owner_scan_run_metrics" in self.last:
+        if "owner_scan_attempts" in self.last:
             return (self.now-timedelta(minutes=35),)
         if "owner_mail_watch_runs" in self.last:
             return (self.now-timedelta(minutes=65),)
