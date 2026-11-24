@@ -56,9 +56,20 @@ Saatlik workflow artık `AUTO_MAIL_ENABLED=true` gönderim talebini taşır; **b
 İYS bağlantısı henüz gerçek hayatta yapılmadı; hiçbir müşteri kaydına sahte onay veya ret doğrulaması işlenmedi. Bu engeller çözülmeden SMTP sonucunu başarı olarak raporlama.
 
 
-## Güncel işletim politikası — 14 Kasım 2026
-- Saatlik taramalar GitHub Actions üzerinde sürer. Normal yeni müşteri Telegram bildirimleri, saatlik başarı raporları ve zamanlanmış günlük raporlar **kapalı**; yeni adaylar yalnızca özel Neon CRM'e kaydedilir.
-- Otomatik ticari SMTP akışının zamanlanmış anahtarı **kapalı**; eski 15 kabul, 4 başarısız teslimat ve kayıtlı Gmail mesaj eşleştirmeleri silinmez. İzin/İYS ve gönderen itibarı doğrulanmadan yeniden etkinleştirilmez.
+## İşletim politikası — 24 Kasım 2026 güncellemesi
+- Saatlik taramalar GitHub Actions üzerinde sürer. Yeni adaylar özel Neon CRM'de tutulur; rutin Telegram fırsat ve günlük özet bildirimleri kapalıdır.
+- Kullanıcı otomatik e-posta akışını yeniden istedi; workflow anahtarı açık tutulur. Her gönderim yine özel kayıttaki güncel izin/İYS ve ret kontrolünden, mükerrerlik korumasından, 5/gün kotasından ve gönderici itibarı devresinden geçer. OSM/MX kaydı izin kanıtı değildir.
+- Mevcut eski teslimat hataları gönderici devresini kapalı tuttuğu sürece **gerçek SMTP gönderimi yapılmaz**. Tarihsel 15 kabul/4 başarısız teslimat kayıtları korunur; oranı düşürmek için deneme gönderimi yapılmaz.
 - `migrations/004_owner_osm_tile_ledger.sql` özel Neon'da 402 harita parçasını `confirmed/pending/retry/blocked` şeklinde takip eder. Public tile ledger tekrar başlama kaynağıdır; Neon panelin salt-okunur kopyasıdır.
 - `control_center_musteri_v1` toplulaştırılmış veri sözleşmesidir; merkezi panelin ayrı deposu ve canlı Render dağıtımı doğrulanana kadar *entegre edildi* denmez.
-- Eski README'deki düzenli Telegram fırsat ve aktif SMTP anlatımları geçmişteki ayarları açıklar; bu bölümdeki güncel çalışma politikası geçerlidir.
+
+
+## Aday öncelik algoritması — 24 Kasım 2026
+
+Her taramada adaylar **2 → 1 → 3** sırasıyla değerlendirilir:
+
+1. **Öncelik 2 — web sitesi araştırması:** OSM web sitesi alanı boş olanlar. Bu, işletmenin gerçekten sitesiz olduğunu kanıtlamaz; önce bağımsız olarak doğrulanır.
+2. **Öncelik 1 — süreç otomasyonu araştırması:** OSM'de web adresi olanlar. Otomasyon ihtiyacı varsayılmaz; randevu, talep veya sipariş akışları ayrıca incelenir.
+3. **Öncelik 3 — çift çözüm:** Yalnızca site ve otomasyon ihtiyacı bağımsız şekilde doğrulanmış, kalite puanı en az 75/100 olan işletmeler. OSM bilgisi tek başına bu sınıfa geçiremez.
+
+Aynı sınıfta daha yüksek kayıt tamlığı (mevcut 0–100 araştırma puanı) önce gelir. Sınıflandırma e-posta izni değildir. Gerçek gönderim için özel kayıttaki güncel izin/İYS ve ret kontrolü, tekrar gönderim koruması, günlük kota ve gönderici itibarı devresi zorunludur. Tarihsel teslimat başarısızlıkları gönderici devresini kapalı tutuyorsa otomatik tarama devam eder, işletmelere SMTP göndermez.

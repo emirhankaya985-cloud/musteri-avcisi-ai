@@ -76,7 +76,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{secrets.TELEGRAM_CHAT_ID }}
           SCAN_BBOX: ${{vars.SCAN_BBOX }}
-          # Owner-only discovery rotates eight bounded pilot regions, no new SMTP.
+          # Owner-only discovery rotates eight bounded pilot regions, mail stays behind private legal and reputation checks.
           SCAN_ROTATE_BBOX: 'true'
           # Persist only proven official OSM map-tile successes, not wall hours.
           SCAN_TILE_LEDGER: 'true'
@@ -93,9 +93,10 @@ jobs:
           GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           OWNER_APPROVED_MAIL_ENABLED: 'false'
-          # Owner-authorized automatic mail; each recipient must pass fresh private
-          # consent/IYS, opt-out, duplicate, and sender-reputation checks.
-          AUTO_MAIL_ENABLED: 'false'
+          # Owner-requested automatic outreach, limited to privately verified legal
+          # eligibility; recipient, duplicate, daily quota and reputation gates remain.
+          # Current historical sender circuit still blocks SMTP while unhealthy.
+          AUTO_MAIL_ENABLED: 'true'
           MAIL_PREVIEW_IN_TELEGRAM: 'false'
           AUTO_MAIL_DAILY_LIMIT: '5'
           MAIL_DRAFT_MODE: template

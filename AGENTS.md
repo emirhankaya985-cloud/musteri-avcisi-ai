@@ -52,3 +52,12 @@ The owner's latest instruction supersedes earlier hourly Telegram opportunities 
 - Per-region OSM cursor stays public and success-only; private `owner_osm_tile_ledger` mirrors all 402 tile states. A zero lead sample can still advance coverage only when the source confirms it. Never evade 403/429 with mirror hopping.
 - For the 985 AI Control Center, use `control_center_musteri_v1` aggregate-only view after a dedicated read-only role is configured. Do not write into Task 3's codebase or grant broad private CRM access.
 - No delivery claims from SMTP acceptance; Gmail API IDs independently matched in private Neon are references, not proof of inbox delivery.
+
+
+## Current owner direction — 24 Nov 2026
+The owner's latest request supersedes the 14 Nov `AUTO_MAIL_ENABLED=false` setting and the no-automatic-outreach line above:
+- Scheduled `AUTO_MAIL_ENABLED=true` is now requested. Preserve all fail-closed checks: current private consent or verified merchant/IYS status and ret check, suppression, business/recipient de-duplication, max five real claims per Istanbul day, and the global sender reputation circuit. Never clear history or bypass a failed gate.
+- The historic sender baseline has 15 SMTP acceptances and 4 confirmed delivery failures. The reputation gate therefore pauses real SMTP. Do not claim the system is send-ready or try test outreach to raise the denominator; discovery and private CRM capture continue.
+- Rank prospect research 2 → 1 → 3: tier 2 for missing OSM website metadata (verify actual presence); tier 1 for an OSM website (research workflow automation without assuming a gap); tier 3 only with independent evidence of both needs and a quality score >=75/100. OSM alone cannot prove either need.
+- Keep recipient and qualification evidence private. Never add email/contact/consent data to public files. A mail must remain one-to-one, personalized, with no follow-up.
+- Validate with the repo acceptance command and CI; do not run the live business-mail workflow while the sender circuit is paused.

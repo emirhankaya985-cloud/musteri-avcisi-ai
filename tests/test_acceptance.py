@@ -96,6 +96,37 @@ class AcceptanceTests(unittest.TestCase):
         self.assertIn("bilinmiyor", recommend(salon)["evidence"])
         self.assertNotIn("web siteniz yok", offer(wash).lower())
 
+    def test_opportunity_tiers_follow_requested_2_1_3_order(self):
+        from leadhunter.core import classify_opportunity, lead_priority_key, select_leads
+        tier2 = {"id":"node/2","name":"No OSM site","category":"Kuaför/berber",
+                 "website":"","score":50}
+        tier1 = {"id":"node/1","name":"Has OSM site","category":"Kuaför/berber",
+                 "website":"https://example.invalid","score":99}
+        tier3 = {"id":"node/3","name":"Verified dual fit","category":"Kuaför/berber",
+                 "website":"https://example.invalid","score":60,
+                 "qualification":{"verified":True,"website_need_verified":True,
+                    "automation_need_verified":True,"business_quality_score":82,
+                    "evidence_url":"https://example.invalid/about",
+                    "verified_at":__import__("datetime").datetime.now().astimezone().isoformat()}}
+        self.assertEqual([classify_opportunity(x)["tier"] for x in (tier2,tier1,tier3)],
+                         [2,1,3])
+        from leadhunter.core import recommend, offer
+        self.assertEqual(recommend(tier3)["focus"],"combined")
+        self.assertIn("birlikte",offer(tier3))
+        stale = {**tier3,"qualification":{**tier3["qualification"],
+                  "verified_at":"2020-01-01T00:00:00+00:00"}}
+        self.assertEqual(classify_opportunity(stale)["tier"],1)
+        self.assertEqual([x["id"] for x in select_leads(
+            [{"type":"node","id":1,"tags":{"name":"tier1","shop":"hairdresser",
+               "website":"https://example.invalid"}},
+             {"type":"node","id":2,"tags":{"name":"tier2","shop":"hairdresser"}}],
+            set(),maximum=2)], ["node/2","node/1"])
+        self.assertLess(lead_priority_key(tier2),lead_priority_key(tier1))
+        self.assertLess(lead_priority_key(tier1),lead_priority_key(tier3))
+        # An OSM site field alone never proves an automation gap or tier 3.
+        self.assertEqual(classify_opportunity(tier1)["focus"],"automation")
+        self.assertNotEqual(classify_opportunity({**tier1,"qualification":{}})["tier"],3)
+
     def test_public_state_contains_osm_ids_only(self):
         root = Path(__file__).resolve().parents[1]
         saved = json.loads((root / "data/seen.json").read_text(encoding="utf-8"))
