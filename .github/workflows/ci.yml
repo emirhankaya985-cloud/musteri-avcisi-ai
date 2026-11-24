@@ -85,7 +85,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - run: python -m pip install 'psycopg[binary]==3.2.12'
+      - run: python -m pip install 'psycopg[binary]==3.2.12' 'openpyxl==3.1.5'
       - name: Concurrent claims and uncertain-result recovery (synthetic database only)
         env:
           TEST_POSTGRES_DSN: postgresql://synthetic:synthetic@localhost:5432/synthetic
