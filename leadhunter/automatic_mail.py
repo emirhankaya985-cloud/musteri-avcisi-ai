@@ -48,6 +48,11 @@ def template_mail(lead):
         proposal = (f"{name} için {rec['premium_scope']} içeren, işletmenizin kimliğine "
                     'uygun bir web sitesi hazırlayabilirim. Ziyaretçilerin hizmetlerinizi '
                     'inceleyip size kolayca ulaşabileceği sade bir yapı düşünüyorum.')
+    elif rec['focus'] == 'combined':
+        subject = f'{name} için web ve süreç otomasyonu önerisi'
+        proposal = (f"{name} için araştırmada doğrulanan iki ihtiyaca yönelik bütünleşik "
+                    f"bir çözüm önermek isterim: {rec['premium_scope']}; ayrıca "
+                    f"{rec['idea']}. Kapsamı ve önceliği birlikte netleştirebiliriz.")
     else:
         subject = f'{name} için randevu ve talep takibi önerisi'
         proposal = (f"{name} için değerlendirilebilecek bir çalışma: {rec['idea']}. "
@@ -149,6 +154,11 @@ class AutoMailStore:
             return data['_auto_mail']
         from .contact_email import discover_email
         from .mail_tracking import assess_contact
+        # Tier-3 qualification is private research only; never copy it into
+        # public OSM state or infer it from an OSM website tag.
+        qualification = data.get('qualification')
+        if isinstance(qualification, dict):
+            lead = {**lead, 'qualification': qualification}
         lead = assess_contact(lead, discover=discover_email)
         recipient = str(lead.get('email') or '').strip().lower()
         if valid_recipient(recipient) and lead['email_check'] == 'mx_present':
