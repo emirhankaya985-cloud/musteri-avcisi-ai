@@ -1,8 +1,8 @@
-"""Once-daily owner Telegram status, fail-closed receipt before external API.
+"""Once-daily owner Telegram metrics + private CRM workbook delivery.
 
 Read-only CRM aggregates. One reserved day never sends twice, even if Telegram
-accepted a message but the database confirmation subsequently failed.
-No customer SMTP, no private addresses or bodies in Telegram.
+accepted a document/message but the database confirmation subsequently failed.
+No customer SMTP; contact data stays in the private workbook sent to owner DM.
 """
 import json
 import os
@@ -17,16 +17,16 @@ ZONE = ZoneInfo("Europe/Istanbul")
 
 
 def report_day(env=None, now=None):
-    """Attribute delayed scheduled jobs to their 20:55 UTC intended date.
+    """Attribute delayed scheduled jobs to their 20:59 UTC intended date.
 
-    20:55 UTC is 23:55 Europe/Istanbul all year. Using the actual local
+    20:59 UTC is 23:59 Europe/Istanbul all year. Using the actual local
     date alone incorrectly credited a 00:23 TRT late run to the next day.
     """
     env = os.environ if env is None else env
     now = now or datetime.now(timezone.utc)
     now = now.astimezone(timezone.utc)
     if env.get("GITHUB_EVENT_NAME") == "schedule":
-        due = datetime.combine(now.date(), time(20,55),tzinfo=timezone.utc)
+        due = datetime.combine(now.date(), time(20,59),tzinfo=timezone.utc)
         return (now.date() if now >= due else
                 (now - timedelta(days=1)).date()).isoformat()
     return now.astimezone(ZONE).date().isoformat()
@@ -129,9 +129,11 @@ def compose(day, counts, enabled):
     )
 
 
-def run(env=None, connection=None, messenger=api, day=None):
+def run(env=None, connection=None, messenger=api, day=None, document_sender=None):
     env = os.environ if env is None else env
-    if not env.get('TELEGRAM_BOT_TOKEN') or not str(env.get('TELEGRAM_CHAT_ID') or '').isdigit():
+    if (not env.get('TELEGRAM_BOT_TOKEN')
+            or not str(env.get('TELEGRAM_CHAT_ID') or '').isdigit()
+            or int(env['TELEGRAM_CHAT_ID']) <= 0):
         raise RuntimeError('Verified owner Telegram configuration required')
     today = day or report_day(env)
     owns_connection = connection is None
@@ -139,6 +141,11 @@ def run(env=None, connection=None, messenger=api, day=None):
         env.get('REVIEW_DATABASE_URL'))
     try:
         counts = aggregate(conn, today)
+        from .crm_export import build_workbook, fetch_rows, send_document
+        crm_rows = fetch_rows(conn)
+        workbook = build_workbook(crm_rows, counts, today,
+                                  send_enabled=env.get('AUTO_MAIL_ENABLED') == 'true')
+        document_sender = send_document if document_sender is None else document_sender
         with conn.transaction():
             with conn.cursor() as cur:
                 cur.execute(
@@ -159,6 +166,12 @@ def run(env=None, connection=None, messenger=api, day=None):
                 message += "\\n🛰️ İşletmePilot/YorumPilot HTTP: doğrulanamadı"
 
         try:
+            document_id = document_sender(
+                env['TELEGRAM_BOT_TOKEN'], env['TELEGRAM_CHAT_ID'], workbook,
+                f"Musteri-Avcisi-CRM-{today}.xlsx",
+                f"{today} tarihli özel CRM Excel raporu — yalnızca size gönderildi.")
+            if type(document_id) is not int or document_id <= 0:
+                raise RuntimeError('Owner workbook Telegram receipt missing')
             result = messenger(env['TELEGRAM_BOT_TOKEN'], 'sendMessage',
                                {'chat_id':env['TELEGRAM_CHAT_ID'], 'text':message})
             mid = result.get('message_id') if isinstance(result,dict) else None
@@ -178,7 +191,7 @@ def run(env=None, connection=None, messenger=api, day=None):
                     "UPDATE owner_daily_report_receipts SET state='confirmed',"
                     "telegram_message_id=%s,updated_at=now() "
                     "WHERE report_day=%s AND state='reserved'", (mid,today))
-        print("OWNER_DAILY_REPORT: receipt_confirmed=1; business_mail_sent=0")
+        print("OWNER_DAILY_REPORT: receipt_confirmed=1; workbook_sent=1; business_mail_sent=0")
         return mid
     finally:
         if owns_connection:

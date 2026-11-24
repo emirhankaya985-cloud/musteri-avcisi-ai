@@ -1,4 +1,4 @@
-"""Daily owner-only reporting: no network, SMTP or sensitive user data."""
+"""Daily owner-only reporting: tests use synthetic data, no network or SMTP."""
 import unittest
 from leadhunter.daily_status import compose, report_day
 from datetime import datetime, timezone
@@ -10,7 +10,7 @@ class DailyStatusTests(unittest.TestCase):
         self.assertEqual(report_day({"GITHUB_EVENT_NAME":"schedule"},now),"2026-11-01")
         self.assertEqual(report_day({"GITHUB_EVENT_NAME":"push"},now),"2026-11-02")
         self.assertEqual(report_day({"GITHUB_EVENT_NAME":"schedule"},
-                        datetime(2026,11,2,20,58,tzinfo=timezone.utc)),"2026-11-02")
+                        datetime(2026,11,2,20,59,tzinfo=timezone.utc)),"2026-11-02")
 
     def test_missing_scan_measurements_remain_unknown_not_fake_zero(self):
         counts=dict(total=50,new=11,accepted=15,failed=4,delayed=0,
