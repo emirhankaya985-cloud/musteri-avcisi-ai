@@ -36,3 +36,7 @@ güncel uygunluk, ret/İYS, mükerrerlik ve itibar kontrolleri SMTP çağrısın
 çalışır. Bu kontroller geçmeyen alıcıya gönderim yapılmaz. SMTP kabulü alıcı
 posta kutusuna teslim kanıtı değildir; Gmail DSN ve kesin eşleşmiş yanıtlar
 ayrı kaydedilir. Uygun alıcı bulunmadığında doğru sonuç **0 gönderim**dir.
+
+
+## Owner update — 24 Nov 2026
+The scheduled workflow's automatic-mail request switch is enabled. This does not bypass recipient eligibility or the global sender circuit. The existing 15 accepted / 4 failed delivery history remains frozen and pauses SMTP; no new business mail is permitted until sender recovery evidence and a currently eligible recipient are independently verified. Tier priority affects research selection only; it creates no legal basis for contact.
