@@ -44,8 +44,8 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           preview = Path('dist/telegram-demo.txt').read_text(encoding='utf-8')
-          assert '🔴 WEB SİTESİ FIRSATI' in preview
-          assert '🟢 OTOMASYON FIRSATI' in preview
+          assert '🔴 WEB SİTESİ ARAŞTIRMA ADAYI' in preview
+          assert '🟢 OTOMASYON ARAŞTIRMA ADAYI' in preview
           assert 'Premium web sitesi kapsamı:' in preview
           assert 'premium bir web sitesi' in preview
           assert 'Sonraki adım:' in preview
@@ -93,9 +93,10 @@ jobs:
           GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           OWNER_APPROVED_MAIL_ENABLED: 'false'
-          # Owner-authorized automatic mail; each recipient must pass fresh private
-          # consent/IYS, opt-out, duplicate, and sender-reputation checks.
-          AUTO_MAIL_ENABLED: 'false'
+          # Owner-requested automatic outreach, limited to privately verified legal
+          # eligibility; recipient, duplicate, daily quota and reputation gates remain.
+          # Current historical sender circuit still blocks SMTP while unhealthy.
+          AUTO_MAIL_ENABLED: 'true'
           MAIL_PREVIEW_IN_TELEGRAM: 'false'
           AUTO_MAIL_DAILY_LIMIT: '5'
           MAIL_DRAFT_MODE: template
