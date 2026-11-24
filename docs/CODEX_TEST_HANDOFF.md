@@ -63,3 +63,7 @@ CI workflow: https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/w
 ## Result format
 
 Write `docs/CODEX_TEST_RESULTS.md` **only after you actually ran tests**. Record HEAD SHA, commands, test count, CI run IDs with success/failure, real live count (or 'not run'), confirmed schedule run IDs (or 'not observed'), risks, fixes, and next actions. Never mark a gate PASS by inference or because of an older run. Do not store Secrets or customer details in the report.
+
+
+## Current implementation direction — 24 Nov 2026
+The owner requested automatic outreach with candidate research ordered 2 → 1 → 3. Scheduled mail is configured as requested, but only after private per-recipient legal eligibility, suppression/de-duplication, daily quota, and sender reputation checks. Historic 4/15 delivery failures keep the sender circuit paused; no live business mail should be triggered until genuine remediation and verified eligibility exist. OSM website presence/missingness is only a research signal. Tier 3 requires independently recorded evidence of both solution needs and business quality >=75/100. See README for the scoring policy.
