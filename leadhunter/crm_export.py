@@ -16,7 +16,7 @@ FIELDS = (
     "sector", "website", "phone", "email", "email_preflight", "email_source",
     "research_score", "whatsapp", "whatsapp_status", "auto_mail_state",
     "gmail_message_id", "delivery_state", "delivery_error", "reply_state",
-    "last_verified_at",
+    "last_verified_at", "qualification", "marketing_eligibility",
 )
 HEADERS = (
     "İşletme adı", "Şehir", "Sektör", "E-posta", "Web sitesi",
@@ -25,6 +25,8 @@ HEADERS = (
     "Gmail message ID", "E-posta durumu", "Yanıt durumu", "Hata nedeni",
     "Sonraki işlem", "Kaynak bağlantısı", "Son doğrulama tarihi",
     "İşletme telefonu", "E-posta ön kontrolü (MX)", "OSM kimliği",
+    "Ticari skor aralığı", "Kanıt kapsamı (%)", "Skor bandı",
+    "Gönderim uygunluk nedeni",
 )
 
 
@@ -52,7 +54,8 @@ def fetch_rows(connection):
                COALESCE(lead_data->'_auto_mail'->'delivery_feedback'->>'reason',
                         lead_data->'_mail'->'delivery_feedback'->>'reason'),
                COALESCE(lead_data->>'last_verified_at', lead_data->>'verified_at',
-                        lead_data->'qualification'->>'verified_at')
+                        lead_data->'qualification'->>'verified_at'),
+               lead_data->'qualification', lead_data->'marketing_eligibility'
           FROM owner_leads
          ORDER BY CASE WHEN COALESCE(NULLIF(btrim(lead_data->>'website'),''),'')=''
                        THEN 0 ELSE 1 END,
@@ -116,9 +119,11 @@ def _map_row(row):
     # absence, commercial fit, and the user's requested categories stay unknown.
     research_tier = ("Tier 1: OSM web alanı dolu" if website else
                      "Tier 2: OSM web alanı boş")
-    category = "Atanmadı — gerçek web/WhatsApp durumu bilinmiyor"
-    service = ("İş akışı otomasyonu fikri; ihtiyacı doğrula" if website else
-               "Web sitesi fikri; gerçek site durumunu doğrula")
+    from .commercial_scoring import match_service, score_prospect
+    service_match = match_service({"qualification": row.get("qualification") or {}})
+    category = (f"Kategori {service_match['category']} — doğrulanmış"
+                if service_match["category"] else "Atanmadı — kanıt eksik")
+    service = service_match["service"] or "Hizmet eşleşmesi için araştırma gerekli"
     source = row.get("osm_id") or ""
     match = re.fullmatch(r"(node|way|relation)/(\d+)", str(source))
     source_url = (f"https://www.openstreetmap.org/{match.group(1)}/{match.group(2)}"
@@ -131,8 +136,48 @@ def _map_row(row):
     last_verified = _date_text(row.get("last_verified_at"))
     if isinstance(last_verified, datetime):
         last_verified = last_verified.date()
-    if isinstance(last_verified, datetime):
-        last_verified = last_verified.date()
+
+    qualification = row.get("marketing_eligibility")
+    qualification = qualification if isinstance(qualification, dict) else {}
+    from .recipient_eligibility import eligible_recipient
+    from .outreach import valid_recipient
+    email = str(row.get("email") or "").strip().lower()
+    lead_for_eligibility = {
+        "marketing_eligibility": qualification,
+        "_auto_mail": {"state": state,
+                        "delivery_feedback":{"state":delivery}},
+        "_mail": {"state": state,
+                   "delivery_feedback":{"state":delivery}},
+    }
+    eligible = bool(email and eligible_recipient(lead_for_eligibility, email))
+    reasons = []
+    if not email:
+        reasons.append("E-posta eksik")
+    elif not valid_recipient(email):
+        reasons.append("E-posta biçimi geçersiz")
+    elif row.get("email_preflight") in ("invalid", "no_mx", "not_found", "unchecked"):
+        reasons.append("E-posta biçimi veya MX ön kontrolü başarısız/belirsiz")
+    if qualification.get("opted_out") is True:
+        reasons.append("İletişimden çıkma kaydı")
+    if not eligible and qualification.get("opted_out") is not True:
+        reasons.append("İYS/onay ve hukuki uygunluk kanıtı eksik")
+    if qualification.get("merchant_verified") is not True:
+        reasons.append("Tacir/esnaf statüsü doğrulanmamış")
+    if qualification.get("iys_registered") is not True:
+        reasons.append("İYS kaydı doğrulanmamış")
+    if state in ("accepted", "sending", "uncertain", "duplicate"):
+        reasons.append("Önceki gönderim/aynı alıcı kilidi")
+    if delivery in ("failed", "delayed"):
+        reasons.append("Teslimat hatası/gecikmesi; yeniden gönderim kapalı")
+    if not row.get("business_name") or not row.get("sector"):
+        reasons.append("İşletme bilgisi eksik")
+    if eligible:
+        eligibility_note = "Uygun — ayrı itibar/config kapılarına tabidir"
+    else:
+        eligibility_note = "; ".join(dict.fromkeys(reasons)) or "İnceleme gerekli"
+    commercial = score_prospect({"qualification":row.get("qualification") or {}})
+    score_range = (str(commercial["score"]) if commercial["score"] is not None
+                   else f"{commercial['score_min']}–{commercial['score_max']}")
 
     return [
         row.get("business_name") or "İşletme adı kaydedilmemiş",
@@ -148,6 +193,7 @@ def _map_row(row):
         row.get("delivery_error") or "Yok", next_action, source_url,
         last_verified, row.get("phone") or "Kayıt yok",
         row.get("email_preflight") or "Kontrol edilmedi", source,
+        score_range, commercial["coverage"], commercial["band"], eligibility_note,
     ]
 
 
@@ -176,8 +222,11 @@ def build_workbook(rows, counts, report_day, send_enabled=False):
     paused = accepted >= 10 and failed * 100 >= accepted * 15
     sendable = (int(counts.get("eligible", 0) or 0)
                 if send_enabled and not paused else 0)
+    email_present = sum(bool(str(row.get("email") or "").strip()) for row in rows)
     metrics = [
         ("CRM toplamı", counts.get("total", len(rows))),
+        ("E-posta adresi bulunan", email_present),
+        ("E-posta adresi eksik", max(0, len(rows) - email_present)),
         ("Bugün taranan", counts.get("inspected", "Ölçülmedi")),
         ("Bugün yeni kayıt", counts.get("new", 0)),
         ("Şu an gönderilebilir", sendable),
@@ -235,11 +284,11 @@ def build_workbook(rows, counts, report_day, send_enabled=False):
             source_cell.style = "Hyperlink"
 
     widths = [28, 18, 20, 34, 34, 20, 30, 27, 18, 38, 20, 32, 34,
-              22, 22, 40, 45, 20, 20, 24, 20]
+              22, 22, 40, 45, 20, 20, 24, 20, 20, 17, 20, 55]
     for col, width in enumerate(widths, start=1):
         sheet.column_dimensions[sheet.cell(1, col).column_letter].width = width
     sheet.freeze_panes = f"A{header_row + 1}"
-    sheet.auto_filter.ref = f"A{header_row}:U{header_row + len(data_rows)}"
+    sheet.auto_filter.ref = f"A{header_row}:Y{header_row + len(data_rows)}"
     if data_rows:
         table = Table(displayName="CrmSnapshot", ref=sheet.auto_filter.ref)
         table.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2",
@@ -269,21 +318,40 @@ def build_workbook(rows, counts, report_day, send_enabled=False):
     summary.column_dimensions["B"].width = 24
     summary.freeze_panes = "A6"
 
-    # Keep the requested report navigation while returning only rows supported
-    # by the stored evidence. Empty tabs are intentional when a signal is unknown.
-    extra_tabs = {
-        "Yüksek potansiyelli müşteriler": ([], "Mevcut araştırma puanı ticari puan değildir; yüksek potansiyel henüz hesaplanmıyor."),
-        "Web sitesi olmayanlar": ([], "OSM web alanı boşluğu gerçek web sitesi yokluğu kanıtı değildir; doğrulama bekliyor."),
-        "WhatsApp otomasyonu adayları": ([], "WhatsApp durumu doğrulanmadığından aday sınıflandırması yapılmadı."),
-        "AI otomasyonu adayları": ([], "Doğrulanmış iş akışı ihtiyacı bulunmadığından aday sınıflandırması yapılmadı."),
-        "Başarılı gönderimler": ([], "Teslimatı doğrulanmış gönderim kaydı bulunmuyor; SMTP kabulü teslim kanıtı değildir."),
-        "Başarısız gönderimler": ([], "Raporlama kaynağında mesaj bazlı hata nedeni eksik; özet sayaç dışında sınıflandırma yapılamıyor."),
-        "Gelen yanıtlar": ([], "Eşleşmiş yanıt kaydı bulunmuyor."),
-        "Görüşmeler": ([], "Görüşme durumu CRM'de izlenmiyor."),
-        "Gönderime uygun olmayanlar": ([], "412 kaydın hiçbiri şu an gönderime uygun değil; ayrıntılı yasal ve teknik nedenler CRM'de eksik."),
-        "Günlük istatistikler": ([], "Ölçülmeyen değerler sıfır değil, bilinmiyor olarak değerlendirilir."),
+    from .commercial_scoring import match_service, score_prospect
+    def mapped_subset(predicate):
+        return [_map_row(row) for row in rows if predicate(row)]
+
+    sheet_specs = {
+        "Yüksek potansiyelli müşteriler": (
+            mapped_subset(lambda r: score_prospect({"qualification":r.get("qualification") or {}})["band"] == "high"),
+            "Yalnızca kanıtlı ve 80+ ticari puanı olanlar listelenir; bilinmeyen bileşenler 0 sayılmaz."),
+        "Web sitesi olmayanlar": (
+            mapped_subset(lambda r: match_service({"qualification":r.get("qualification") or {}})["category"] == 1),
+            "Yalnızca web sitesi yokluğu güncel kaynakla doğrulanan işletmeler."),
+        "WhatsApp otomasyonu adayları": (
+            mapped_subset(lambda r: match_service({"qualification":r.get("qualification") or {}})["category"] == 2),
+            "WhatsApp bağlantısının bulunmaması yokluk sayılmaz; yalnızca doğrulanmış ihtiyaç listelenir."),
+        "AI otomasyonu adayları": (
+            mapped_subset(lambda r: match_service({"qualification":r.get("qualification") or {}})["category"] == 3),
+            "Web ve WhatsApp varlığı ile otomasyon ihtiyacı ayrı ayrı doğrulanmalıdır."),
+        "Başarılı gönderimler": (
+            mapped_subset(lambda r: r.get("auto_mail_state") == "accepted" and r.get("delivery_state") == "delivered"),
+            "Yalnızca gerçek teslimat kanıtı olanlar; SMTP kabulü teslim sayılmaz."),
+        "Başarısız gönderimler": (
+            mapped_subset(lambda r: r.get("delivery_state") == "failed"),
+            "Hata nedeni kayıtlardan aktarılır; kalıcı hatalar yeniden denenmez."),
+        "Gelen yanıtlar": (
+            mapped_subset(lambda r: r.get("reply_state") == "sender_matched_reply"),
+            "Yalnız gönderen eşleşmesi doğrulanan yanıtlar."),
+        "Görüşmeler": (
+            mapped_subset(lambda r: r.get("reply_state") == "conversation"),
+            "Görüşmeler için CRM'de ayrı doğrulanmış durum alanı bulunmalıdır."),
+        "Gönderime uygun olmayanlar": (
+            mapped_subset(lambda r: not _map_row(r)[24].startswith("Uygun —")),
+            "Bu sekmede nedenler kayıt başına gösterilir; hukuki ve teknik nedenler ayrı kontrollerdir."),
     }
-    for name, (subset, note) in extra_tabs.items():
+    for name, (subset, note) in sheet_specs.items():
         tab = book.create_sheet(name)
         tab.sheet_view.showGridLines = False
         tab["A1"] = note
@@ -294,11 +362,29 @@ def build_workbook(rows, counts, report_day, send_enabled=False):
             cell.font = Font(name="Aptos", size=10, bold=True, color="FFFFFF")
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         tab.row_dimensions[3].height = 38
-        if name == "Günlük istatistikler":
-            tab.append(["Metrik", "Değer"])
-            for label, value in metrics:
-                tab.append([label, value])
+        for row_index, values in enumerate(subset, start=4):
+            for col, value in enumerate(values, start=1):
+                tab.cell(row_index, col, value)
+                tab.cell(row_index, col).alignment = Alignment(vertical="top", wrap_text=True)
+        if subset:
+            tab.auto_filter.ref = f"A3:Y{3 + len(subset)}"
         tab.freeze_panes = "A4"
+
+    stats = book.create_sheet("Günlük istatistikler")
+    stats.sheet_view.showGridLines = False
+    stats.append(["Metrik", "Değer"])
+    for label, value in metrics:
+        stats.append([label, value])
+    stats.append(["Rapor tarihi", report_day])
+    stats.append(["Doğal Actions koşum ID", counts.get("github_run_id", "Bu job'dan okunamıyor")])
+    stats.append(["Telegram XLSX message ID", counts.get("telegram_document_message_id", "Bu rapor gönderiminden sonra kaydedilir")])
+    stats.column_dimensions["A"].width = 38
+    stats.column_dimensions["B"].width = 48
+    stats.freeze_panes = "A2"
+    for c in (1, 2):
+        cell = stats.cell(1, c)
+        cell.fill = PatternFill("solid", fgColor="16324F")
+        cell.font = Font(name="Aptos", size=10, bold=True, color="FFFFFF")
     output = BytesIO()
     book.save(output)
     return output.getvalue()

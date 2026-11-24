@@ -68,8 +68,10 @@ Saatlik workflow artık `AUTO_MAIL_ENABLED=true` gönderim talebini taşır; **b
 
 Her taramada adaylar **2 → 1 → 3** sırasıyla değerlendirilir:
 
-1. **Öncelik 2 — web sitesi araştırması:** OSM web sitesi alanı boş olanlar. Bu, işletmenin gerçekten sitesiz olduğunu kanıtlamaz; önce bağımsız olarak doğrulanır.
-2. **Öncelik 1 — süreç otomasyonu araştırması:** OSM'de web adresi olanlar. Otomasyon ihtiyacı varsayılmaz; randevu, talep veya sipariş akışları ayrıca incelenir.
-3. **Öncelik 3 — çift çözüm:** Yalnızca site ve otomasyon ihtiyacı bağımsız şekilde doğrulanmış, kalite puanı en az 75/100 olan işletmeler. OSM bilgisi tek başına bu sınıfa geçiremez.
+1. **Kategori 2 — WhatsApp otomasyonu:** Yalnızca güncel, kaynaklı WhatsApp müşteri hizmetleri otomasyonu ihtiyacı doğrulanmışsa.
+2. **Kategori 1 — web sitesi:** Yalnızca güncel, kaynaklı web sitesi yokluğu doğrulanmışsa.
+3. **Kategori 3 — birleşik çözüm:** Web ve WhatsApp varlığı, gerçek otomasyon ihtiyacı ayrı ayrı kanıtlanmalı; ayrıca altı puan bileşeninin tamamı güncel kanıtla dolu olmalı ve ticari puan en az 75 olmalı.
+
+Eksik OSM etiketi bilinmeyen veridir; yokluğu kanıtlamaz. Eşleşmeyen işletme “araştırma gerekli” olarak kalır. Altı ağırlıklı bileşen (ihtiyaç 30, iletişim doğruluğu 20, hizmet uyumu 20, ticari potansiyel 15, dijital açık 10, güncellik 5) için kanıt yoksa puan uydurulmaz; kapsama ve olası aralık gösterilir. Bu ticari puan, araştırma tamlığı puanından ayrıdır.
 
 Aynı sınıfta daha yüksek kayıt tamlığı (mevcut 0–100 araştırma puanı) önce gelir. Sınıflandırma e-posta izni değildir. Gerçek gönderim için özel kayıttaki güncel izin/İYS ve ret kontrolü, tekrar gönderim koruması, günlük kota ve gönderici itibarı devresi zorunludur. Tarihsel teslimat başarısızlıkları gönderici devresini kapalı tutuyorsa otomatik tarama devam eder, işletmelere SMTP göndermez.

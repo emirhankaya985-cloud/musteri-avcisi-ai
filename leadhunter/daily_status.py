@@ -189,9 +189,11 @@ def run(env=None, connection=None, messenger=api, day=None, document_sender=None
             with conn.cursor() as cur:
                 cur.execute(
                     "UPDATE owner_daily_report_receipts SET state='confirmed',"
-                    "telegram_message_id=%s,updated_at=now() "
-                    "WHERE report_day=%s AND state='reserved'", (mid,today))
-        print("OWNER_DAILY_REPORT: receipt_confirmed=1; workbook_sent=1; business_mail_sent=0")
+                    "telegram_message_id=%s,telegram_document_message_id=%s,updated_at=now() "
+                    "WHERE report_day=%s AND state='reserved'", (mid,document_id,today))
+        print("OWNER_DAILY_REPORT: receipt_confirmed=1; workbook_sent=1; "
+              f"workbook_telegram_message_id={document_id}; "
+              f"summary_telegram_message_id={mid}; business_mail_sent=0")
         return mid
     finally:
         if owns_connection:

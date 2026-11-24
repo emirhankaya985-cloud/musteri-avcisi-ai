@@ -76,10 +76,9 @@ def verify_demo() -> None:
         command([sys.executable, "-m", "leadhunter", "demo"], cwd=Path(tmp), env=env)
         demo = (Path(tmp) / "dist/telegram-demo.txt").read_text(encoding="utf-8")
         expected = (
-            "🔴 WEB SİTESİ FIRSATI",
-            "🟢 OTOMASYON FIRSATI",
-            "Premium web sitesi kapsamı:",
-            "premium bir web sitesi",
+            "ARAŞTIRMA GEREKLİ",
+            "ticari puan bilinmiyor",
+            "doğrulama olmadan hizmet önermeden bekle",
             "Sonraki adım:",
             "DEMO — GERÇEK İŞLETME DEĞİL",
         )
@@ -88,7 +87,7 @@ def verify_demo() -> None:
                 raise SystemExit("FAIL: synthetic demo missing: " + item)
         if demo.count("🎯 <b>YENİ MÜŞTERİ FIRSATI</b>") != 2:
             raise SystemExit("FAIL: demo should contain exactly two fake examples")
-    print("PASS: isolated red/green premium demo (no real messages)")
+    print("PASS: isolated evidence-first research demo (no real messages)")
 
 
 def main() -> None:

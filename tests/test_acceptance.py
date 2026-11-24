@@ -43,7 +43,7 @@ class AcceptanceTests(unittest.TestCase):
             self.assertEqual(len(calls), 5)
             self.assertEqual(len(read_seen(file)), 5)
             self.assertTrue(all(msg["chat_id"] == env["TELEGRAM_CHAT_ID"] for msg in calls))
-            self.assertTrue(all("🟣 WEB SİTESİ FIRSATI" in msg["text"] for msg in calls))
+            self.assertTrue(all("ARAŞTIRMA GEREKLİ" in msg["text"] for msg in calls))
             self.assertTrue(all("OSM kaydı" in msg["text"] for msg in calls))
             self.assertEqual(live(env=env, opener=fake_open, output=lambda _: None), 3)
             self.assertEqual(len(read_seen(file)), 8)
@@ -85,37 +85,57 @@ class AcceptanceTests(unittest.TestCase):
             "tags": {"name": "Demo Hair", "shop": "hairdresser",
                      "website": "https://example.com"},
         })
-        self.assertEqual(recommend(wash)["focus"], "website")
-        self.assertEqual(recommend(salon)["focus"], "automation")
-        self.assertIn("premium bir web sitesi", offer(wash))
+        self.assertEqual(recommend(wash)["focus"], "research")
+        self.assertEqual(recommend(salon)["focus"], "research")
+        self.assertNotIn("premium bir web sitesi", offer(wash))
         self.assertNotIn("premium bir web sitesi", offer(salon))
         self.assertIn("Demo &amp; Wash", format_telegram(wash))
-        self.assertIn("🔴 WEB SİTESİ FIRSATI", format_telegram(wash))
-        self.assertIn("🟢 OTOMASYON FIRSATI", format_telegram(salon))
-        self.assertIn("manuel doğrula", recommend(wash)["evidence"])
-        self.assertIn("bilinmiyor", recommend(salon)["evidence"])
+        self.assertIn("ARAŞTIRMA GEREKLİ", format_telegram(wash))
+        self.assertIn("ARAŞTIRMA GEREKLİ", format_telegram(salon))
+        self.assertIn("doğrulanmadı", recommend(wash)["evidence"])
+        self.assertIn("doğrulanmadı", recommend(salon)["evidence"])
         self.assertNotIn("web siteniz yok", offer(wash).lower())
 
     def test_opportunity_tiers_follow_requested_2_1_3_order(self):
         from leadhunter.core import classify_opportunity, lead_priority_key, select_leads
-        tier2 = {"id":"node/2","name":"No OSM site","category":"Kuaför/berber",
-                 "website":"","score":50}
-        tier1 = {"id":"node/1","name":"Has OSM site","category":"Kuaför/berber",
-                 "website":"https://example.invalid","score":99}
+        now = __import__("datetime").datetime.now().astimezone().isoformat()
+        tier2 = {"id":"node/2","name":"WA need","category":"Kuaför/berber",
+                 "website":"","score":50, "qualification":{
+                    "whatsapp_automation_need_verified":True,
+                    "whatsapp_automation_need_verified_evidence_url":"https://example.invalid/wa",
+                    "whatsapp_automation_need_verified_verified_at":now}}
+        tier1 = {"id":"node/1","name":"No site verified","category":"Kuaför/berber",
+                 "website":"https://example.invalid","score":99, "qualification":{
+                    "website_absence_verified":True,
+                    "website_absence_verified_evidence_url":"https://example.invalid/site",
+                    "website_absence_verified_verified_at":now}}
         tier3 = {"id":"node/3","name":"Verified dual fit","category":"Kuaför/berber",
                  "website":"https://example.invalid","score":60,
                  "qualification":{"verified":True,"website_need_verified":True,
                     "automation_need_verified":True,"business_quality_score":82,
                     "evidence_url":"https://example.invalid/about",
-                    "verified_at":__import__("datetime").datetime.now().astimezone().isoformat()}}
+                    "website_presence_verified":True,
+                    "website_presence_verified_evidence_url":"https://example.invalid/site",
+                    "website_presence_verified_verified_at":now,
+                    "whatsapp_presence_verified":True,
+                    "whatsapp_presence_verified_evidence_url":"https://example.invalid/wa",
+                    "whatsapp_presence_verified_verified_at":now,
+                    "automation_need_verified":True,
+                    "automation_need_verified_evidence_url":"https://example.invalid/need",
+                    "automation_need_verified_verified_at":now,
+                    "commercial_components":{name:{"value":80,
+                        "evidence_ref":"https://example.invalid/score/"+name,
+                        "verified_at":now} for name in (
+                        "service_need","contact_accuracy","service_fit",
+                        "commercial_potential","digital_gap","data_freshness")}}}
         self.assertEqual([classify_opportunity(x)["tier"] for x in (tier2,tier1,tier3)],
                          [2,1,3])
         from leadhunter.core import recommend, offer
         self.assertEqual(recommend(tier3)["focus"],"combined")
         self.assertIn("birlikte",offer(tier3))
         stale = {**tier3,"qualification":{**tier3["qualification"],
-                  "verified_at":"2020-01-01T00:00:00+00:00"}}
-        self.assertEqual(classify_opportunity(stale)["tier"],1)
+                  "website_presence_verified_verified_at":"2020-01-01T00:00:00+00:00"}}
+        self.assertEqual(classify_opportunity(stale)["tier"],None)
         self.assertEqual([x["id"] for x in select_leads(
             [{"type":"node","id":1,"tags":{"name":"tier1","shop":"hairdresser",
                "website":"https://example.invalid"}},
@@ -123,8 +143,8 @@ class AcceptanceTests(unittest.TestCase):
             set(),maximum=2)], ["node/2","node/1"])
         self.assertLess(lead_priority_key(tier2),lead_priority_key(tier1))
         self.assertLess(lead_priority_key(tier1),lead_priority_key(tier3))
-        # An OSM site field alone never proves an automation gap or tier 3.
-        self.assertEqual(classify_opportunity(tier1)["focus"],"automation")
+        # OSM presence alone never proves an automation gap.
+        self.assertEqual(classify_opportunity({"id":"x","website":"https://example.invalid"})["focus"],"research")
         self.assertNotEqual(classify_opportunity({**tier1,"qualification":{}})["tier"],3)
 
     def test_public_state_contains_osm_ids_only(self):

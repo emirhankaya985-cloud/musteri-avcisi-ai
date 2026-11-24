@@ -34,9 +34,9 @@ class CoreTests(unittest.TestCase):
         from leadhunter.core import recommend
         lead = lead_from_osm(self.osm)
         result = recommend(lead)
-        self.assertEqual(result['focus'], 'website')
-        self.assertIn('🔴 WEB SİTESİ', format_telegram(lead))
-        self.assertIn('manuel doğrula', result['evidence'])
+        self.assertEqual(result['focus'], 'research')
+        self.assertIn('ARAŞTIRMA GEREKLİ', format_telegram(lead))
+        self.assertIn('doğrulanmadı', result['evidence'])
         self.assertNotIn('kesinlikle', result['evidence'])
 
     def test_green_automation_when_osm_website_recorded(self):
@@ -44,9 +44,9 @@ class CoreTests(unittest.TestCase):
         self.osm['tags']['website'] = 'https://example.com'
         lead = lead_from_osm(self.osm)
         result = recommend(lead)
-        self.assertEqual(result['focus'], 'automation')
-        self.assertIn('🟢 OTOMASYON', format_telegram(lead))
-        self.assertIn('mevcut sistemleri bilinmiyor', result['evidence'])
+        self.assertEqual(result['focus'], 'research')
+        self.assertIn('ARAŞTIRMA GEREKLİ', format_telegram(lead))
+        self.assertIn('doğrulanmadı', result['evidence'])
 
     def test_vertical_specific_website_offers(self):
         from leadhunter.core import recommend
@@ -116,17 +116,17 @@ class CoreTests(unittest.TestCase):
                 lead = lead_from_osm({'type':'node', 'id':123,
                         'tags':{'name':'Deneme',field:value}})
                 rec = recommend(lead)
-                self.assertEqual(rec['focus'], 'website')
-                self.assertIn(expected, rec['premium_scope'])
-                self.assertIn('premium bir web sitesi', offer(lead))
-                self.assertIn('Premium web sitesi kapsamı', format_telegram(lead))
+                self.assertEqual(rec['focus'], 'research')
+                self.assertTrue(rec['idea'])
+                self.assertNotIn('premium bir web sitesi', offer(lead))
+                self.assertNotIn('Premium web sitesi kapsamı', format_telegram(lead))
 
     def test_outreach_requires_manual_review_no_unverified_site_claim(self):
         from leadhunter.core import recommend
         lead = lead_from_osm(self.osm)
         rec = recommend(lead)
-        self.assertIn('manuel doğrula', rec['next_step'])
-        self.assertIn('yanıt yoksa ısrar etme', rec['next_step'])
+        self.assertIn('kaynakla doğrula', rec['next_step'])
+        self.assertIn('doğrulama olmadan', rec['next_step'])
         self.assertNotIn('web siteniz yok', offer(lead).lower())
         self.assertIn('Sonraki adım:', format_telegram(lead))
 
@@ -135,10 +135,10 @@ class CoreTests(unittest.TestCase):
         self.osm['tags']['website'] = 'https://example.com'
         lead = lead_from_osm(self.osm)
         rec = recommend(lead)
-        self.assertEqual(rec['focus'], 'automation')
+        self.assertEqual(rec['focus'], 'research')
         self.assertIsNone(rec['premium_scope'])
         self.assertNotIn('Premium web sitesi kapsamı', format_telegram(lead))
-        self.assertIn('mevcut sistemlerinize', offer(lead).lower())
+        self.assertIn('web sitesi, whatsapp', offer(lead).lower())
 
     def test_premium_draft_is_safe_from_html_injection(self):
         self.osm['tags']['name'] = '<img src=x onerror=alert(1)>'
@@ -156,6 +156,11 @@ class CoreTests(unittest.TestCase):
     def test_lead(self):
         lead = lead_from_osm(self.osm)
         self.assertEqual(lead['score'], 90)
+        self.assertEqual(lead['research_score'], 90)
+        self.assertIsNone(lead['commercial_score'])
+        self.assertEqual(lead['commercial_scoring']['score_max'], 100)
+        self.assertEqual(lead['service_match']['evidence_status'],
+                         'unknown_requires_verification')
         self.assertEqual(lead['id'], 'node/42')
 
     def test_missing_name_rejected(self):
