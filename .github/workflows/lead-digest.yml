@@ -44,8 +44,8 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           preview = Path('dist/telegram-demo.txt').read_text(encoding='utf-8')
-          assert '🔴 WEB SİTESİ ARAŞTIRMA ADAYI' in preview
-          assert '🟢 OTOMASYON ARAŞTIRMA ADAYI' in preview
+          assert '🔴 WEB SİTESİ FIRSATI' in preview
+          assert '🟢 OTOMASYON FIRSATI' in preview
           assert 'Premium web sitesi kapsamı:' in preview
           assert 'premium bir web sitesi' in preview
           assert 'Sonraki adım:' in preview
@@ -76,7 +76,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{secrets.TELEGRAM_CHAT_ID }}
           SCAN_BBOX: ${{vars.SCAN_BBOX }}
-          # Owner-only discovery rotates eight bounded pilot regions, no new SMTP.
+          # Owner-only discovery rotates eight bounded pilot regions, mail stays behind private legal and reputation checks.
           SCAN_ROTATE_BBOX: 'true'
           # Persist only proven official OSM map-tile successes, not wall hours.
           SCAN_TILE_LEDGER: 'true'
