@@ -3,8 +3,7 @@ import html
 import json
 import os
 from pathlib import Path
-from urllib.parse import urlencode, urlsplit
-from datetime import datetime, timedelta, timezone
+from urllib.parse import urlencode
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -81,61 +80,45 @@ def lead_from_osm(row):
     phone = str(tags.get('contact:phone') or tags.get('phone') or '').strip()
     address = ' '.join(str(tags.get(t) or '') for t in
                        ('addr:street', 'addr:housenumber', 'addr:district')).strip()
-    return {'id': f'{typ}/{oid}', 'name': name[:100], 'category': category,
+    research_score = 45 + (30 if not website else 0) + (15 if phone else 0) + (10 if address else 0)
+    from .commercial_scoring import match_service, score_prospect
+    lead = {'id': f'{typ}/{oid}', 'name': name[:100], 'category': category,
             'website': website[:200], 'phone': phone[:80], 'address': address[:150],
             'email': str(tags.get('contact:email') or tags.get('email') or '').strip()[:254],
-            'score': 45 + (30 if not website else 0) + (15 if phone else 0) + (10 if address else 0)}
+            'score': research_score, 'research_score': research_score}
+    commercial = score_prospect(lead)
+    lead['commercial_scoring'] = commercial
+    lead['commercial_score'] = commercial['score']
+    lead['service_match'] = match_service(lead)
+    return lead
 
 
 def classify_opportunity(lead):
-    """Assign a research tier without treating missing metadata as proven need.
-
-    Tier order follows the owner's requested 2 -> 1 -> 3 sequence:
-    2) no OSM website field: verify the real web presence, then consider a site;
-    1) OSM website field exists: qualify process-automation fit;
-    3) both needs and business quality were independently verified.
-    OSM fields alone can never promote a lead to tier 3.
-    """
-    qualification = lead.get('qualification')
-    if not isinstance(qualification, dict):
-        qualification = {}
-    quality = qualification.get('business_quality_score')
-    evidence_url = str(qualification.get('evidence_url') or '').strip()
-    try:
-        evidence = urlsplit(evidence_url)
-        verified_at = datetime.fromisoformat(
-            str(qualification.get('verified_at') or '').replace('Z', '+00:00'))
-        evidence_valid = (evidence.scheme == 'https' and bool(evidence.netloc)
-                          and not evidence.username and not evidence.password)
-        verification_fresh = (
-            verified_at.tzinfo is not None
-            and timedelta(0) <= datetime.now(timezone.utc) -
-                verified_at.astimezone(timezone.utc) <= timedelta(days=30)
-        )
-    except (ValueError, TypeError, OverflowError):
-        evidence_valid = verification_fresh = False
-    dual_verified = (
-        qualification.get('verified') is True
-        and qualification.get('website_need_verified') is True
-        and qualification.get('automation_need_verified') is True
-        and isinstance(quality, (int, float)) and not isinstance(quality, bool)
-        and quality >= 75
-        and evidence_valid and verification_fresh
-    )
-    if dual_verified:
-        return {'tier': 3, 'order': 3, 'focus': 'combined',
-                'label': 'İKİLİ ÇÖZÜM — doğrulanmış ihtiyaç ve nitelikli işletme'}
-    if str(lead.get('website') or '').strip():
-        return {'tier': 1, 'order': 2, 'focus': 'automation',
-                'label': 'OTOMASYON — süreç ihtiyacı ayrıca doğrulanmalı'}
-    return {'tier': 2, 'order': 1, 'focus': 'website',
-            'label': 'WEB SİTESİ — OSM kaydı manuel doğrulanmalı'}
+    """Assign a service tier only from fresh, independently sourced evidence."""
+    from .commercial_scoring import match_service
+    match = match_service(lead)
+    category = match.get('category')
+    mapping = {
+        2: {'order': 1, 'focus': 'whatsapp',
+            'label': 'KATEGORİ 2 — doğrulanmış WhatsApp hizmet ihtiyacı'},
+        1: {'order': 2, 'focus': 'website',
+            'label': 'KATEGORİ 1 — doğrulanmış web sitesi yokluğu'},
+        3: {'order': 3, 'focus': 'combined',
+            'label': 'KATEGORİ 3 — doğrulanmış AI/iş otomasyonu ihtiyacı'},
+    }
+    if category in mapping:
+        return {'tier': category, **mapping[category]}
+    return {'tier': None, 'order': 4, 'focus': 'research',
+            'label': 'HİZMET KATEGORİSİ ATANMADI — kanıt yetersiz'}
 
 
 def lead_priority_key(lead):
     """Sort candidates by requested tier order (2, 1, 3), then evidence score."""
     segment = classify_opportunity(lead)
-    return (segment['order'], -int(lead.get('score') or 0), str(lead.get('id') or ''))
+    evidence_score = lead.get('commercial_score')
+    if evidence_score is None:
+        evidence_score = lead.get('research_score', lead.get('score'))
+    return (segment['order'], -int(evidence_score or 0), str(lead.get('id') or ''))
 
 
 def select_leads(raw, already_seen, maximum=5):
@@ -199,22 +182,27 @@ SECTOR_IDEAS = {
     'Oto yıkama': {
         'website': 'yıkama paketleri, konum ve randevu talebi için mobil bir sayfa',
         'automation': 'randevu taleplerinin takibi ve tekrar bakım hatırlatmaları',
+        'research': 'randevu ve müşteri talep kanallarının mevcut durumunu doğrula',
     },
     'Kuaför/berber': {
         'website': 'hizmet ve örnek çalışmalar galerisiyle randevu talep sayfası',
         'automation': 'randevu takvimi, uygunluk takibi ve hatırlatma akışı',
+        'research': 'randevu ve müşteri iletişim kanallarının mevcut durumunu doğrula',
     },
     'Güzellik salonu': {
         'website': 'seans tanıtımı, hizmet kataloğu ve danışma/randevu formu',
         'automation': 'seans takvimi, randevu hatırlatmaları ve talep takibi',
+        'research': 'seans randevusu ve müşteri takip sürecinin mevcut durumunu doğrula',
     },
     'Çiçekçi': {
         'website': 'ürün galerisi, özel gün seçenekleri ve teslimat talep formu',
         'automation': 'sipariş taleplerinin takibi ve teslimat planlaması',
+        'research': 'sipariş ve teslimat taleplerinin mevcut kanallarını doğrula',
     },
     'Optik mağazası': {
         'website': 'ürün kataloğu, mağaza iletişimi ve danışma formu',
         'automation': 'stok talep kayıtları ve müşteri bilgilendirme akışı',
+        'research': 'mağaza danışma ve müşteri iletişim kanallarını doğrula',
     },
 }
 
@@ -229,7 +217,7 @@ PREMIUM_SITE_SCOPE = {
 }
 
 def recommend(lead):
-    """Classify conservatively; only explicit independent research can confirm fit."""
+    """Recommend a service only when its need has fresh source evidence."""
     segment = classify_opportunity(lead)
     focus = segment['focus']
     ideas = SECTOR_IDEAS.get(lead.get('category'), {
@@ -238,17 +226,22 @@ def recommend(lead):
         'combined': 'web sitesi ve süreç otomasyonunu birlikte iyileştiren doğrulanmış kapsam',
     })
     if focus == 'website':
-        evidence = ('OSM kaydında web sitesi alanı boş. Bu, sitenin gerçekten '
-                    'olmadığını kanıtlamaz; web varlığını ayrıca manuel doğrula.')
-        indicator = '🔴 WEB SİTESİ FIRSATI'
+        evidence = 'İşletmede web sitesi olmadığı güncel kaynakla doğrulanmış.'
+        indicator = '🔴 DOĞRULANMIŞ WEB SİTESİ İHTİYACI'
+    elif focus == 'whatsapp':
+        evidence = 'WhatsApp müşteri hizmetleri otomasyonu ihtiyacı güncel kaynakla doğrulanmış.'
+        indicator = '🟠 DOĞRULANMIŞ WHATSAPP OTOMASYONU İHTİYACI'
     elif focus == 'combined':
         evidence = ('İşletmenin niteliği ile web sitesi ve otomasyon ihtiyaçları '
                     'bağımsız araştırma kaydıyla doğrulanmış.')
         indicator = '🔵 DOĞRULANMIŞ İKİLİ ÇÖZÜM ADAYI'
+    elif focus == 'automation':
+        evidence = 'İş akışı otomasyonu ihtiyacı güncel kaynakla doğrulanmış.'
+        indicator = '🟢 DOĞRULANMIŞ AI/İŞ OTOMASYONU İHTİYACI'
     else:
-        evidence = ('OSM kaydında web adresi var. Bu kayıt otomasyon ihtiyacını '
-                    'kanıtlamaz; mevcut sistemleri bilinmiyor, süreçleri ayrıca doğrula.')
-        indicator = '🟢 OTOMASYON FIRSATI'
+        evidence = ('Web sitesi ve WhatsApp durumu ile gerçek otomasyon ihtiyacı '
+                    'doğrulanmadı; OSM etiketinin bulunmaması eksiklik kanıtı değildir.')
+        indicator = '🔎 HİZMET EŞLEŞMESİ İÇİN ARAŞTIRMA GEREKLİ'
     contacts = ('OSM telefon kaydı var; iletişim uygunluğunu ayrıca doğrula.'
                 if lead.get('phone') else
                 'OSM telefon alanı boş; iletişim kanalı ayrıca araştırılmalı.')
@@ -263,10 +256,21 @@ def recommend(lead):
         next_step = ('Önce işletmenin web varlığını manuel doğrula. Gerçekten ihtiyaç '
                      'görülüyorsa uygun ve hukuka uygun tek bir iletişimde örnek '
                      'tasarımı görmeyi isteyip istemediklerini sor; yanıt yoksa ısrar etme.')
-    else:
+    elif focus in ('automation', 'whatsapp'):
         next_step = ('Mevcut randevu ve müşteri takip süreçlerini araştır. İhtiyaç '
                      'doğrulanmadan otomasyon çözümü varmış gibi davranma.')
-    return {'focus': focus, 'indicator': indicator, 'idea': (f"{ideas['website']} + {ideas['automation']}" if focus == 'combined' else ideas[focus]),
+    else:
+        next_step = ('Önce web/WhatsApp varlığını ve müşteri iletişimi ihtiyacını '
+                     'kaynakla doğrula; doğrulama olmadan hizmet önermeden bekle.')
+    if focus == 'whatsapp':
+        idea = 'WhatsApp üzerinden müşteri desteği ve talep yönlendirme otomasyonu'
+    elif focus == 'research':
+        idea = ideas.get('research',
+                         'Web/WhatsApp durumunu ve gerçek müşteri iletişimi ihtiyacını doğrula')
+    else:
+        idea = (f"{ideas['website']} + {ideas['automation']}" if focus == 'combined'
+                else ideas[focus])
+    return {'focus': focus, 'indicator': indicator, 'idea': idea,
             'evidence': evidence, 'contacts': contacts, 'location': location,
             'next_step': next_step,
             'premium_scope': PREMIUM_SITE_SCOPE.get(
@@ -285,6 +289,13 @@ def offer(lead):
     if recommendation['focus'] == 'combined':
         return (f"{name} için doğrulanmış web sitesi ve süreç otomasyonu ihtiyaçlarını "
                 'birlikte karşılayan kısa bir çözüm kapsamı paylaşabilirim. İyi çalışmalar.')
+    if recommendation['focus'] == 'research':
+        return (f'Merhaba, {name} için önce web sitesi, WhatsApp ve müşteri iletişimi '
+                'süreçlerinin mevcut durumunu anlamak isterim. İhtiyaç varsa, ancak '
+                'doğruladıktan sonra uygun bir örnek paylaşabilirim. İyi çalışmalar.')
+    if recommendation['focus'] == 'whatsapp':
+        return (f'Merhaba, {name} için doğrulanmış WhatsApp müşteri desteği ihtiyacına '
+                'yönelik kısa bir otomasyon örneği paylaşabilirim. İyi çalışmalar.')
     if recommendation['focus'] == 'website':
         return (f'Merhaba, {name} için {category.lower()} alanına özel, '
                 f'premium bir web sitesi konsepti önermek istiyorum: '
@@ -301,11 +312,22 @@ def format_telegram(lead, demo=False):
     h = html.escape
     suggestion = recommend(lead)
     intro = '🧪 DEMO — GERÇEK İŞLETME DEĞİL\n' if demo else ''
+    commercial = lead.get('commercial_scoring')
+    if not isinstance(commercial, dict):
+        from .commercial_scoring import score_prospect
+        commercial = score_prospect(lead)
+    commercial_score = (f"ticari puan {commercial['score']}/100"
+                        if commercial.get('score') is not None else
+                        f"ticari puan bilinmiyor ({commercial.get('score_min',0)}–"
+                        f"{commercial.get('score_max',100)} kanıt aralığı; "
+                        f"kapsam %{commercial.get('coverage',0)})")
     site = ('⚠️ OSM kaydında web sitesi belirtilmemiş; ayrıca doğrula'
             if not lead['website'] else '✅ OSM kaydında web sitesi var')
     lines = [intro + '🎯 <b>YENİ MÜŞTERİ FIRSATI</b>',
              f"🏪 <b>{h(lead['name'])}</b>",
-             f"🏷️ {h(lead['category'])} | Öncelik {suggestion['tier']} | araştırma puanı: {lead['score']}/100",
+             f"🏷️ {h(lead['category'])} | Öncelik {suggestion['tier']} | "
+             f"araştırma puanı: {lead.get('research_score',lead['score'])}/100 | "
+             f"{h(commercial_score)}",
              f"📌 <b>{h(suggestion['indicator'])}</b>",
              f"💡 İşletmeye uygun fikir: {h(suggestion['idea'])}",
              *( [f"✨ Premium web sitesi kapsamı: {h(suggestion['premium_scope'])}"]

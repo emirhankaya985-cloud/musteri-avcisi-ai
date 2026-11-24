@@ -11,7 +11,7 @@ git status --short
 python tools/codex_acceptance.py
 ```
 
-The acceptance script compiles Python code, executes all offline unit tests, checks tracked-file privacy restrictions when a Git checkout is available, and renders a synthetic two-category premium Telegram digest in a **temporary directory** without network, credentials or client contact.
+The acceptance script compiles Python code, executes all offline unit tests, checks tracked-file privacy restrictions when a Git checkout is available, and renders a synthetic evidence-first Telegram digest in a **temporary directory** without network, credentials or client contact.
 
 Optional separate commands:
 
@@ -27,8 +27,8 @@ Review the synthetic content in `dist/telegram-demo.txt`. That output is only a 
 | Gate | Check | Evidence |
 | --- | --- | --- |
 | 1 | All offline tests pass and no imports need paid dependencies | Command exit code 0; test count |
-| 2 | 🔴 website record missing -> premium website scope by category; explicit manual verification | `tests/test_acceptance.py` and existing core tests |
-| 3 | 🟢 website record present -> category-specific automation idea | Sample digest + unit tests |
+| 2 | OSM website tag missing or present alone -> unknown; requires source-backed qualification | `tests/test_commercial_scoring.py` and `tests/test_acceptance.py` |
+| 3 | Category 2 WhatsApp need, Category 1 verified website absence, Category 3 verified dual fit + complete score >=75 | Commercial scoring and matching tests |
 | 4 | Personalized drafts contain correct business name; HTML properly escaped | Unit tests |
 | 5 | Owner Telegram only, up to 5, stable de-duplication on re-run | Mock Telegram API + isolated state |
 | 6 | Failed send isn't marked seen; partial success is persisted | Mock failure unit test |
@@ -40,7 +40,7 @@ Review the synthetic content in `dist/telegram-demo.txt`. That output is only a 
 | 12 | Weekday 10:23 Istanbul scheduler | Cron string **plus** actual `schedule`-triggered run for timing claims |
 | 13 | Daily private CRM workbook | `owner-daily-status.yml` cron `59 20 * * *`; sendDocument receipt must match the positive owner DM ID; no public artifact or customer SMTP |
 
-The run logic is: small Kadıköy OSM search for car washes, hairdressers and beauty salons; select up to five unseen records; send opportunity summaries **only to the user's own Telegram chat**; append public OSM IDs only after successful sends.
+The run logic remains a small Kadıköy OSM search. OSM coverage is limited to the configured pilot areas and five current tags; it is not a national scan. Unknown qualification stays in the research queue. Owner Telegram messages are private; public state contains OSM IDs only after successful sends.
 
 **Privacy/security:** Automatic outreach stays behind current private eligibility, suppression, de-duplication, quota and reputation gates. The active 4/15 delivery failures pause real sends. A sample offer is not proof of need or permission. OSM `website` tag missing != actual website missing. Site already present != automation need confirmed. Never ship customer email addresses or secrets to public files or artifacts.
 

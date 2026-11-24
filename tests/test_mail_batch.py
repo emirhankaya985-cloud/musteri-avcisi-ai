@@ -22,7 +22,8 @@ class TemplateMailTests(unittest.TestCase):
 
     def test_existing_site_receives_automation_instead_of_website_pitch(self):
         mail=template_mail({'name':'Örnek','category':'Kuaför/berber','website':'https://example.invalid'})
-        self.assertIn('randevu',mail['subject'])
+        self.assertIn('araştırma sorusu',mail['subject'])
+        self.assertIn('mevcut web',mail['body'])
         self.assertNotIn('web sitesi hazırlayabilirim',mail['body'])
 
     def test_template_mode_does_not_use_ai_or_require_key(self):

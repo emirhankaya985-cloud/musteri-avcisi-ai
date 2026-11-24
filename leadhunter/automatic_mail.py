@@ -48,11 +48,20 @@ def template_mail(lead):
         proposal = (f"{name} için {rec['premium_scope']} içeren, işletmenizin kimliğine "
                     'uygun bir web sitesi hazırlayabilirim. Ziyaretçilerin hizmetlerinizi '
                     'inceleyip size kolayca ulaşabileceği sade bir yapı düşünüyorum.')
+    elif rec['focus'] == 'whatsapp':
+        subject = f'{name} için WhatsApp müşteri desteği önerisi'
+        proposal = (f"{name} için araştırmada doğrulanan WhatsApp müşteri desteği "
+                    f"ihtiyacına yönelik bir örnek paylaşabilirim: {rec['idea']}.")
     elif rec['focus'] == 'combined':
         subject = f'{name} için web ve süreç otomasyonu önerisi'
         proposal = (f"{name} için araştırmada doğrulanan iki ihtiyaca yönelik bütünleşik "
                     f"bir çözüm önermek isterim: {rec['premium_scope']}; ayrıca "
                     f"{rec['idea']}. Kapsamı ve önceliği birlikte netleştirebiliriz.")
+    elif rec['focus'] == 'research':
+        subject = f'{name} için kısa bir araştırma sorusu'
+        proposal = (f"{name} için uygun olabilecek bir çalışma önermeden önce "
+                    'mevcut web, WhatsApp ve müşteri iletişimi süreçlerinizi anlamak isterim. '
+                    'İhtiyacınız varsa, doğruladıktan sonra kısa bir örnek paylaşabilirim.')
     else:
         subject = f'{name} için randevu ve talep takibi önerisi'
         proposal = (f"{name} için değerlendirilebilecek bir çalışma: {rec['idea']}. "

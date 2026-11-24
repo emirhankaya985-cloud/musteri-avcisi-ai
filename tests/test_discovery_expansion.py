@@ -44,8 +44,8 @@ class ExpandedDiscoveryTests(unittest.TestCase):
             row = {'type': 'node', 'id': 100+index,
                    'tags': {'name': 'Synthetic business', 'shop': shop}}
             lead = lead_from_osm(row)
-            self.assertEqual(recommend(lead)['focus'], 'website')
-            self.assertIn('manuel doğrula', recommend(lead)['evidence'])
+            self.assertEqual(recommend(lead)['focus'], 'research')
+            self.assertIn('doğrulanmadı', recommend(lead)['evidence'])
             self.assertEqual(select_leads([row], {lead['id']}), [])
 
 

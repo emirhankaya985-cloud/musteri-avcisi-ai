@@ -24,18 +24,17 @@ jobs:
           python-version: '3.12'
       - name: Run offline tests
         run: python -m unittest discover -s tests -v
-      - name: Validate red website and green automation preview (no external messages)
+      - name: Validate evidence-first research preview (no external messages)
         run: |
           python -m leadhunter demo
           python - <<'PY'
           from pathlib import Path
           preview = Path('dist/telegram-demo.txt').read_text(encoding='utf-8')
-          assert '🔴 WEB SİTESİ FIRSATI' in preview
-          assert '🟢 OTOMASYON FIRSATI' in preview
-          assert 'Premium web sitesi kapsamı:' in preview
-          assert 'premium bir web sitesi' in preview
+          assert preview.count('ARAŞTIRMA GEREKLİ') >= 2
+          assert 'ticari puan bilinmiyor' in preview
+          assert 'doğrulama olmadan hizmet önermeden bekle' in preview
           assert 'Sonraki adım:' in preview
-          print('Website/automation recommendation preview validated')
+          print('Evidence-first research preview validated')
           PY
       - name: Verify owner Telegram secrets are configured (presence only)
         env:

@@ -107,7 +107,8 @@ class GmailSelfTest(unittest.TestCase):
             "name": "Örnek Salon", "category": "Kuaför/berber", "website": "",
         })
         self.assertIn("Örnek Salon", draft["subject"])
-        self.assertIn("premium bir web sitesi", draft["body"])
+        self.assertIn("mevcut durumunu anlamak", draft["body"])
+        self.assertNotIn("premium bir web sitesi", draft["body"])
         self.assertEqual(FakeSMTP.events, [])
 
     def test_crlf_business_name_cannot_add_email_headers(self):

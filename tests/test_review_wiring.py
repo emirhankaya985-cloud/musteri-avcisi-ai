@@ -41,12 +41,12 @@ class DecisionWiringTests(unittest.TestCase):
 
     def test_compact_notification_uses_new_colors(self):
         text = compact_telegram(self.lead)
-        self.assertIn("🟣 WEB SİTESİ", text)
+        self.assertIn("ARAŞTIRMA GEREKLİ", text)
         self.assertNotIn("🔴", text)
         self.assertIn("ÖRNEK Kuaför", text)
         self.assertLessEqual(text.count("\\n"), 8)
         self.lead["website"] = "https://example.com"
-        self.assertIn("🔵 OTOMASYON", compact_telegram(self.lead))
+        self.assertIn("ARAŞTIRMA GEREKLİ", compact_telegram(self.lead))
 
     def test_compact_escapes_business_html(self):
         self.lead["name"] = "<script>&"
@@ -107,7 +107,7 @@ class DecisionWiringTests(unittest.TestCase):
                  "STATE_FILE":str(Path(d)/"seen.json")}
             self.assertEqual(live(env, opener, lambda _:None),1)
         self.assertNotIn("reply_markup", sent[0])
-        self.assertIn("🟣 WEB SİTESİ",sent[0]["text"])
+        self.assertIn("ARAŞTIRMA GEREKLİ",sent[0]["text"])
 
     def test_no_private_state_in_public_seen_file(self):
         with tempfile.TemporaryDirectory() as d:

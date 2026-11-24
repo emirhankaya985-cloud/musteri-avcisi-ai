@@ -23,8 +23,7 @@ def compact_telegram(lead):
     from .core import recommend
     esc = html.escape
     rec = recommend(lead)
-    website = rec["focus"] == "website"
-    title = "🟣 WEB SİTESİ FIRSATI" if website else "🔵 OTOMASYON FIRSATI"
+    title = rec["indicator"]
     lines = [
         f"<b>{title}</b> | {min(max(int(lead['score']), 0), 100)}/100",
         f"🏪 <b>{esc(str(lead['name']))}</b>",

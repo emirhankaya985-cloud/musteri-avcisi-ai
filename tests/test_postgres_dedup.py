@@ -99,7 +99,8 @@ class PostgresDedupTests(unittest.TestCase):
         self.db.execute("ALTER TABLE owner_leads ADD COLUMN sent_at timestamptz")
         self.db.execute("CREATE TABLE owner_daily_report_receipts ("
                         "report_day text PRIMARY KEY,state text NOT NULL,"
-                        "telegram_message_id bigint,updated_at timestamptz DEFAULT now())")
+                        "telegram_message_id bigint,telegram_document_message_id bigint,"
+                        "updated_at timestamptz DEFAULT now())")
         self.db.execute("CREATE TABLE owner_scan_run_metrics ("
                         "scan_run_id text PRIMARY KEY,report_day date NOT NULL,"
                         "scanned_count int NOT NULL,new_registered int NOT NULL,"
@@ -136,8 +137,9 @@ class PostgresDedupTests(unittest.TestCase):
         self.assertEqual(self.db.execute(
             "SELECT count(*) FROM owner_leads").fetchone()[0],1)
         self.assertEqual(self.db.execute(
-            "SELECT state,telegram_message_id FROM owner_daily_report_receipts").fetchone(),
-            ("confirmed",501))
+            "SELECT state,telegram_message_id,telegram_document_message_id "
+            "FROM owner_daily_report_receipts").fetchone(),
+            ("confirmed",501,502))
 
     def test_dns_nxdomain_and_relay_domain_quarantines_are_durable(self):
         for i,reason in enumerate(("dns_nxdomain","relay_denied")):
