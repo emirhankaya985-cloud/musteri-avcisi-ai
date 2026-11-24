@@ -1,7 +1,7 @@
 # Codex test handoff — Müşteri Avcısı AI
 
 **Repo:** https://github.com/emirhankaya985-cloud/musteri-avcisi-ai
-**Branch:** `main` · public · Python 3.12 · stdlib only
+**Branch:** `main` · public · Python 3.12 · stdlib + pinned, free `openpyxl` for owner-only XLSX export
 **Origin:** clean allowlisted copy from `emirhankaya-AFK/musteri-avcisi-ai` (private). Do not transfer old commits or private files.
 
 ## Single-command test
@@ -38,10 +38,11 @@ Review the synthetic content in `dist/telegram-demo.txt`. That output is only a 
 | 10 | `Offline Tests` workflow completes successful for HEAD | GitHub Actions run URL + SHA |
 | 11 | `Telegram Lead Digest` real API, if safely/explicitly tested, reports success and delivered count | GitHub Actions log and `data/seen.json` delta |
 | 12 | Weekday 10:23 Istanbul scheduler | Cron string **plus** actual `schedule`-triggered run for timing claims |
+| 13 | Daily private CRM workbook | `owner-daily-status.yml` cron `59 20 * * *`; sendDocument receipt must match the positive owner DM ID; no public artifact or customer SMTP |
 
 The run logic is: small Kadıköy OSM search for car washes, hairdressers and beauty salons; select up to five unseen records; send opportunity summaries **only to the user's own Telegram chat**; append public OSM IDs only after successful sends.
 
-**Privacy/security:** No automatic outreach to leads. A sample offer is meant to be read, edited and optionally sent by the owner after checking suitability, permission, and business web presence. OSM `website` tag missing != actual website missing. Site already present != automation need confirmed. Never ship customer email addresses or secrets.
+**Privacy/security:** Automatic outreach stays behind current private eligibility, suppression, de-duplication, quota and reputation gates. The active 4/15 delivery failures pause real sends. A sample offer is not proof of need or permission. OSM `website` tag missing != actual website missing. Site already present != automation need confirmed. Never ship customer email addresses or secrets to public files or artifacts.
 
 ## Historical baseline, not a current claim
 
@@ -67,3 +68,5 @@ Write `docs/CODEX_TEST_RESULTS.md` **only after you actually ran tests**. Record
 
 ## Current implementation direction — 24 Nov 2026
 The owner requested automatic outreach with candidate research ordered 2 → 1 → 3. Scheduled mail is configured as requested, but only after private per-recipient legal eligibility, suppression/de-duplication, daily quota, and sender reputation checks. Historic 4/15 delivery failures keep the sender circuit paused; no live business mail should be triggered until genuine remediation and verified eligibility exist. OSM website presence/missingness is only a research signal. Tier 3 requires independently recorded evidence of both solution needs and business quality >=75/100. See README for the scoring policy.
+
+The current task also requests a daily 23:59 Europe/Istanbul owner report with an XLSX snapshot. Deliver it only to the positive private owner Telegram chat; never save customer contact rows to the public checkout or workflow artifacts. Missing city, WhatsApp, Gmail API IDs, and verification timestamps remain explicitly unknown.

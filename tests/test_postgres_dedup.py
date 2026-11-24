@@ -96,6 +96,7 @@ class PostgresDedupTests(unittest.TestCase):
     def test_owner_daily_summary_is_at_most_once_and_preserves_leads(self):
         from leadhunter.daily_status import run
         self.db.execute("ALTER TABLE owner_leads ADD COLUMN first_seen_at timestamptz DEFAULT now()")
+        self.db.execute("ALTER TABLE owner_leads ADD COLUMN sent_at timestamptz")
         self.db.execute("CREATE TABLE owner_daily_report_receipts ("
                         "report_day text PRIMARY KEY,state text NOT NULL,"
                         "telegram_message_id bigint,updated_at timestamptz DEFAULT now())")
@@ -113,15 +114,23 @@ class PostgresDedupTests(unittest.TestCase):
             ("node/5001",json.dumps({"_auto_mail":{"state":"draft",
                 "recipient":"synthetic@example.invalid"}})))
         messages=[]
+        documents=[]
         def fake_bot(token,method,data):
             self.assertEqual(method,"sendMessage")
             messages.append(data['text'])
             return {"message_id":501}
+        def fake_document(token,chat_id,content,filename,caption):
+            self.assertEqual((token,chat_id),("fake","123"))
+            self.assertTrue(content.startswith(b"PK\x03\x04"))
+            self.assertIn("Musteri-Avcisi-CRM-2026-11-01.xlsx",filename)
+            documents.append(filename)
+            return 502
         env={"TELEGRAM_BOT_TOKEN":"fake","TELEGRAM_CHAT_ID":"123",
              "AUTO_MAIL_ENABLED":"true"}
-        self.assertEqual(run(env,self.db,fake_bot,"2026-11-01"),501)
-        self.assertEqual(run(env,self.db,fake_bot,"2026-11-01"),0)
+        self.assertEqual(run(env,self.db,fake_bot,"2026-11-01",fake_document),501)
+        self.assertEqual(run(env,self.db,fake_bot,"2026-11-01",fake_document),0)
         self.assertEqual(len(messages),1)
+        self.assertEqual(len(documents),1)
         self.assertIn("KAPALI",messages[0])
         self.assertNotIn("synthetic@example.invalid",messages[0])
         self.assertEqual(self.db.execute(

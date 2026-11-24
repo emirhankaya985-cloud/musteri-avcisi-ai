@@ -47,6 +47,7 @@ def verify_tracked_files() -> None:
 def verify_config() -> None:
     ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     digest = (ROOT / ".github/workflows/lead-digest.yml").read_text(encoding="utf-8")
+    daily = (ROOT / ".github/workflows/owner-daily-status.yml").read_text(encoding="utf-8")
     assert "python tools/codex_acceptance.py" in ci
     assert "cron: '13 * * * *'" in digest
     assert "secrets.TELEGRAM_BOT_TOKEN" in digest
@@ -54,12 +55,15 @@ def verify_config() -> None:
     assert "python -m leadhunter.daily_scan" in digest
     assert "DIGEST_DAILY_GUARD: 'false'" in digest
     assert "AUTO_MAIL_ENABLED: 'true'" in digest
-    assert "AUTO_MAIL_DAILY_LIMIT: '0'" in digest
+    assert "AUTO_MAIL_DAILY_LIMIT: '5'" in digest
     assert "GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}" in digest
     assert "GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}" in digest
-    assert "OWNER_APPROVED_MAIL_ENABLED: 'true'" in digest
+    assert "OWNER_APPROVED_MAIL_ENABLED: 'false'" in digest
     assert "contents: write" in digest
-    print("PASS: CI, owner Telegram secrets, hourly cron and owner-authorized mail configured")
+    assert "cron: '59 20 * * *'" in daily
+    assert "openpyxl==3.1.5" in daily
+    assert "python -m leadhunter.daily_status" in daily
+    print("PASS: CI, hourly scan, guarded mail and private daily workbook configured")
     print("NOTE: cron config is NOT proof that a scheduled run happened")
 
 
@@ -100,3 +104,7 @@ def main() -> None:
     verify_config()
     verify_demo()
     print("PASS: all OFFLINE Codex acceptance gates")
+
+
+if __name__ == "__main__":
+    main()
