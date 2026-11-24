@@ -239,16 +239,16 @@ def recommend(lead):
     })
     if focus == 'website':
         evidence = ('OSM kaydında web sitesi alanı boş. Bu, sitenin gerçekten '
-                    'olmadığını kanıtlamaz; web varlığını ayrıca doğrula.')
-        indicator = '🔴 WEB SİTESİ ARAŞTIRMA ADAYI'
+                    'olmadığını kanıtlamaz; web varlığını ayrıca manuel doğrula.')
+        indicator = '🔴 WEB SİTESİ FIRSATI'
     elif focus == 'combined':
         evidence = ('İşletmenin niteliği ile web sitesi ve otomasyon ihtiyaçları '
                     'bağımsız araştırma kaydıyla doğrulanmış.')
         indicator = '🔵 DOĞRULANMIŞ İKİLİ ÇÖZÜM ADAYI'
     else:
         evidence = ('OSM kaydında web adresi var. Bu kayıt otomasyon ihtiyacını '
-                    'kanıtlamaz; mevcut süreçleri ayrıca doğrula.')
-        indicator = '🟢 OTOMASYON ARAŞTIRMA ADAYI'
+                    'kanıtlamaz; mevcut sistemleri bilinmiyor, süreçleri ayrıca doğrula.')
+        indicator = '🟢 OTOMASYON FIRSATI'
     contacts = ('OSM telefon kaydı var; iletişim uygunluğunu ayrıca doğrula.'
                 if lead.get('phone') else
                 'OSM telefon alanı boş; iletişim kanalı ayrıca araştırılmalı.')
@@ -266,7 +266,7 @@ def recommend(lead):
     else:
         next_step = ('Mevcut randevu ve müşteri takip süreçlerini araştır. İhtiyaç '
                      'doğrulanmadan otomasyon çözümü varmış gibi davranma.')
-    return {'focus': focus, 'indicator': indicator, 'idea': ideas[focus],
+    return {'focus': focus, 'indicator': indicator, 'idea': (f"{ideas['website']} + {ideas['automation']}" if focus == 'combined' else ideas[focus]),
             'evidence': evidence, 'contacts': contacts, 'location': location,
             'next_step': next_step,
             'premium_scope': PREMIUM_SITE_SCOPE.get(
@@ -323,7 +323,7 @@ def format_telegram(lead, demo=False):
               f"🗺️ <a href=\"https://www.openstreetmap.org/{h(lead['id'])}\">OSM kaydı</a>",
               '\n✉️ <b>Yalnızca manuel kullanım için kişiselleştirilmiş teklif:</b>',
               f"<blockquote>{h(offer(lead))}</blockquote>",
-              '\n© OpenStreetMap contributors — ODbL. Araştırma sinyalleri ihtiyaç/izin kanıtı değildir; işletmeye mesaj yalnızca özel izin ve itibar kontrolleri geçerse gönderilir.']
+              '\n© OpenStreetMap contributors — ODbL. Araştırma sinyalleri ihtiyaç/izin kanıtı değildir; işletmeye otomatik mesaj ancak özel izin ve gönderici itibarı kontrolleri geçerse gönderilir.']
     return '\n'.join(lines)
 
 
