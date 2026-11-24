@@ -22,6 +22,8 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+      - name: Install free workbook runtime dependency for offline tests
+        run: python -m pip install 'openpyxl==3.1.5'
       - name: Run offline tests
         run: python -m unittest discover -s tests -v
       - name: Validate evidence-first research preview (no external messages)
