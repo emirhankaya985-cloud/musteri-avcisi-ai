@@ -3,7 +3,8 @@ import html
 import json
 import os
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
+from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -86,13 +87,64 @@ def lead_from_osm(row):
             'score': 45 + (30 if not website else 0) + (15 if phone else 0) + (10 if address else 0)}
 
 
+def classify_opportunity(lead):
+    """Assign a research tier without treating missing metadata as proven need.
+
+    Tier order follows the owner's requested 2 -> 1 -> 3 sequence:
+    2) no OSM website field: verify the real web presence, then consider a site;
+    1) OSM website field exists: qualify process-automation fit;
+    3) both needs and business quality were independently verified.
+    OSM fields alone can never promote a lead to tier 3.
+    """
+    qualification = lead.get('qualification')
+    if not isinstance(qualification, dict):
+        qualification = {}
+    quality = qualification.get('business_quality_score')
+    evidence_url = str(qualification.get('evidence_url') or '').strip()
+    try:
+        evidence = urlsplit(evidence_url)
+        verified_at = datetime.fromisoformat(
+            str(qualification.get('verified_at') or '').replace('Z', '+00:00'))
+        evidence_valid = (evidence.scheme == 'https' and bool(evidence.netloc)
+                          and not evidence.username and not evidence.password)
+        verification_fresh = (
+            verified_at.tzinfo is not None
+            and timedelta(0) <= datetime.now(timezone.utc) -
+                verified_at.astimezone(timezone.utc) <= timedelta(days=30)
+        )
+    except (ValueError, TypeError, OverflowError):
+        evidence_valid = verification_fresh = False
+    dual_verified = (
+        qualification.get('verified') is True
+        and qualification.get('website_need_verified') is True
+        and qualification.get('automation_need_verified') is True
+        and isinstance(quality, (int, float)) and not isinstance(quality, bool)
+        and quality >= 75
+        and evidence_valid and verification_fresh
+    )
+    if dual_verified:
+        return {'tier': 3, 'order': 3, 'focus': 'combined',
+                'label': 'İKİLİ ÇÖZÜM — doğrulanmış ihtiyaç ve nitelikli işletme'}
+    if str(lead.get('website') or '').strip():
+        return {'tier': 1, 'order': 2, 'focus': 'automation',
+                'label': 'OTOMASYON — süreç ihtiyacı ayrıca doğrulanmalı'}
+    return {'tier': 2, 'order': 1, 'focus': 'website',
+            'label': 'WEB SİTESİ — OSM kaydı manuel doğrulanmalı'}
+
+
+def lead_priority_key(lead):
+    """Sort candidates by requested tier order (2, 1, 3), then evidence score."""
+    segment = classify_opportunity(lead)
+    return (segment['order'], -int(lead.get('score') or 0), str(lead.get('id') or ''))
+
+
 def select_leads(raw, already_seen, maximum=5):
     unique = {}
     for row in raw:
         lead = lead_from_osm(row)
         if lead and lead['id'] not in already_seen:
             unique[lead['id']] = lead
-    return sorted(unique.values(), key=lambda x: (-x['score'], x['id']))[:maximum]
+    return sorted(unique.values(), key=lead_priority_key)[:maximum]
 
 
 def discovery_stats(raw, already_seen):
@@ -177,28 +229,37 @@ PREMIUM_SITE_SCOPE = {
 }
 
 def recommend(lead):
-    """Classify from *OSM metadata only*, never infer the business' real needs."""
-    website_recorded = bool(str(lead.get('website') or '').strip())
-    focus = 'automation' if website_recorded else 'website'
+    """Classify conservatively; only explicit independent research can confirm fit."""
+    segment = classify_opportunity(lead)
+    focus = segment['focus']
     ideas = SECTOR_IDEAS.get(lead.get('category'), {
         'website': 'mobil tanıtım ve iletişim sayfası',
         'automation': 'randevu ve talep takibi',
+        'combined': 'web sitesi ve süreç otomasyonunu birlikte iyileştiren doğrulanmış kapsam',
     })
     if focus == 'website':
-        evidence = ('OSM kaydında web sitesi alanı boş. İşletmenin gerçekten '
-                    'web sitesi olup olmadığını manuel doğrula.')
-        indicator = '🔴 WEB SİTESİ FIRSATI'
+        evidence = ('OSM kaydında web sitesi alanı boş. Bu, sitenin gerçekten '
+                    'olmadığını kanıtlamaz; web varlığını ayrıca doğrula.')
+        indicator = '🔴 WEB SİTESİ ARAŞTIRMA ADAYI'
+    elif focus == 'combined':
+        evidence = ('İşletmenin niteliği ile web sitesi ve otomasyon ihtiyaçları '
+                    'bağımsız araştırma kaydıyla doğrulanmış.')
+        indicator = '🔵 DOĞRULANMIŞ İKİLİ ÇÖZÜM ADAYI'
     else:
-        evidence = ('OSM kaydında web adresi var. Otomasyon yalnızca görüşmede '
-                    'değerlendirilecek bir fikir; mevcut sistemleri bilinmiyor.')
-        indicator = '🟢 OTOMASYON FIRSATI'
+        evidence = ('OSM kaydında web adresi var. Bu kayıt otomasyon ihtiyacını '
+                    'kanıtlamaz; mevcut süreçleri ayrıca doğrula.')
+        indicator = '🟢 OTOMASYON ARAŞTIRMA ADAYI'
     contacts = ('OSM telefon kaydı var; iletişim uygunluğunu ayrıca doğrula.'
                 if lead.get('phone') else
                 'OSM telefon alanı boş; iletişim kanalı ayrıca araştırılmalı.')
     location = ('Konum bilgisi OSM üzerinde kayıtlı.'
                 if lead.get('address') else
                 'OSM adres alanı eksik; konumu ayrıca doğrula.')
-    if focus == 'website':
+    if focus == 'combined':
+        next_step = ('İki doğrulanmış ihtiyaca yönelik ortak kapsamı ve işletmenin '
+                     'karar vericisini teyit et; yalnızca izin ve gönderici kontrolleri '
+                     'geçerse tek, kişiselleştirilmiş iletişim kur.')
+    elif focus == 'website':
         next_step = ('Önce işletmenin web varlığını manuel doğrula. Gerçekten ihtiyaç '
                      'görülüyorsa uygun ve hukuka uygun tek bir iletişimde örnek '
                      'tasarımı görmeyi isteyip istemediklerini sor; yanıt yoksa ısrar etme.')
@@ -211,7 +272,9 @@ def recommend(lead):
             'premium_scope': PREMIUM_SITE_SCOPE.get(
                 lead.get('category'),
                 'özel marka tasarımı, hızlı mobil sayfalar, iletişim ve talep formu')
-            if focus == 'website' else None}
+            if focus in ('website', 'combined') else None,
+            'tier': segment['tier'], 'priority_order': segment['order'],
+            'segment_label': segment['label']}
 
 
 def offer(lead):
@@ -219,6 +282,9 @@ def offer(lead):
     recommendation = recommend(lead)
     name = str(lead.get('name') or 'işletmeniz')
     category = str(lead.get('category') or 'işletmeniz')
+    if recommendation['focus'] == 'combined':
+        return (f"{name} için doğrulanmış web sitesi ve süreç otomasyonu ihtiyaçlarını "
+                'birlikte karşılayan kısa bir çözüm kapsamı paylaşabilirim. İyi çalışmalar.')
     if recommendation['focus'] == 'website':
         return (f'Merhaba, {name} için {category.lower()} alanına özel, '
                 f'premium bir web sitesi konsepti önermek istiyorum: '
@@ -239,7 +305,7 @@ def format_telegram(lead, demo=False):
             if not lead['website'] else '✅ OSM kaydında web sitesi var')
     lines = [intro + '🎯 <b>YENİ MÜŞTERİ FIRSATI</b>',
              f"🏪 <b>{h(lead['name'])}</b>",
-             f"🏷️ {h(lead['category'])} | OSM araştırma önceliği: {lead['score']}/100",
+             f"🏷️ {h(lead['category'])} | Öncelik {suggestion['tier']} | araştırma puanı: {lead['score']}/100",
              f"📌 <b>{h(suggestion['indicator'])}</b>",
              f"💡 İşletmeye uygun fikir: {h(suggestion['idea'])}",
              *( [f"✨ Premium web sitesi kapsamı: {h(suggestion['premium_scope'])}"]
@@ -257,7 +323,7 @@ def format_telegram(lead, demo=False):
               f"🗺️ <a href=\"https://www.openstreetmap.org/{h(lead['id'])}\">OSM kaydı</a>",
               '\n✉️ <b>Yalnızca manuel kullanım için kişiselleştirilmiş teklif:</b>',
               f"<blockquote>{h(offer(lead))}</blockquote>",
-              '\n© OpenStreetMap contributors — ODbL. İhtiyaçlar doğrulanmadı. İşletmeye otomatik mesaj gönderilmez.']
+              '\n© OpenStreetMap contributors — ODbL. Araştırma sinyalleri ihtiyaç/izin kanıtı değildir; işletmeye mesaj yalnızca özel izin ve itibar kontrolleri geçerse gönderilir.']
     return '\n'.join(lines)
 
 
@@ -536,8 +602,8 @@ def live(env=None, opener=urlopen, output=print):
                     # Before private review was enabled, owner digests used
                     # plain Telegram messages. Offer actionable buttons once.
                     legacy.append(lead)
-            eligible.sort(key=lambda x: (-x['score'], x['id']))
-            legacy.sort(key=lambda x: (-x['score'], x['id']))
+            eligible.sort(key=lead_priority_key)
+            legacy.sort(key=lead_priority_key)
             # A previous SMTP-independent Telegram failure can leave a
             # registered 'review' row without a confirmed owner notification.
             # If the public seen file has no delivery for that ID, retry it.
@@ -566,8 +632,7 @@ def live(env=None, opener=urlopen, output=print):
                     if (statuses.get(lead_id) in (None, "review")
                             and (lead_id not in seen or lead_id not in statuses)):
                         candidates[lead_id] = lead
-                chosen = sorted(candidates.values(),
-                                key=lambda x: (-x["score"], x["id"]))
+                chosen = sorted(candidates.values(), key=lead_priority_key)
             else:
                 # Five Telegram previews is an intentional UI limit only.
                 chosen = prioritized_leads(
