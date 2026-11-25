@@ -3,6 +3,7 @@ import json
 import os
 import unittest
 import uuid
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from leadhunter.automatic_mail import AutoMailStore
@@ -477,6 +478,58 @@ class PostgresDedupTests(unittest.TestCase):
         self.assertTrue(store.reputation_paused())
         self.assertEqual(self.db.execute("SELECT COUNT(*) FROM owner_leads WHERE"
             " lead_data->'_auto_mail'->>'state'='sending'").fetchone()[0],0)
+
+    def test_duplicate_review_audit_migration_is_repeatable_and_immutable(self):
+        """Exercise migration DDL/triggers on this isolated synthetic schema only."""
+        self.db.execute(
+            "CREATE TABLE owner_duplicate_review_pairs ("
+            "lead_a text NOT NULL,lead_b text NOT NULL,evidence text[] NOT NULL,"
+            "review_state text NOT NULL DEFAULT 'needs_review',"
+            "last_observed_at timestamptz NOT NULL DEFAULT now(),"
+            "PRIMARY KEY(lead_a,lead_b))")
+        migration = (Path(__file__).resolve().parents[1] /
+                     "migrations/014_duplicate_confidence_audit.sql").read_text(
+                         encoding="utf-8")
+        # The checked-in migration is schema-qualified for production. Rewrite
+        # only its schema identifier so every object stays inside this random
+        # synthetic test schema; no production DSN is used by the CI job.
+        migration = migration.replace("public.", self.schema + ".")
+        migration = migration.replace("pg_catalog, public",
+                                      "pg_catalog, " + self.schema)
+        self.db.execute(migration)
+        self.db.execute(migration)  # must remain safe on a second application
+
+        details = {"method":"heuristic-v1","automatic_merge_allowed":False}
+        self.db.execute(
+            "INSERT INTO owner_duplicate_review_pairs "
+            "(lead_a,lead_b,evidence,confidence_score,confidence_details) "
+            "VALUES (%s,%s,%s,%s,%s::jsonb)",
+            ("node/100", "way/200", ["same_name_category_review"],
+             20, json.dumps(details)))
+        # A human decision transition is captured as a second immutable event.
+        self.db.execute(
+            "UPDATE owner_duplicate_review_pairs SET review_state='not_duplicate' "
+            "WHERE lead_a='node/100' AND lead_b='way/200'")
+        audit = self.schema + ".owner_duplicate_review_audit"
+        pairs = self.schema + ".owner_duplicate_review_pairs"
+        self.assertEqual(self.db.execute("SELECT count(*) FROM " + audit).fetchone()[0], 2)
+        self.assertEqual(self.db.execute("SELECT event_type FROM " + audit +
+            " ORDER BY audit_id").fetchall(),
+            [("candidate_detected",), ("decision_changed",)])
+
+        # Routine sync heartbeats are not decision/evidence changes and do not
+        # flood the audit log.
+        self.db.execute("UPDATE " + pairs + " SET last_observed_at=now()")
+        self.assertEqual(self.db.execute("SELECT count(*) FROM " + audit).fetchone()[0], 2)
+
+        for statement in (
+            "UPDATE " + audit + " SET event_type='candidate_detected' WHERE audit_id=1",
+            "DELETE FROM " + audit + " WHERE audit_id=1",
+            "TRUNCATE " + audit,
+        ):
+            with self.assertRaisesRegex(self.psycopg.Error, "append-only"):
+                self.db.execute(statement)
+        self.assertEqual(self.db.execute("SELECT count(*) FROM " + audit).fetchone()[0], 2)
 
     def test_restart_after_uncertain_result_blocks_recipient(self):
         self.insert('node/1', 'uncertain'); self.insert('node/2')

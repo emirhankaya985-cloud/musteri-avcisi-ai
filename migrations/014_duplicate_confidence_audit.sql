@@ -76,7 +76,34 @@ CREATE TRIGGER owner_duplicate_review_audit_trg
 AFTER INSERT OR UPDATE ON public.owner_duplicate_review_pairs
 FOR EACH ROW EXECUTE FUNCTION public.audit_owner_duplicate_review_pair();
 
+-- Best-effort append-only guard for normal SQL roles. A table owner or
+-- superuser can still disable/drop triggers or alter the table; this is not a
+-- tamper-proof/WORM ledger.
+COMMENT ON TABLE public.owner_duplicate_review_audit IS
+    'Append-only by trigger for normal SQL roles; table owner/superuser can disable the guard.';
+
+CREATE OR REPLACE FUNCTION public.reject_owner_duplicate_review_audit_mutation()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public AS $$
+BEGIN
+    RAISE EXCEPTION 'owner_duplicate_review_audit is append-only; UPDATE, DELETE and TRUNCATE are rejected';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS owner_duplicate_review_audit_no_update_delete_trg
+    ON public.owner_duplicate_review_audit;
+CREATE TRIGGER owner_duplicate_review_audit_no_update_delete_trg
+BEFORE UPDATE OR DELETE ON public.owner_duplicate_review_audit
+FOR EACH ROW EXECUTE FUNCTION public.reject_owner_duplicate_review_audit_mutation();
+
+DROP TRIGGER IF EXISTS owner_duplicate_review_audit_no_truncate_trg
+    ON public.owner_duplicate_review_audit;
+CREATE TRIGGER owner_duplicate_review_audit_no_truncate_trg
+BEFORE TRUNCATE ON public.owner_duplicate_review_audit
+FOR EACH STATEMENT EXECUTE FUNCTION public.reject_owner_duplicate_review_audit_mutation();
+
 REVOKE ALL ON FUNCTION public.audit_owner_duplicate_review_pair() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.reject_owner_duplicate_review_audit_mutation() FROM PUBLIC;
 REVOKE ALL ON public.owner_duplicate_review_audit FROM PUBLIC;
 REVOKE ALL ON SEQUENCE public.owner_duplicate_review_audit_audit_id_seq FROM PUBLIC;
 DO $$
