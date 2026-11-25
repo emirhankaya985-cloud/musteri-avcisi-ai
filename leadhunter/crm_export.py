@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import hashlib
 from io import BytesIO
 import json
 import re
@@ -17,6 +18,7 @@ FIELDS = (
     "research_score", "whatsapp", "whatsapp_status", "auto_mail_state",
     "gmail_message_id", "delivery_state", "delivery_error", "reply_state",
     "last_verified_at", "qualification", "marketing_eligibility",
+    "updated_at",
 )
 HEADERS = (
     "İşletme adı", "Şehir", "Sektör", "E-posta", "Web sitesi",
@@ -27,7 +29,28 @@ HEADERS = (
     "İşletme telefonu", "E-posta ön kontrolü (MX)", "OSM kimliği",
     "Ticari skor aralığı", "Kanıt kapsamı (%)", "Skor bandı",
     "Gönderim uygunluk nedeni",
+    "Puan açıklaması", "Kanıtlanan bileşenler / kaynaklar",
 )
+
+INITIAL_CITY_TARGETS = (
+    ("İstanbul", "34"), ("Ankara", "06"), ("İzmir", "35"),
+    ("Bursa", "16"), ("Antalya", "07"), ("Kocaeli", "41"),
+    ("Sakarya", "54"), ("Konya", "42"), ("Gaziantep", "27"),
+    ("Kayseri", "38"),
+)
+
+
+def _json_default(value):
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    raise TypeError(f"Unsupported snapshot value type: {type(value).__name__}")
+
+
+def snapshot_digest(rows):
+    """Hash the exact ordered CRM rows in a stable, contact-safe receipt."""
+    payload = json.dumps(rows, ensure_ascii=False, sort_keys=True,
+                         separators=(",", ":"), default=_json_default)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def fetch_rows(connection):
@@ -53,9 +76,13 @@ def fetch_rows(connection):
                         lead_data->'_mail'->'delivery_feedback'->>'state'),
                COALESCE(lead_data->'_auto_mail'->'delivery_feedback'->>'reason',
                         lead_data->'_mail'->'delivery_feedback'->>'reason'),
+               COALESCE(lead_data->>'reply_state',
+                        lead_data->'_auto_mail'->'reply_feedback'->>'state',
+                        lead_data->'_mail'->'reply_feedback'->>'state'),
                COALESCE(lead_data->>'last_verified_at', lead_data->>'verified_at',
                         lead_data->'qualification'->>'verified_at'),
-               lead_data->'qualification', lead_data->'marketing_eligibility'
+               lead_data->'qualification', lead_data->'marketing_eligibility',
+               updated_at
           FROM owner_leads
          ORDER BY CASE WHEN COALESCE(NULLIF(btrim(lead_data->>'website'),''),'')=''
                        THEN 0 ELSE 1 END,
@@ -70,6 +97,31 @@ def fetch_rows(connection):
     except Exception:
         raise RuntimeError("Private CRM export read failed; details redacted") from None
     return [dict(zip(FIELDS, row)) for row in raw_rows]
+
+
+def fetch_duplicate_pairs(connection):
+    """Fetch private duplicate-review evidence without merging any records."""
+    query = """
+        SELECT d.lead_a,d.lead_b,d.review_state,d.evidence,
+               d.first_detected_at,d.last_observed_at,
+               a.lead_data->>'name',a.lead_data->>'category',
+               a.lead_data->>'address',a.lead_data->>'phone',
+               a.lead_data->>'website',
+               b.lead_data->>'name',b.lead_data->>'category',
+               b.lead_data->>'address',b.lead_data->>'phone',
+               b.lead_data->>'website'
+          FROM owner_duplicate_review_pairs d
+          LEFT JOIN owner_leads a ON a.osm_id=d.lead_a
+          LEFT JOIN owner_leads b ON b.osm_id=d.lead_b
+         ORDER BY d.review_state,d.lead_a,d.lead_b
+    """
+    try:
+        with connection.cursor() as cur:
+            cur.execute(query)
+            rows = cur.fetchall()
+    except Exception:
+        raise RuntimeError("Private duplicate evidence read failed; details redacted") from None
+    return rows
 
 
 def _date_text(value):
@@ -178,6 +230,15 @@ def _map_row(row):
     commercial = score_prospect({"qualification":row.get("qualification") or {}})
     score_range = (str(commercial["score"]) if commercial["score"] is not None
                    else f"{commercial['score_min']}–{commercial['score_max']}")
+    evidence = commercial.get("component_evidence") or {}
+    evidence_summary = "; ".join(
+        f"{name}: {detail.get('status')} ({detail.get('reason') or 'kanıtlı'})"
+        for name, detail in evidence.items()) or "Bileşen kanıtı bulunamadı"
+    evidence_references = "; ".join(
+        f"{name}: {detail.get('evidence_ref')} — {detail.get('rationale')}"
+        for name, detail in evidence.items() if detail.get("status") == "counted")
+    if not evidence_references:
+        evidence_references = "Kaynaklı puan kanıtı bulunamadı"
 
     return [
         row.get("business_name") or "İşletme adı kaydedilmemiş",
@@ -194,10 +255,12 @@ def _map_row(row):
         last_verified, row.get("phone") or "Kayıt yok",
         row.get("email_preflight") or "Kontrol edilmedi", source,
         score_range, commercial["coverage"], commercial["band"], eligibility_note,
+        commercial.get("summary") or commercial["band"],
+        evidence_summary + " | " + evidence_references,
     ]
 
 
-def build_workbook(rows, counts, report_day, send_enabled=False):
+def build_workbook(rows, counts, report_day, send_enabled=False, duplicate_pairs=(), province_coverage=()):
     """Build a compact XLSX in memory; never write CRM data into the checkout."""
     try:
         from openpyxl import Workbook
@@ -224,7 +287,8 @@ def build_workbook(rows, counts, report_day, send_enabled=False):
                 if send_enabled and not paused else 0)
     email_present = sum(bool(str(row.get("email") or "").strip()) for row in rows)
     metrics = [
-        ("CRM toplamı", counts.get("total", len(rows))),
+        ("CRM toplamı", len(rows)),
+        ("CRM toplamı tutarlılık kontrolü", "OK" if counts.get("total") == len(rows) else "HATA"),
         ("E-posta adresi bulunan", email_present),
         ("E-posta adresi eksik", max(0, len(rows) - email_present)),
         ("Bugün taranan", counts.get("inspected", "Ölçülmedi")),
@@ -288,7 +352,7 @@ def build_workbook(rows, counts, report_day, send_enabled=False):
     for col, width in enumerate(widths, start=1):
         sheet.column_dimensions[sheet.cell(1, col).column_letter].width = width
     sheet.freeze_panes = f"A{header_row + 1}"
-    sheet.auto_filter.ref = f"A{header_row}:Y{header_row + len(data_rows)}"
+    sheet.auto_filter.ref = f"A{header_row}:AA{header_row + len(data_rows)}"
     if data_rows:
         table = Table(displayName="CrmSnapshot", ref=sheet.auto_filter.ref)
         table.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2",
@@ -323,9 +387,18 @@ def build_workbook(rows, counts, report_day, send_enabled=False):
         return [_map_row(row) for row in rows if predicate(row)]
 
     sheet_specs = {
-        "Yüksek potansiyelli müşteriler": (
-            mapped_subset(lambda r: score_prospect({"qualification":r.get("qualification") or {}})["band"] == "high"),
-            "Yalnızca kanıtlı ve 80+ ticari puanı olanlar listelenir; bilinmeyen bileşenler 0 sayılmaz."),
+        "Ticari puanlama": (
+            mapped_subset(lambda r: True),
+            "Her kaydın puanı, kapsamı, kanıtlanan bileşenleri ve açıklaması; bilinmeyenler puanlanmaz."),
+        "Şehir kapsamı": (
+            [[p.get("code"), p.get("province"), p.get("initial_phase_target"), p.get("status"),
+              p.get("completed_items"), p.get("total_items"), p.get("coverage_percent"),
+              p.get("source_url"), p.get("source_sha256"), p.get("source_data_at"), p.get("updated_at")]
+             for p in province_coverage],
+            "81 il durumu Neon'daki kalıcı tarama makbuzlarından okunur. CRM kayıt sayısı kapsam kanıtı değildir."),
+        "Sektör dağılımı": (
+            [[sector, sum(str(r.get("sector") or "").casefold() == sector.casefold() for r in rows)] for sector in sorted({str(r.get("sector") or "Bilinmiyor") for r in rows})],
+            "Sektör, CRM kayıtlarındaki sınıflandırmadır; tarama kapsamı anlamına gelmez."),
         "Web sitesi olmayanlar": (
             mapped_subset(lambda r: match_service({"qualification":r.get("qualification") or {}})["category"] == 1),
             "Yalnızca web sitesi yokluğu güncel kaynakla doğrulanan işletmeler."),
@@ -335,28 +408,26 @@ def build_workbook(rows, counts, report_day, send_enabled=False):
         "AI otomasyonu adayları": (
             mapped_subset(lambda r: match_service({"qualification":r.get("qualification") or {}})["category"] == 3),
             "Web ve WhatsApp varlığı ile otomasyon ihtiyacı ayrı ayrı doğrulanmalıdır."),
-        "Başarılı gönderimler": (
-            mapped_subset(lambda r: r.get("auto_mail_state") == "accepted" and r.get("delivery_state") == "delivered"),
-            "Yalnızca gerçek teslimat kanıtı olanlar; SMTP kabulü teslim sayılmaz."),
         "Başarısız gönderimler": (
             mapped_subset(lambda r: r.get("delivery_state") == "failed"),
             "Hata nedeni kayıtlardan aktarılır; kalıcı hatalar yeniden denenmez."),
-        "Gelen yanıtlar": (
-            mapped_subset(lambda r: r.get("reply_state") == "sender_matched_reply"),
-            "Yalnız gönderen eşleşmesi doğrulanan yanıtlar."),
-        "Görüşmeler": (
-            mapped_subset(lambda r: r.get("reply_state") == "conversation"),
-            "Görüşmeler için CRM'de ayrı doğrulanmış durum alanı bulunmalıdır."),
         "Gönderime uygun olmayanlar": (
             mapped_subset(lambda r: not _map_row(r)[24].startswith("Uygun —")),
             "Bu sekmede nedenler kayıt başına gösterilir; hukuki ve teknik nedenler ayrı kontrollerdir."),
     }
+    sheet_specs["Mükerrer adayları"] = (
+        [[*pair] for pair in duplicate_pairs],
+        "Yalnız inceleme adayı; otomatik birleştirme yapılmaz.")
     for name, (subset, note) in sheet_specs.items():
         tab = book.create_sheet(name)
         tab.sheet_view.showGridLines = False
         tab["A1"] = note
         tab["A1"].font = Font(name="Aptos", size=10, italic=True, color="6B4F00")
-        for col, header in enumerate(HEADERS, start=1):
+        headers = HEADERS if name not in ("Şehir kapsamı", "Sektör dağılımı", "Mükerrer adayları") else (
+            ("İl kodu", "İl", "Başlangıç hedefi", "Durum", "Tamamlanan", "Toplam", "Kapsam %", "Kaynak URL", "Kaynak SHA-256", "Kaynak verisi zamanı", "Güncelleme zamanı") if name == "Şehir kapsamı" else
+            ("Sektör", "CRM kayıt sayısı") if name == "Sektör dağılımı" else
+            ("Lead A", "Lead B", "İnceleme durumu", "Kanıt", "İlk görüldü", "Son görüldü", "A kaydı", "B kaydı"))
+        for col, header in enumerate(headers, start=1):
             cell = tab.cell(3, col, header)
             cell.fill = PatternFill("solid", fgColor="16324F")
             cell.font = Font(name="Aptos", size=10, bold=True, color="FFFFFF")
@@ -367,7 +438,8 @@ def build_workbook(rows, counts, report_day, send_enabled=False):
                 tab.cell(row_index, col, value)
                 tab.cell(row_index, col).alignment = Alignment(vertical="top", wrap_text=True)
         if subset:
-            tab.auto_filter.ref = f"A3:Y{3 + len(subset)}"
+            final_col = {"Şehir kapsamı":"K", "Sektör dağılımı":"B", "Mükerrer adayları":"H"}.get(name, "AA")
+            tab.auto_filter.ref = f"A3:{final_col}{3 + len(subset)}"
         tab.freeze_panes = "A4"
 
     stats = book.create_sheet("Günlük istatistikler")
@@ -376,6 +448,10 @@ def build_workbook(rows, counts, report_day, send_enabled=False):
     for label, value in metrics:
         stats.append([label, value])
     stats.append(["Rapor tarihi", report_day])
+    for key, label in (("generated_at", "Üretim zamanı UTC"), ("source_snapshot_at", "Kaynak anlık görüntü UTC"),
+                       ("crm_snapshot_sha256", "CRM anlık görüntü SHA-256"), ("github_run_id", "GitHub Actions run ID"),
+                       ("github_run_attempt", "GitHub Actions deneme")):
+        stats.append([label, counts.get(key, "Bilinmiyor")])
     stats.append(["Doğal Actions koşum ID", counts.get("github_run_id", "Bu job'dan okunamıyor")])
     stats.append(["Telegram XLSX message ID", counts.get("telegram_document_message_id", "Bu rapor gönderiminden sonra kaydedilir")])
     stats.column_dimensions["A"].width = 38
@@ -386,6 +462,12 @@ def build_workbook(rows, counts, report_day, send_enabled=False):
         cell.fill = PatternFill("solid", fgColor="16324F")
         cell.font = Font(name="Aptos", size=10, bold=True, color="FFFFFF")
     output = BytesIO()
+    # Force every string to an XLSX string cell, including attacker-controlled CRM text.
+    for tab in book.worksheets:
+        for cells in tab.iter_rows():
+            for cell in cells:
+                if isinstance(cell.value, str):
+                    cell.data_type = "s"
     book.save(output)
     return output.getvalue()
 
