@@ -96,7 +96,7 @@ def read(connection):
         raise RuntimeError("Private province coverage read failed") from None
 
 
-def _mutate(connection, province_code, transition, **kwargs):
+def _mutate(connection, province_code, transition, *args, **kwargs):
     """Serialize one transition and commit only validated, idempotent state."""
     try:
         with connection.transaction():
@@ -108,7 +108,7 @@ def _mutate(connection, province_code, transition, **kwargs):
                     f"SELECT province_code,province_name,initial_phase_target,status,province_state "
                     f"FROM {TABLE} ORDER BY province_code FOR UPDATE")
                 before = _from_rows(cur.fetchall())
-                after = transition(before, province_code, **kwargs)
+                after = transition(before, province_code, *args, **kwargs)
                 model.coverage_table(after)
                 old_by_code = {p["code"]: p for p in before["provinces"]}
                 for state in after["provinces"]:
