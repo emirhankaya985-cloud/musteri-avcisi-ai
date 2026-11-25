@@ -270,6 +270,7 @@ def coverage_table(registry):
             "total_items": total,
             "coverage_percent": round(completed * 100 / total) if total else None,
             "source_url": plan.get("source_url"),
+            "source_sha256": plan.get("source_sha256"),
             "source_data_at": max(
                 (r["source_data_at"] for r in entry.get("completed_items", {}).values()),
                 default=None),

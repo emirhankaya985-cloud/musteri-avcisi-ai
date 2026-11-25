@@ -18,12 +18,18 @@ class CrmExportTests(unittest.TestCase):
         failed = {**row, "osm_id":"node/124", "business_name":"Another Cafe",
                   "auto_mail_state":"accepted", "delivery_state":"failed",
                   "delivery_error":"mailbox_missing"}
+        province_rows = [{"code": f"{i:02d}", "province": f"İl {i}",
+                          "initial_phase_target": i < 10, "status": "pending",
+                          "completed_items": 0, "total_items": 0,
+                          "coverage_percent": 0, "source_url": None,
+                          "source_sha256": None, "source_data_at": None,
+                          "updated_at": "2026-11-24T00:00:00Z"} for i in range(81)]
         binary = build_workbook([row, failed], {
-            "total": 1, "new": 1, "accepted": 0, "failed": 0,
+            "total": 2, "new": 1, "accepted": 0, "failed": 0,
             "replies": 0, "eligible": 0, "accepted_today": 0,
-        }, "2026-11-24", send_enabled=True)
+        }, "2026-11-24", send_enabled=True, province_coverage=province_rows)
         self.assertTrue(binary.startswith(b"PK\x03\x04"))
-        workbook = load_workbook(io.BytesIO(binary), data_only=True)
+        workbook = load_workbook(io.BytesIO(binary), data_only=False)
         sheet = workbook["Tüm işletmeler"]
         self.assertEqual(sheet["A9"].value, "Örnek Kafe")
         self.assertEqual(sheet["D9"].value, "biz@example.invalid")
@@ -35,12 +41,34 @@ class CrmExportTests(unittest.TestCase):
         self.assertEqual(sheet["Q9"].value, "https://www.openstreetmap.org/node/123")
         self.assertIn("İYS/onay", workbook["Gönderime uygun olmayanlar"]["Y4"].value)
         self.assertEqual(workbook["Başarısız gönderimler"]["A4"].value, "Another Cafe")
-        self.assertEqual(workbook["Başarılı gönderimler"].max_row, 3)
+        self.assertEqual(workbook["Başarısız gönderimler"]["A4"].value, "Another Cafe")
         self.assertIn("gelen kutusu teslimi değildir", sheet["A5"].value)
         self.assertEqual(len(workbook.sheetnames), 12)
+        self.assertEqual(workbook["Şehir kapsamı"].max_row, 84)
+        self.assertEqual(workbook["Şehir kapsamı"]["D4"].value, "pending")
         self.assertIn("WhatsApp otomasyonu adayları", workbook.sheetnames)
         self.assertIn("Gönderime uygun olmayanlar", workbook.sheetnames)
+        self.assertIn("Şehir kapsamı", workbook.sheetnames)
+        self.assertIn("Sektör dağılımı", workbook.sheetnames)
+        self.assertIn("Ticari puanlama", workbook.sheetnames)
+        self.assertIn("Mükerrer adayları", workbook.sheetnames)
         self.assertIn("yokluk sayılmaz", workbook["WhatsApp otomasyonu adayları"]["A1"].value)
+
+    def test_external_formula_like_strings_reload_as_literal_text(self):
+        malicious = [" =1+1", "\t+cmd|' /C calc'!A0", "\n@SUM(1,1)", "-1"]
+        rows = [{"osm_id": f"node/{i}", "business_name": value, "sector": "Cafe",
+                 "city": "İstanbul", "email": value, "website": value,
+                 "delivery_error": value, "qualification": {}}
+                for i, value in enumerate(malicious, 10)]
+        workbook = load_workbook(io.BytesIO(build_workbook(
+            rows, {"total": len(rows)}, "2026-11-24")), data_only=False)
+        sheet = workbook["Tüm işletmeler"]
+        for index, value in enumerate(malicious, 9):
+            for col in (1, 4, 15):
+                cell = sheet.cell(index, col)
+                self.assertEqual(cell.value, value)
+                self.assertEqual(cell.data_type, "s")
+        self.assertEqual(len(workbook.sheetnames), 12)
 
     def test_document_upload_requires_positive_private_chat_and_matching_receipt(self):
         reply = {"ok": True, "result": {"message_id": 77, "chat": {"id": 456}}}

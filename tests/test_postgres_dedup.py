@@ -100,7 +100,18 @@ class PostgresDedupTests(unittest.TestCase):
         self.db.execute("CREATE TABLE owner_daily_report_receipts ("
                         "report_day text PRIMARY KEY,state text NOT NULL,"
                         "telegram_message_id bigint,telegram_document_message_id bigint,"
+                        "github_run_id text,github_run_attempt int,crm_row_count int,"
+                        "source_snapshot_at timestamptz,crm_snapshot_sha256 text,"
+                        "workbook_sha256 text,generated_at timestamptz,document_sent_at timestamptz,"
+                        "failure_stage text,"
                         "updated_at timestamptz DEFAULT now())")
+        self.db.execute("CREATE TABLE owner_duplicate_review_pairs ("
+                        "lead_a text,lead_b text,review_state text,evidence jsonb,"
+                        "first_detected_at timestamptz DEFAULT now(),last_observed_at timestamptz DEFAULT now())")
+        self.db.execute("CREATE TABLE owner_province_scan_coverage ("
+                        "province_code text PRIMARY KEY,province_name text NOT NULL,"
+                        "initial_phase_target boolean NOT NULL,status text NOT NULL,"
+                        "province_state jsonb NOT NULL,created_at timestamptz DEFAULT now(),updated_at timestamptz)")
         self.db.execute("CREATE TABLE owner_scan_run_metrics ("
                         "scan_run_id text PRIMARY KEY,report_day date NOT NULL,"
                         "scanned_count int NOT NULL,new_registered int NOT NULL,"
@@ -127,7 +138,7 @@ class PostgresDedupTests(unittest.TestCase):
             documents.append(filename)
             return 502
         env={"TELEGRAM_BOT_TOKEN":"fake","TELEGRAM_CHAT_ID":"123",
-             "AUTO_MAIL_ENABLED":"true"}
+             "AUTO_MAIL_ENABLED":"true", "GITHUB_RUN_ID":"98765", "GITHUB_RUN_ATTEMPT":"2"}
         self.assertEqual(run(env,self.db,fake_bot,"2026-11-01",fake_document),501)
         self.assertEqual(run(env,self.db,fake_bot,"2026-11-01",fake_document),0)
         self.assertEqual(len(messages),1)
@@ -136,10 +147,25 @@ class PostgresDedupTests(unittest.TestCase):
         self.assertNotIn("synthetic@example.invalid",messages[0])
         self.assertEqual(self.db.execute(
             "SELECT count(*) FROM owner_leads").fetchone()[0],1)
-        self.assertEqual(self.db.execute(
-            "SELECT state,telegram_message_id,telegram_document_message_id "
-            "FROM owner_daily_report_receipts").fetchone(),
-            ("confirmed",501,502))
+        receipt = self.db.execute(
+            "SELECT state,telegram_message_id,telegram_document_message_id,github_run_id,"
+            "github_run_attempt,crm_row_count,crm_snapshot_sha256,workbook_sha256,generated_at,document_sent_at "
+            "FROM owner_daily_report_receipts").fetchone()
+        self.assertEqual(receipt[:6], ("confirmed",501,502,"98765",2,1))
+        self.assertRegex(receipt[6], r"^[a-f0-9]{64}$")
+        self.assertRegex(receipt[7], r"^[a-f0-9]{64}$")
+        self.assertIsNotNone(receipt[8])
+        self.assertIsNotNone(receipt[9])
+
+        with self.assertRaisesRegex(RuntimeError, "uncertain"):
+            run(env, self.db, lambda *args: (_ for _ in ()).throw(OSError("synthetic")),
+                "2026-11-02", fake_document)
+        uncertain = self.db.execute(
+            "SELECT state,telegram_document_message_id,telegram_message_id,failure_stage "
+            "FROM owner_daily_report_receipts WHERE report_day='2026-11-02'").fetchone()
+        self.assertEqual(uncertain, ("uncertain",502,None,"summary_send"))
+        self.assertEqual(run(env, self.db, fake_bot, "2026-11-02", fake_document), 0)
+        self.assertEqual(len(documents), 2)
 
     def test_dns_nxdomain_and_relay_domain_quarantines_are_durable(self):
         for i,reason in enumerate(("dns_nxdomain","relay_denied")):

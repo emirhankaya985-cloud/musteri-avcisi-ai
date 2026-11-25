@@ -31,6 +31,11 @@ class ProvinceCoverageTests(unittest.TestCase):
                          {"pending"})
         self.assertEqual(next(r for r in rows if r["code"] == "34")["province"], "İstanbul")
 
+    def test_coverage_table_exposes_persisted_source_digest(self):
+        self.registry = self.plan("34")
+        row = next(r for r in coverage_table(self.registry) if r["code"] == "34")
+        self.assertEqual(row["source_sha256"], HASH)
+
     def test_no_boundary_manifest_means_no_attempt(self):
         with self.assertRaisesRegex(ValueError, "manifest is not configured"):
             begin_attempt(self.registry, "06", attempt_id="run-1", started_at=NOW)
