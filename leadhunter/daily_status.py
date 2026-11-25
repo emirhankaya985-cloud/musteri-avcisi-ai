@@ -112,7 +112,10 @@ def compose(day, counts, enabled):
                 if measured else "henüz tarama koşum kaydı yok")
     return (
         f"📊 Müşteri Avcısı AI — {day} TRT günlük rapor\n"
+        f"📦 CRM toplamı: {amount(counts.get('total'))} | e-posta eksik: {amount(counts.get('email_missing'))}\n"
         f"🔎 İncelenen işletme: {amount(inspected)} (tekrarları içerir; {coverage})\n"
+        f"🗺️ İl kapsam defteri: {amount(counts.get('provinces_completed'))}/"
+        f"{amount(counts.get('provinces_total'))} il tamamlandı ({amount(counts.get('province_coverage_percent'))}%)\n"
         f"🆕 CRM'e yeni benzersiz aday: {counts['new']}\n"
         f"📧 Yeni kaydedilen teknik adres: {amount(addresses)}\n"
         f"🔎 Yeni adreslerden format+DNS MX kontrolünü geçen: {amount(checked)}"
@@ -125,6 +128,8 @@ def compose(day, counts, enabled):
         f"| Güncel başarısız gönderi: {counts['failed']} | Geciken: {counts['delayed']}\n"
         f"📨 Bugün eşleşen yeni müşteri yanıtı: {amount(counts.get('today_replies'))} "
         f"| Toplam eşleşmiş yanıt: {counts['replies']}\n"
+        f"🧩 Kanıtlı hizmet eşleşmeleri: {amount(counts.get('service_matches'))}\n"
+        "📝 Teklif, görüşme ve satış: CRM'de izleme alanı yok\n"
         f"🔐 Otomatik gönderim: {'KOŞULLU' if live else 'KAPALI'} — {reason}\n"
         "ℹ️ SMTP kabulü, alıcının gelen kutusuna teslim kanıtı değildir."
     )
@@ -166,6 +171,19 @@ def run(env=None, connection=None, messenger=api, day=None, document_sender=None
                 province_row["source_sha256"] = plan.get("source_sha256")
             if counts["total"] != len(crm_rows):
                 raise RuntimeError("Daily report snapshot row-count mismatch; report not sent")
+            from .commercial_scoring import match_service
+            email_present = sum(bool(str(row.get("email") or "").strip()) for row in crm_rows)
+            provinces_completed = sum(row.get("status") == "completed" for row in province_coverage)
+            counts.update(
+                total=len(crm_rows), email_missing=len(crm_rows) - email_present,
+                provinces_completed=provinces_completed,
+                provinces_total=len(province_coverage),
+                province_coverage_percent=(
+                    round(100 * provinces_completed / len(province_coverage), 1)
+                    if province_coverage else 0),
+                service_matches=sum(
+                    match_service({"qualification": row.get("qualification") or {}})["category"] is not None
+                    for row in crm_rows))
         run_id = env.get("GITHUB_RUN_ID") or ""
         run_attempt = env.get("GITHUB_RUN_ATTEMPT") or ""
         snapshot_hash = snapshot_digest(crm_rows)
