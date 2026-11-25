@@ -90,3 +90,7 @@ jobs:
         env:
           TEST_POSTGRES_DSN: postgresql://synthetic:synthetic@localhost:5432/synthetic
         run: python -m unittest discover -s tests -p test_postgres_dedup.py -v
+      - name: Province coverage migration and atomic resume (synthetic database only)
+        env:
+          TEST_POSTGRES_DSN: postgresql://synthetic:synthetic@localhost:5432/synthetic
+        run: python -m unittest discover -s tests -p test_postgres_province_coverage.py -v
