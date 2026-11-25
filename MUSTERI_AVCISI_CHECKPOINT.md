@@ -7,7 +7,7 @@ Güncelleme: 2026-11-25 (Europe/Istanbul)
 - Kaynak `main`: `6e6b92c38f030a20ef19ed83977cdd16976feff2` (başlangıç doğrulaması).
 - Entegrasyon dalı: `codex/task-v6-integration`; kurtarılan uzman dalları silinmedi.
 - Entegrasyon commitleri: `ac1db9d` il defteri modeli; `eb9b4f4` kanıta dayalı puanlama; `76d4b99` sektör sözlüğü; `aa5c6dc` Neon il kapsam migrasyonu; `316b9f8` kapsam başlatma/okuma; `c0a6e8e` kapalı Gmail API taşıyıcısı; `2e05397` mükerrer güven skoru ve audit migrasyonu; `7beb09a` audit değişmezliği testleri; `73bd8d9` workbook snapshot/provenance; `f83ebc6` checkpoint/test fixture; `60b10d0` XLSX mükerrer serialization ve migration CI düzeltmeleri.
-- Açık taslak PR: [#98](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/pull/98), hedef `main`, baş tab `60b10d0`. İlk iki Actions koşumu (`45618038089`, `45618757721`) PostgreSQL test başarısızlıklarını yakaladı; düzeltmeler sonrası yeni koşum bekleniyor.
+- Açık taslak PR: [#98](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/pull/98), hedef `main`, yerel baş `489a97b` (remote'daki `a67c53e` sentetik fixture schema düzeltmesi korunarak). Actions koşumları `45618038089`/`45618757721` iki PostgreSQL uyumsuzluğunu yakaladı; güncel baş gönderilip yeni koşum bekleniyor.
 - Kaynak ajan dalları/worktree'leri `work/agents/` içinde korunuyor; hiçbir worktree silinmedi. QA ajanı kullanım sınırına takıldı, bağımsız son QA tamamlanmadı.
 - `MUSTERI_AVCISI_CHECKPOINT.md` dahil bu dalın değişiklikleri henüz PR'a alınmadı veya `main`e birleştirilmedi.
 
