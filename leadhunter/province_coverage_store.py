@@ -72,6 +72,16 @@ def initialize(connection):
     return len(rows)
 
 
+def initialize_and_read(connection):
+    """Ensure all 81 rows exist, then return the validated registry.
+
+    Apply migration 016 once via deployment, then call this before building a
+    workbook. Existing state is preserved; this helper performs no scans and
+    writes no lead or CRM data.
+    """
+    initialize(connection)
+    return read(connection)
+
 def read(connection):
     """Read the complete 81-row state table; missing rows are never inferred."""
     try:

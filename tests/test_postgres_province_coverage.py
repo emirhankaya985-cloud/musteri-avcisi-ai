@@ -20,8 +20,9 @@ class ProvinceCoveragePostgresTests(unittest.TestCase):
         sql = migration.read_text(encoding="utf-8")
         self.db.execute(sql)
         self.db.execute(sql)  # idempotent application
-        from leadhunter.province_coverage_store import initialize, read
+        from leadhunter.province_coverage_store import initialize, initialize_and_read, read
         self.initialize = initialize
+        self.initialize_and_read = initialize_and_read
         self.read = read
         self.addCleanup(self.cleanup)
 
@@ -30,8 +31,8 @@ class ProvinceCoveragePostgresTests(unittest.TestCase):
         self.db.close()
 
     def test_initialization_is_idempotent_and_preserves_existing_rows(self):
-        self.assertEqual(self.initialize(self.db), 81)
-        first = self.read(self.db)
+        first = self.initialize_and_read(self.db)
+        self.assertEqual(len(first["provinces"]), 81)
         self.assertEqual({row["status"] for row in first["provinces"]}, {"pending"})
         self.assertEqual(sum(row["initial_phase_target"] for row in first["provinces"]), 10)
         from leadhunter.province_coverage_store import configure_plan
