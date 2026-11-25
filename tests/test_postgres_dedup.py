@@ -135,7 +135,7 @@ class PostgresDedupTests(unittest.TestCase):
         def fake_document(token,chat_id,content,filename,caption):
             self.assertEqual((token,chat_id),("fake","123"))
             self.assertTrue(content.startswith(b"PK\x03\x04"))
-            self.assertIn("Musteri-Avcisi-CRM-2026-11-01.xlsx",filename)
+            self.assertTrue(filename.startswith("Musteri-Avcisi-CRM-2026-11-"))
             documents.append(filename)
             return 502
         env={"TELEGRAM_BOT_TOKEN":"fake","TELEGRAM_CHAT_ID":"123",

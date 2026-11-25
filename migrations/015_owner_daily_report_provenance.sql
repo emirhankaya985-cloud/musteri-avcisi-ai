@@ -11,19 +11,23 @@ ALTER TABLE public.owner_daily_report_receipts
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='owner_daily_report_run_attempt_nonnegative') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='owner_daily_report_run_attempt_nonnegative'
+                   AND conrelid='public.owner_daily_report_receipts'::regclass) THEN
         ALTER TABLE public.owner_daily_report_receipts ADD CONSTRAINT owner_daily_report_run_attempt_nonnegative
             CHECK (github_run_attempt IS NULL OR github_run_attempt > 0) NOT VALID;
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='owner_daily_report_crm_count_nonnegative') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='owner_daily_report_crm_count_nonnegative'
+                   AND conrelid='public.owner_daily_report_receipts'::regclass) THEN
         ALTER TABLE public.owner_daily_report_receipts ADD CONSTRAINT owner_daily_report_crm_count_nonnegative
             CHECK (crm_row_count IS NULL OR crm_row_count >= 0) NOT VALID;
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='owner_daily_report_snapshot_sha256_format') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='owner_daily_report_snapshot_sha256_format'
+                   AND conrelid='public.owner_daily_report_receipts'::regclass) THEN
         ALTER TABLE public.owner_daily_report_receipts ADD CONSTRAINT owner_daily_report_snapshot_sha256_format
             CHECK (crm_snapshot_sha256 IS NULL OR crm_snapshot_sha256 ~ '^[a-f0-9]{64}$') NOT VALID;
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='owner_daily_report_workbook_sha256_format') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='owner_daily_report_workbook_sha256_format'
+                   AND conrelid='public.owner_daily_report_receipts'::regclass) THEN
         ALTER TABLE public.owner_daily_report_receipts ADD CONSTRAINT owner_daily_report_workbook_sha256_format
             CHECK (workbook_sha256 IS NULL OR workbook_sha256 ~ '^[a-f0-9]{64}$') NOT VALID;
     END IF;

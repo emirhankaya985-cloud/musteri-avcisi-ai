@@ -70,6 +70,62 @@ class CrmExportTests(unittest.TestCase):
                 self.assertEqual(cell.data_type, "s")
         self.assertEqual(len(workbook.sheetnames), 12)
 
+    def test_duplicate_rows_serialize_arrays_and_timestamps_as_safe_xlsx_cells(self):
+        from datetime import datetime, timezone
+        pair = ("node/1", "node/2", "needs_review", 72,
+                "same_name, same_first_party_domain",
+                datetime(2026, 11, 24, tzinfo=timezone.utc).isoformat(),
+                datetime(2026, 11, 25, tzinfo=timezone.utc).isoformat(),
+                '{"name":"=Injected","category":"Cafe"}',
+                '{"name":"Branch","category":"Cafe"}')
+        workbook = load_workbook(io.BytesIO(build_workbook(
+            [], {"total": 0}, "2026-11-25", duplicate_pairs=[pair])), data_only=False)
+        sheet = workbook["Mükerrer adayları"]
+        self.assertEqual(sheet.max_column, 9)
+        self.assertEqual(sheet["D4"].value, 72)
+        self.assertEqual(sheet["E4"].value, "same_name, same_first_party_domain")
+        self.assertEqual(sheet["F4"].value, "2026-11-24T00:00:00+00:00")
+        self.assertEqual(sheet["H4"].data_type, "s")
+        self.assertEqual(len(workbook.sheetnames), 12)
+
+    def test_duplicate_query_normalizes_postgres_arrays_datetimes_and_records(self):
+        from datetime import datetime, timezone
+        from leadhunter.crm_export import fetch_duplicate_pairs
+
+        class Cursor:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def execute(self, query):
+                self.query = query
+            def fetchall(self):
+                return [("node/1", "node/2", "needs_review", 72,
+                         ["same_name", "same_first_party_domain"],
+                         datetime(2026, 11, 24, tzinfo=timezone.utc),
+                         datetime(2026, 11, 25, tzinfo=timezone.utc),
+                         "=Cafe", "Cafe", "Address", None, "https://a.example",
+                         "Cafe Branch", "Cafe", "Address 2", "555", "https://b.example")]
+
+        class Connection:
+            def cursor(self):
+                return Cursor()
+
+        pair, = fetch_duplicate_pairs(Connection())
+        self.assertEqual(pair[3:7], (72, "same_name, same_first_party_domain",
+                                     "2026-11-24T00:00:00+00:00",
+                                     "2026-11-25T00:00:00+00:00"))
+        self.assertIn('"name":"=Cafe"', pair[7])
+
+    def test_illegal_xml_controls_are_removed_before_xlsx_write(self):
+        row = {"osm_id": "node/88", "business_name": "Cafe\x01Name", "sector": "Cafe",
+               "email": "safe\x0b@example.invalid", "qualification": {}}
+        workbook = load_workbook(io.BytesIO(build_workbook(
+            [row], {"total": 1}, "2026-11-25")), data_only=False)
+        sheet = workbook["Tüm işletmeler"]
+        self.assertEqual(sheet["A9"].value, "CafeName")
+        self.assertEqual(sheet["D9"].value, "safe@example.invalid")
+
     def test_document_upload_requires_positive_private_chat_and_matching_receipt(self):
         reply = {"ok": True, "result": {"message_id": 77, "chat": {"id": 456}}}
         requests = []

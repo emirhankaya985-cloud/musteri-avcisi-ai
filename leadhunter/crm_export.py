@@ -20,6 +20,12 @@ FIELDS = (
     "last_verified_at", "qualification", "marketing_eligibility",
     "updated_at",
 )
+_XLSX_ILLEGAL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def _xlsx_value(value):
+    """Strip XML-disallowed controls before openpyxl sees external text."""
+    return _XLSX_ILLEGAL_CHARS.sub("", value) if isinstance(value, str) else value
 HEADERS = (
     "İşletme adı", "Şehir", "Sektör", "E-posta", "Web sitesi",
     "WhatsApp durumu", "Müşteri kategorisi", "Mevcut araştırma segmenti",
@@ -102,7 +108,7 @@ def fetch_rows(connection):
 def fetch_duplicate_pairs(connection):
     """Fetch private duplicate-review evidence without merging any records."""
     query = """
-        SELECT d.lead_a,d.lead_b,d.review_state,d.evidence,
+        SELECT d.lead_a,d.lead_b,d.review_state,d.confidence_score,d.evidence,
                d.first_detected_at,d.last_observed_at,
                a.lead_data->>'name',a.lead_data->>'category',
                a.lead_data->>'address',a.lead_data->>'phone',
@@ -121,7 +127,28 @@ def fetch_duplicate_pairs(connection):
             rows = cur.fetchall()
     except Exception:
         raise RuntimeError("Private duplicate evidence read failed; details redacted") from None
-    return rows
+    def record_summary(name, category, address, phone, website):
+        return json.dumps({"name": name or "Bilinmiyor",
+                           "category": category or "Bilinmiyor",
+                           "address": address or "Bilinmiyor",
+                           "phone": phone or "Bilinmiyor",
+                           "website": website or "Bilinmiyor"},
+                          ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+    normalized = []
+    for row in rows:
+        (lead_a, lead_b, review_state, confidence, evidence, first_seen, last_seen,
+         a_name, a_category, a_address, a_phone, a_website,
+         b_name, b_category, b_address, b_phone, b_website) = row
+        normalized.append((
+            str(lead_a), str(lead_b), str(review_state), confidence,
+            ", ".join(str(item) for item in (evidence or ())),
+            first_seen.isoformat() if hasattr(first_seen, "isoformat") else str(first_seen or "Bilinmiyor"),
+            last_seen.isoformat() if hasattr(last_seen, "isoformat") else str(last_seen or "Bilinmiyor"),
+            record_summary(a_name, a_category, a_address, a_phone, a_website),
+            record_summary(b_name, b_category, b_address, b_phone, b_website),
+        ))
+    return normalized
 
 
 def _date_text(value):
@@ -334,7 +361,7 @@ def build_workbook(rows, counts, report_day, send_enabled=False, duplicate_pairs
         data_rows.append(_map_row(row))
     for r_index, values in enumerate(data_rows, start=header_row + 1):
         for c_index, value in enumerate(values, start=1):
-            cell = sheet.cell(r_index, c_index, value)
+            cell = sheet.cell(r_index, c_index, _xlsx_value(value))
             cell.font = Font(name="Aptos", size=10, color="202A33")
             cell.alignment = Alignment(vertical="center", wrap_text=True)
             if r_index % 2:
@@ -426,7 +453,7 @@ def build_workbook(rows, counts, report_day, send_enabled=False, duplicate_pairs
         headers = HEADERS if name not in ("Şehir kapsamı", "Sektör dağılımı", "Mükerrer adayları") else (
             ("İl kodu", "İl", "Başlangıç hedefi", "Durum", "Tamamlanan", "Toplam", "Kapsam %", "Kaynak URL", "Kaynak SHA-256", "Kaynak verisi zamanı", "Güncelleme zamanı") if name == "Şehir kapsamı" else
             ("Sektör", "CRM kayıt sayısı") if name == "Sektör dağılımı" else
-            ("Lead A", "Lead B", "İnceleme durumu", "Kanıt", "İlk görüldü", "Son görüldü", "A kaydı", "B kaydı"))
+            ("Lead A", "Lead B", "İnceleme durumu", "Güven skoru", "Kanıt", "İlk görüldü", "Son görüldü", "A kaydı", "B kaydı"))
         for col, header in enumerate(headers, start=1):
             cell = tab.cell(3, col, header)
             cell.fill = PatternFill("solid", fgColor="16324F")
@@ -435,10 +462,10 @@ def build_workbook(rows, counts, report_day, send_enabled=False, duplicate_pairs
         tab.row_dimensions[3].height = 38
         for row_index, values in enumerate(subset, start=4):
             for col, value in enumerate(values, start=1):
-                tab.cell(row_index, col, value)
+                tab.cell(row_index, col, _xlsx_value(value))
                 tab.cell(row_index, col).alignment = Alignment(vertical="top", wrap_text=True)
         if subset:
-            final_col = {"Şehir kapsamı":"K", "Sektör dağılımı":"B", "Mükerrer adayları":"H"}.get(name, "AA")
+            final_col = {"Şehir kapsamı":"K", "Sektör dağılımı":"B", "Mükerrer adayları":"I"}.get(name, "AA")
             tab.auto_filter.ref = f"A3:{final_col}{3 + len(subset)}"
         tab.freeze_panes = "A4"
 
