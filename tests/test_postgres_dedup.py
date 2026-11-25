@@ -107,7 +107,7 @@ class PostgresDedupTests(unittest.TestCase):
                         "failure_stage text,"
                         "updated_at timestamptz DEFAULT now())")
         self.db.execute("CREATE TABLE owner_duplicate_review_pairs ("
-                        "lead_a text,lead_b text,review_state text,evidence jsonb,"
+                        "lead_a text,lead_b text,review_state text,confidence_score smallint,evidence jsonb,"
                         "first_detected_at timestamptz DEFAULT now(),last_observed_at timestamptz DEFAULT now())")
         self.db.execute("CREATE TABLE owner_province_scan_coverage ("
                         "province_code text PRIMARY KEY,province_name text NOT NULL,"
