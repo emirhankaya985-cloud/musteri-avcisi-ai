@@ -5,6 +5,7 @@ accepted a document/message but the database confirmation subsequently failed.
 No customer SMTP; contact data stays in the private workbook sent to owner DM.
 """
 import json
+import hashlib
 import os
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -111,7 +112,10 @@ def compose(day, counts, enabled):
                 if measured else "henüz tarama koşum kaydı yok")
     return (
         f"📊 Müşteri Avcısı AI — {day} TRT günlük rapor\n"
+        f"📦 CRM toplamı: {amount(counts.get('total'))} | e-posta eksik: {amount(counts.get('email_missing'))}\n"
         f"🔎 İncelenen işletme: {amount(inspected)} (tekrarları içerir; {coverage})\n"
+        f"🗺️ İl kapsam defteri: {amount(counts.get('provinces_completed'))}/"
+        f"{amount(counts.get('provinces_total'))} il tamamlandı ({amount(counts.get('province_coverage_percent'))}%)\n"
         f"🆕 CRM'e yeni benzersiz aday: {counts['new']}\n"
         f"📧 Yeni kaydedilen teknik adres: {amount(addresses)}\n"
         f"🔎 Yeni adreslerden format+DNS MX kontrolünü geçen: {amount(checked)}"
@@ -124,6 +128,8 @@ def compose(day, counts, enabled):
         f"| Güncel başarısız gönderi: {counts['failed']} | Geciken: {counts['delayed']}\n"
         f"📨 Bugün eşleşen yeni müşteri yanıtı: {amount(counts.get('today_replies'))} "
         f"| Toplam eşleşmiş yanıt: {counts['replies']}\n"
+        f"🧩 Kanıtlı hizmet eşleşmeleri: {amount(counts.get('service_matches'))}\n"
+        "📝 Teklif, görüşme ve satış: CRM'de izleme alanı yok\n"
         f"🔐 Otomatik gönderim: {'KOŞULLU' if live else 'KAPALI'} — {reason}\n"
         "ℹ️ SMTP kabulü, alıcının gelen kutusuna teslim kanıtı değildir."
     )
@@ -140,18 +146,68 @@ def run(env=None, connection=None, messenger=api, day=None, document_sender=None
     conn = connection if connection is not None else connect_private_database(
         env.get('REVIEW_DATABASE_URL'))
     try:
-        counts = aggregate(conn, today)
-        from .crm_export import build_workbook, fetch_rows, send_document
-        crm_rows = fetch_rows(conn)
+        from .crm_export import (build_workbook, fetch_rows, fetch_duplicate_pairs,
+                                 send_document, snapshot_digest)
+        # Migration 016 backs this idempotent seed/read. The report renders only
+        # durable registry receipts; absent/unapplied persistence fails closed.
+        from .province_coverage_store import initialize as initialize_province_coverage
+        from .province_coverage_store import read as read_province_coverage
+        from .province_coverage import coverage_table
+        initialize_province_coverage(conn)
+        generated_at = datetime.now(timezone.utc)
+        with conn.transaction():
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+                cur.execute("SELECT transaction_timestamp()")
+                source_snapshot_at = cur.fetchone()[0]
+            counts = aggregate(conn, today)
+            crm_rows = fetch_rows(conn)
+            duplicate_pairs = fetch_duplicate_pairs(conn)
+            province_registry = read_province_coverage(conn)
+            province_coverage = coverage_table(province_registry)
+            registry_by_code = {p["code"]: p for p in province_registry["provinces"]}
+            for province_row in province_coverage:
+                plan = registry_by_code[province_row["code"]].get("plan") or {}
+                province_row["source_sha256"] = plan.get("source_sha256")
+            if counts["total"] != len(crm_rows):
+                raise RuntimeError("Daily report snapshot row-count mismatch; report not sent")
+            from .commercial_scoring import match_service
+            email_present = sum(bool(str(row.get("email") or "").strip()) for row in crm_rows)
+            provinces_completed = sum(row.get("status") == "completed" for row in province_coverage)
+            counts.update(
+                total=len(crm_rows), email_missing=len(crm_rows) - email_present,
+                provinces_completed=provinces_completed,
+                provinces_total=len(province_coverage),
+                province_coverage_percent=(
+                    round(100 * provinces_completed / len(province_coverage), 1)
+                    if province_coverage else 0),
+                service_matches=sum(
+                    match_service({"qualification": row.get("qualification") or {}})["category"] is not None
+                    for row in crm_rows))
+        run_id = env.get("GITHUB_RUN_ID") or ""
+        run_attempt = env.get("GITHUB_RUN_ATTEMPT") or ""
+        snapshot_hash = snapshot_digest(crm_rows)
+        counts.update(github_run_id=run_id, github_run_attempt=run_attempt,
+                      generated_at=generated_at.isoformat(),
+                      source_snapshot_at=source_snapshot_at.isoformat(),
+                      crm_snapshot_sha256=snapshot_hash)
         workbook = build_workbook(crm_rows, counts, today,
-                                  send_enabled=env.get('AUTO_MAIL_ENABLED') == 'true')
+                                  send_enabled=env.get('AUTO_MAIL_ENABLED') == 'true',
+                                  duplicate_pairs=duplicate_pairs,
+                                  province_coverage=province_coverage)
+        workbook_hash = hashlib.sha256(workbook).hexdigest()
         document_sender = send_document if document_sender is None else document_sender
         with conn.transaction():
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO owner_daily_report_receipts (report_day,state) "
-                    "VALUES (%s,'reserved') ON CONFLICT (report_day) DO NOTHING "
-                    "RETURNING report_day", (today,))
+                    "INSERT INTO owner_daily_report_receipts "
+                    "(report_day,state,github_run_id,github_run_attempt,crm_row_count,"
+                    "source_snapshot_at,crm_snapshot_sha256,workbook_sha256,generated_at) "
+                    "VALUES (%s,'reserved',%s,%s,%s,%s,%s,%s,%s) "
+                    "ON CONFLICT (report_day) DO NOTHING "
+                    "RETURNING report_day", (today, run_id, int(run_attempt) if str(run_attempt).isdigit() else None,
+                                              len(crm_rows), source_snapshot_at, snapshot_hash,
+                                              workbook_hash, generated_at))
                 acquired = cur.fetchone() is not None
         if not acquired:
             print("OWNER_DAILY_REPORT: already_reserved=1; business_mail_sent=0")
@@ -169,31 +225,42 @@ def run(env=None, connection=None, messenger=api, day=None, document_sender=None
             document_id = document_sender(
                 env['TELEGRAM_BOT_TOKEN'], env['TELEGRAM_CHAT_ID'], workbook,
                 f"Musteri-Avcisi-CRM-{today}.xlsx",
-                f"{today} tarihli özel CRM Excel raporu — yalnızca size gönderildi.")
+                f"{today} özel CRM raporu | üretim UTC {generated_at.isoformat()} | "
+                f"satır {len(crm_rows)} | SHA-256 {workbook_hash}")
             if type(document_id) is not int or document_id <= 0:
                 raise RuntimeError('Owner workbook Telegram receipt missing')
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE owner_daily_report_receipts SET telegram_document_message_id=%s,"
+                        "document_sent_at=now(),updated_at=now() WHERE report_day=%s AND state='reserved'",
+                        (document_id,today))
             result = messenger(env['TELEGRAM_BOT_TOKEN'], 'sendMessage',
                                {'chat_id':env['TELEGRAM_CHAT_ID'], 'text':message})
             mid = result.get('message_id') if isinstance(result,dict) else None
             if type(mid) is not int or mid <= 0:
                 raise RuntimeError('Owner Telegram receipt missing')
         except Exception:
+            stage = "summary_send" if "document_id" in locals() else "document_upload"
             with conn.transaction():
                 with conn.cursor() as cur:
                     cur.execute(
                         "UPDATE owner_daily_report_receipts SET state='uncertain',"
-                        "updated_at=now() WHERE report_day=%s AND state='reserved'",
-                        (today,))
+                        "failure_stage=%s,updated_at=now() WHERE report_day=%s AND state='reserved'",
+                        (stage,today))
+            print(f"OWNER_DAILY_REPORT: delivery_status=UNCERTAIN; failure_stage={stage}; "
+                  f"document_message_id={locals().get('document_id', 'none')}; no_resend=1")
             raise RuntimeError('Owner Telegram result uncertain; no automatic resend') from None
         with conn.transaction():
             with conn.cursor() as cur:
                 cur.execute(
                     "UPDATE owner_daily_report_receipts SET state='confirmed',"
-                    "telegram_message_id=%s,telegram_document_message_id=%s,updated_at=now() "
+                    "telegram_message_id=%s,telegram_document_message_id=%s,failure_stage=NULL,updated_at=now() "
                     "WHERE report_day=%s AND state='reserved'", (mid,document_id,today))
         print("OWNER_DAILY_REPORT: receipt_confirmed=1; workbook_sent=1; "
               f"workbook_telegram_message_id={document_id}; "
-              f"summary_telegram_message_id={mid}; business_mail_sent=0")
+              f"summary_telegram_message_id={mid}; workbook_sha256={workbook_hash}; "
+              f"crm_snapshot_sha256={snapshot_hash}; github_run_id={run_id or 'unknown'}; business_mail_sent=0")
         return mid
     finally:
         if owns_connection:

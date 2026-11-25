@@ -99,33 +99,29 @@ class AcceptanceTests(unittest.TestCase):
     def test_opportunity_tiers_follow_requested_2_1_3_order(self):
         from leadhunter.core import classify_opportunity, lead_priority_key, select_leads
         now = __import__("datetime").datetime.now().astimezone().isoformat()
+        def verified(signal, url):
+            return {signal:True, f"{signal}_evidence_url":url,
+                    f"{signal}_verified_at":now,
+                    f"{signal}_source_type":"documented_human_review",
+                    f"{signal}_confidence":90,
+                    f"{signal}_rationale":"Synthetic reviewed evidence for a unit test."}
+        def score_component(name):
+            return {"value":80,"evidence_ref":"https://example.invalid/score/"+name,
+                    "verified_at":now,"source_type":"documented_human_review",
+                    "confidence":90,"rationale":"Synthetic score evidence for a unit test."}
         tier2 = {"id":"node/2","name":"WA need","category":"Kuaför/berber",
                  "website":"","score":50, "qualification":{
-                    "whatsapp_automation_need_verified":True,
-                    "whatsapp_automation_need_verified_evidence_url":"https://example.invalid/wa",
-                    "whatsapp_automation_need_verified_verified_at":now}}
+                    **verified("whatsapp_automation_need_verified","https://example.invalid/wa")}}
         tier1 = {"id":"node/1","name":"No site verified","category":"Kuaför/berber",
                  "website":"https://example.invalid","score":99, "qualification":{
-                    "website_absence_verified":True,
-                    "website_absence_verified_evidence_url":"https://example.invalid/site",
-                    "website_absence_verified_verified_at":now}}
+                    **verified("website_absence_verified","https://example.invalid/site")}}
         tier3 = {"id":"node/3","name":"Verified dual fit","category":"Kuaför/berber",
                  "website":"https://example.invalid","score":60,
-                 "qualification":{"verified":True,"website_need_verified":True,
-                    "automation_need_verified":True,"business_quality_score":82,
-                    "evidence_url":"https://example.invalid/about",
-                    "website_presence_verified":True,
-                    "website_presence_verified_evidence_url":"https://example.invalid/site",
-                    "website_presence_verified_verified_at":now,
-                    "whatsapp_presence_verified":True,
-                    "whatsapp_presence_verified_evidence_url":"https://example.invalid/wa",
-                    "whatsapp_presence_verified_verified_at":now,
-                    "automation_need_verified":True,
-                    "automation_need_verified_evidence_url":"https://example.invalid/need",
-                    "automation_need_verified_verified_at":now,
-                    "commercial_components":{name:{"value":80,
-                        "evidence_ref":"https://example.invalid/score/"+name,
-                        "verified_at":now} for name in (
+                 "qualification":{
+                    **verified("website_presence_verified","https://example.invalid/site"),
+                    **verified("whatsapp_presence_verified","https://example.invalid/wa"),
+                    **verified("automation_need_verified","https://example.invalid/need"),
+                    "commercial_components":{name:score_component(name) for name in (
                         "service_need","contact_accuracy","service_fit",
                         "commercial_potential","digital_gap","data_freshness")}}}
         self.assertEqual([classify_opportunity(x)["tier"] for x in (tier2,tier1,tier3)],

@@ -12,6 +12,7 @@ from itertools import combinations
 from urllib.parse import urlsplit
 
 from .review_private import connect_private_database
+from .duplicate_confidence import score_pair
 
 REASONS=frozenset((
     "same_first_party_domain","same_phone",
@@ -109,15 +110,26 @@ def sync(conn,output=print):
     with conn.transaction():
         with conn.cursor() as cur:
             cur.execute("SELECT pg_advisory_xact_lock(785632014)")
+            # Location evidence is an independent signal. Its absence stays
+            # unknown and never lowers/raises the identity score.
+            cur.execute("SELECT lead_a,lead_b,location_band "
+                        "FROM owner_duplicate_geo_evidence")
+            location_bands={(a,b):band for a,b,band in cur.fetchall()}
             cur.execute("SELECT count(*) FROM owner_duplicate_review_pairs")
             before=int(cur.fetchone()[0])
             for (a,b),reasons in sorted(pair_map.items()):
+                confidence,details=score_pair(
+                    reasons,location_bands.get((a,b)))
                 cur.execute(
                     "INSERT INTO owner_duplicate_review_pairs "
-                    "(lead_a,lead_b,evidence) VALUES (%s,%s,%s) "
+                    "(lead_a,lead_b,evidence,confidence_score,confidence_details) "
+                    "VALUES (%s,%s,%s,%s,%s::jsonb) "
                     "ON CONFLICT(lead_a,lead_b) DO UPDATE SET "
-                    "evidence=EXCLUDED.evidence,last_observed_at=now()",
-                    (a,b,list(reasons)))
+                    "evidence=EXCLUDED.evidence,"
+                    "confidence_score=EXCLUDED.confidence_score,"
+                    "confidence_details=EXCLUDED.confidence_details,"
+                    "last_observed_at=now()",
+                    (a,b,list(reasons),confidence,json.dumps(details,sort_keys=True)))
             cur.execute("SELECT count(*) FROM owner_duplicate_review_pairs")
             after=int(cur.fetchone()[0])
     output("COMPANY_DUPLICATES: pairs_detected="+str(len(pair_map))+

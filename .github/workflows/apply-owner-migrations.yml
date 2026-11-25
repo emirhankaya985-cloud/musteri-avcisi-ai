@@ -1,0 +1,83 @@
+name: Apply Additive Owner CRM Migrations
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: musteri-avcisi-owner-crm-migrations
+  cancel-in-progress: false
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'psycopg[binary]==3.2.12'
+      - name: Apply only reviewed additive migrations in one transaction
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: |
+          python - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+          import sys
+
+          import psycopg
+
+          dsn = os.environ.get("REVIEW_DATABASE_URL")
+          if not dsn:
+              raise SystemExit("MIGRATION_BLOCKED: REVIEW_DATABASE_URL is unavailable")
+
+          migrations = (
+              ("014", Path("migrations/014_duplicate_confidence_audit.sql")),
+              ("015", Path("migrations/015_owner_daily_report_provenance.sql")),
+              ("016", Path("migrations/016_owner_province_scan_coverage.sql")),
+          )
+          try:
+              with psycopg.connect(dsn) as conn:
+                  with conn.transaction():
+                      with conn.cursor() as cur:
+                          cur.execute("SET LOCAL lock_timeout = '5s'")
+                          cur.execute("SET LOCAL statement_timeout = '30s'")
+                          cur.execute("SELECT pg_advisory_xact_lock(%s)", (985402618,))
+                          cur.execute(
+                              "SELECT to_regclass('public.owner_leads'), "
+                              "to_regclass('public.owner_duplicate_review_pairs'), "
+                              "to_regclass('public.owner_daily_report_receipts')")
+                          if any(value is None for value in cur.fetchone()):
+                              raise RuntimeError("Expected owner CRM tables are absent")
+
+                          for version, path in migrations:
+                              sql = path.read_text(encoding="utf-8")
+                              cur.execute(sql)
+                              digest = hashlib.sha256(sql.encode("utf-8")).hexdigest()
+                              print(f"MIGRATION_STAGED version={version} sha256={digest}")
+
+                          cur.execute(
+                              "SELECT count(*) = 2 FROM information_schema.columns "
+                              "WHERE table_schema='public' "
+                              "AND table_name='owner_duplicate_review_pairs' "
+                              "AND column_name IN ('confidence_score','confidence_details')")
+                          duplicate_columns = cur.fetchone()[0]
+                          cur.execute(
+                              "SELECT count(*) = 7 FROM information_schema.columns "
+                              "WHERE table_schema='public' "
+                              "AND table_name='owner_daily_report_receipts' "
+                              "AND column_name IN ('crm_snapshot_sha256','workbook_sha256',"
+                              "'github_run_id','crm_row_count','generated_at',"
+                              "'document_sent_at','failure_stage')")
+                          report_columns = cur.fetchone()[0]
+                          cur.execute("SELECT to_regclass('public.owner_province_scan_coverage')")
+                          province_table = cur.fetchone()[0] is not None
+                          if not (duplicate_columns and report_columns and province_table):
+                              raise RuntimeError("Post-migration schema verification failed")
+                  print("MIGRATION_RESULT: verified; all changes committed atomically")
+          except Exception:
+              print("MIGRATION_RESULT: failed; transaction rolled back; details redacted",
+                    file=sys.stderr)
+              raise SystemExit(1) from None
+          PY

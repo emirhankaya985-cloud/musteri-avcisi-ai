@@ -73,8 +73,17 @@ def lead_from_osm(row):
     tags = row.get('tags') or {}
     name = str(tags.get('name') or '').strip()
     typ, oid = row.get('type'), row.get('id')
-    category = CATEGORIES.get(tags.get('amenity')) or CATEGORIES.get(tags.get('shop'))
-    if not name or not category or typ not in ('node', 'way', 'relation') or not isinstance(oid, int):
+    if not name or typ not in ('node', 'way', 'relation') or not isinstance(oid, int):
+        return None
+    from .sector_taxonomy import classify_osm_tags
+    classification = classify_osm_tags(tags, osm_type=typ, osm_id=oid)
+    unresolved_label = (
+        f"{classification['sector_label']} (alt kategori incelemesi)"
+        if classification['sector'] else 'Sektörü bilinmiyor'
+    )
+    category = (classification['category'] or
+                (unresolved_label if classification['category_evidence'] else None))
+    if not category:
         return None
     website = str(tags.get('website') or tags.get('contact:website') or '').strip()
     phone = str(tags.get('contact:phone') or tags.get('phone') or '').strip()
@@ -83,6 +92,13 @@ def lead_from_osm(row):
     research_score = 45 + (30 if not website else 0) + (15 if phone else 0) + (10 if address else 0)
     from .commercial_scoring import match_service, score_prospect
     lead = {'id': f'{typ}/{oid}', 'name': name[:100], 'category': category,
+            'sector': classification['sector'],
+            'sector_label': classification['sector_label'],
+            'subcategory': classification['subcategory'],
+            'sector_classification_status': classification['classification_status'],
+            'sector_evidence': classification['category_evidence'],
+            'sector_matches': classification['matches'],
+            'business_size_status': classification['business_size_status'],
             'website': website[:200], 'phone': phone[:80], 'address': address[:150],
             'email': str(tags.get('contact:email') or tags.get('email') or '').strip()[:254],
             'score': research_score, 'research_score': research_score}
