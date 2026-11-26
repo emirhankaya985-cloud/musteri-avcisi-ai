@@ -56,6 +56,18 @@ class TemplateMailTests(unittest.TestCase):
         self.assertIn("IN ('draft','skipped')",sql)
         self.assertIn("NOT IN ('sending','accepted')",sql)
 
+    def test_catchup_failure_logs_stage_and_type_without_exception_text(self):
+        env={'AUTO_MAIL_ENABLED':'true','MAIL_DRAFT_MODE':'template','REVIEW_DATABASE_URL':'fixture',
+             'GMAIL_SENDER_ADDRESS':'fixture@gmail.com','GMAIL_APP_PASSWORD':'abcdefghijklmnop',
+             'TELEGRAM_BOT_TOKEN':'fixture','TELEGRAM_CHAT_ID':'123'}
+        lines=[]
+        with patch('leadhunter.mail_batch.connect_private_database',
+                   side_effect=ValueError('private@example.com secret')):
+            with self.assertRaisesRegex(RuntimeError,'Owner mail catch-up failed'):
+                run(env,output=lines.append)
+        self.assertEqual(lines, [
+            'OWNER_CATCHUP_FAILURE: stage=database_connect; error_type=ValueError'])
+
     def test_catchup_refreshes_previous_business_and_delivers_without_ai(self):
         db=MagicMock();cur=db.cursor.return_value.__enter__.return_value
         cur.fetchall.return_value=[('accepted',1)]

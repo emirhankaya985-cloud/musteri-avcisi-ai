@@ -35,6 +35,7 @@ class BacklogStore(AutoMailStore):
 
 def run(env=None, opener=urlopen, output=print):
     env=os.environ if env is None else env
+    stage = "configuration"
     check_config(env)
     limit = int(env.get("MAIL_BATCH_LIMIT", "15"))
     if not 1 <= limit <= 15:
@@ -42,11 +43,15 @@ def run(env=None, opener=urlopen, output=print):
     token,owner=env.get('TELEGRAM_BOT_TOKEN'),env.get('TELEGRAM_CHAT_ID')
     if not token or not owner or not str(owner).isdigit():
         raise RuntimeError('Private owner Telegram configuration missing')
-    connection=connect_private_database(env['REVIEW_DATABASE_URL'])
+    stage = "database_connect"
+    connection = None
     try:
+        connection=connect_private_database(env['REVIEW_DATABASE_URL'])
+        stage = "backlog_load"
         store=BacklogStore(ReviewStore(connection))
         old=store.backlog()
         bbox=bbox_parse(env.get('SCAN_BBOX') or DEFAULT_BBOX)
+        stage = "public_osm_lookup"
         try:
             raw=get_osm(bbox,opener)
         except RuntimeError:
@@ -59,10 +64,12 @@ def run(env=None, opener=urlopen, output=print):
             combined.setdefault(lead['id'],lead)
         output(f'OWNER_CATCHUP: previous={len(old)}; current_plus_previous={len(combined)}')
         total=0
+        stage = "owner_report_flush"
         while store.pending_reports():
             total+=flush_reports(store,env,opener)
         from .contact_email import discover_email
         attempted = 0
+        stage = "business_contact_research_and_guarded_send"
         for lead in list(combined.values())[:30]:
             if attempted >= limit:
                 break
@@ -77,6 +84,7 @@ def run(env=None, opener=urlopen, output=print):
             deliver(lead,store,env,opener)
             total+=flush_reports(store,env,opener)
         with connection.cursor() as cur:
+            stage = "aggregate_mail_status"
             cur.execute("SELECT lead_data->'_auto_mail'->>'state',count(*) FROM owner_leads "
                         "WHERE lead_data ? '_auto_mail' GROUP BY 1")
             counts=dict(cur.fetchall())
@@ -86,10 +94,14 @@ def run(env=None, opener=urlopen, output=print):
         api(token,'sendMessage',{'chat_id':owner,'text':summary+
             '\nSMTP kabulü gelen kutusuna teslim kanıtı değildir. Eksik adresler tahmin edilmedi.'},opener)
         return counts
-    except Exception:
+    except Exception as exc:
+        # Keep the failure useful for operations without logging exception text,
+        # which may contain addresses, database metadata, or provider details.
+        output(f"OWNER_CATCHUP_FAILURE: stage={stage}; error_type={type(exc).__name__}")
         raise RuntimeError('Owner mail catch-up failed; private details redacted') from None
     finally:
-        connection.close()
+        if connection is not None:
+            connection.close()
 
 
 if __name__=='__main__':
