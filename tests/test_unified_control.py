@@ -72,6 +72,8 @@ class ControlSafetyTests(unittest.TestCase):
         self.assertIn("MAIL_BATCH_LIMIT: '5'",outreach)
         self.assertIn("AUTO_MAIL_DAILY_LIMIT: '5'",outreach)
         self.assertIn("recipient_audit --dry-run",outreach)
+        self.assertIn("GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}",outreach)
+        self.assertIn("GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}",outreach)
         self.assertIn("OWNER_VERIFIED_BATCH_APPROVED: NO_LIVE_BATCH",
                       (root/"verified-mail-batch.yml").read_text(encoding="utf-8"))
         self.assertIn("OWNER_APPROVED_MAIL_ENABLED: 'false'",
