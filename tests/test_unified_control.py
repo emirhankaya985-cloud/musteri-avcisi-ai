@@ -66,6 +66,9 @@ class ControlSafetyTests(unittest.TestCase):
             self.assertNotIn("AUTO_MAIL_ENABLED: 'true'",source)
         outreach=(root/"execute-outreach.yml").read_text(encoding="utf-8")
         self.assertIn("AUTO_MAIL_ENABLED: 'true'",outreach)
+        self.assertIn("'openpyxl==3.1.5'",outreach)
+        self.assertLess(outreach.index("Install offline acceptance"),
+                        outreach.index("Verify offline acceptance before sending"))
         self.assertIn("MAIL_BATCH_LIMIT: '5'",outreach)
         self.assertIn("AUTO_MAIL_DAILY_LIMIT: '5'",outreach)
         self.assertIn("recipient_audit --dry-run",outreach)
