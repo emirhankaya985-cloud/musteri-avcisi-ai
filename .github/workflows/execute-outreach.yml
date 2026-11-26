@@ -24,10 +24,10 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+      - name: Install offline acceptance and private storage dependencies
+        run: python -m pip install 'openpyxl==3.1.5' 'psycopg[binary]==3.2.12'
       - name: Verify offline acceptance before sending
         run: python tools/codex_acceptance.py
-      - name: Install private storage driver
-        run: python -m pip install 'psycopg[binary]==3.2.12'
       - name: Rehearse recipient eligibility and sender circuit; no SMTP
         env:
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
