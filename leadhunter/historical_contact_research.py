@@ -210,4 +210,9 @@ def run(connection=None, *, env=None, discover=discover_email, now=None,
 
 
 if __name__ == "__main__":
-    run()
+    raw_batch_size = os.environ.get("CONTACT_RESEARCH_BATCH_SIZE", "10")
+    try:
+        batch_size = int(raw_batch_size)
+    except (TypeError, ValueError):
+        raise SystemExit("CONTACT_RESEARCH_BATCH_SIZE must be an integer") from None
+    run(batch_size=batch_size)
