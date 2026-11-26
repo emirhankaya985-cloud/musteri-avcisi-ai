@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-from leadhunter.historical_contact_research import run
+from leadhunter.historical_contact_research import _public_email_draft_lead, run
 
 
 class FakeCursor:
@@ -24,6 +24,19 @@ class FakeCursor:
             self.db.reply = (True,)
         elif sql.startswith("SELECT pg_advisory_unlock"):
             self.db.reply = (True,)
+        elif sql.startswith("SELECT count(*) FROM owner_leads"):
+            self.db.reply = (sum(
+                1 for value in self.db.rows.values()
+                if value[1] == "review"
+                and value[0].get("email_research", {}).get("status") == "public_address_found"
+                and value[0].get("_auto_mail", {}).get("state") == "skipped"
+                and value[0].get("_auto_mail", {}).get("email_check") == "no_mx"),)
+        elif "email_research'->>'status'='public_address_found'" in sql:
+            self.db.reply = [
+                (key, value[0], value[1]) for key, value in self.db.rows.items()
+                if value[0].get("email_research", {}).get("status") == "public_address_found"
+                and value[1] == "review"
+            ][:params[0]]
         elif sql.startswith("SELECT osm_id,lead_data,status"):
             self.db.reply = [(key, value[0], value[1])
                              for key, value in self.db.rows.items()]
@@ -74,6 +87,19 @@ def make(lead_id, **data):
 
 
 class HistoricalResearchTests(unittest.TestCase):
+    def test_existing_draft_candidate_requires_same_host_source_and_public_research(self):
+        base = {
+            "website": "https://shop.example",
+            "email": "info@shop.example",
+            "email_source": "https://shop.example/iletisim",
+            "email_research": {"status": "public_address_found"},
+        }
+        self.assertEqual(_public_email_draft_lead(("node/1", base, "review"))["id"], "node/1")
+        self.assertIsNone(_public_email_draft_lead(("node/2", {
+            **base, "email_source": "https://other.example/contact"}, "review")))
+        self.assertIsNone(_public_email_draft_lead(("node/3", {
+            **base, "marketing_eligibility": {"opted_out": True}}, "review")))
+
     def test_persists_only_unique_official_source_and_never_changes_mail_state(self):
         db = FakeDB([make("node/1", name="Kafe", website="shop.example")])
         calls = []
