@@ -116,6 +116,31 @@ def _persist(connection, lead, found, checked_at):
         return cur.rowcount == 1
 
 
+def _public_email_draft_lead(row):
+    """Return an unsent-draft candidate only with same-site public evidence."""
+    lead_id, raw, status = row
+    data = _json_object(raw)
+    research = data.get("email_research")
+    email = str(data.get("email") or "").strip().casefold()
+    source = str(data.get("email_source") or "").strip()
+    if status != "review" or not isinstance(research, dict):
+        return None
+    if research.get("status") != "public_address_found":
+        return None
+    if not valid_recipient(email) or not source.startswith(("https://", "http://")):
+        return None
+    if _host(data.get("website")) != _host(source):
+        return None
+    eligibility = data.get("marketing_eligibility")
+    if isinstance(eligibility, dict) and eligibility.get("opted_out") is True:
+        return None
+    for key in ("_auto_mail", "_mail"):
+        state = (data.get(key) or {}).get("state")
+        if state in ("sending", "accepted", "uncertain"):
+            return None
+    return {"id": lead_id, **data}
+
+
 def run(connection=None, *, env=None, discover=discover_email, now=None,
         batch_size=DEFAULT_BATCH_SIZE, output=print):
     """Research a small batch and return aggregate-only result counts.
@@ -136,6 +161,7 @@ def run(connection=None, *, env=None, discover=discover_email, now=None,
         (os.environ if env is None else env).get("REVIEW_DATABASE_URL"))
     counts = {"considered": 0, "researched": 0, "addresses_found": 0,
               "not_found": 0, "drafts_prepared": 0,
+              "drafts_mx_blocked": 0, "drafts_other_blocked": 0,
               "host_cooldown": 0, "write_conflicts": 0}
     try:
         with db.cursor() as cur:
@@ -188,10 +214,57 @@ def run(connection=None, *, env=None, discover=discover_email, now=None,
                     from .review_private import ReviewStore
                     draft = AutoMailStore(ReviewStore(db)).prepare(
                         result, {"MAIL_DRAFT_MODE": "template"}, opener=None)
-                    counts["drafts_prepared"] += int(
-                        isinstance(draft, dict) and draft.get("state") == "draft")
+                    if isinstance(draft, dict) and draft.get("state") == "draft":
+                        counts["drafts_prepared"] += 1
+                    elif isinstance(draft, dict) and draft.get("state") == "skipped":
+                        if draft.get("email_check") in ("no_mx", "unchecked"):
+                            counts["drafts_mx_blocked"] += 1
+                        else:
+                            counts["drafts_other_blocked"] += 1
+                    else:
+                        counts["drafts_other_blocked"] += 1
                 else:
                     counts["not_found"] += 1
+            # Retry only prior source-backed research that is still in review
+            # and has no uncertain/sending/accepted attempt. This is draft
+            # preparation only; no website fetch or SMTP call is made here.
+            with db.cursor() as cur:
+                cur.execute(
+                    "SELECT count(*) FROM owner_leads WHERE status='review' "
+                    "AND lead_data->'email_research'->>'status'='public_address_found' "
+                    "AND lead_data->'_auto_mail'->>'state'='skipped' "
+                    "AND lead_data->'_auto_mail'->>'email_check'='no_mx'")
+                counts["drafts_mx_blocked"] += int(cur.fetchone()[0] or 0)
+                cur.execute(
+                    "SELECT osm_id,lead_data,status FROM owner_leads "
+                    "WHERE status='review' "
+                    "AND lead_data->'email_research'->>'status'='public_address_found' "
+                    "AND coalesce(lead_data->'_auto_mail'->>'state','') IN ('','skipped') "
+                    "AND coalesce(lead_data->'_auto_mail'->>'email_check','') <> 'no_mx' "
+                    "AND coalesce(lead_data->'_mail'->>'state','') NOT IN "
+                    "('sending','accepted','uncertain') ORDER BY updated_at,osm_id LIMIT %s",
+                    (batch_size,))
+                draft_rows = cur.fetchall()
+            from .automatic_mail import AutoMailStore
+            from .review_private import ReviewStore
+            mail_store = AutoMailStore(ReviewStore(db))
+            for row in draft_rows:
+                lead = _public_email_draft_lead(row)
+                if not lead:
+                    continue
+                # Avoid retrying immediately in the same research pass.
+                if lead["id"] in {x["id"] for x in selected}:
+                    continue
+                draft = mail_store.prepare(lead, {"MAIL_DRAFT_MODE": "template"}, opener=None)
+                if isinstance(draft, dict) and draft.get("state") == "draft":
+                    counts["drafts_prepared"] += 1
+                elif isinstance(draft, dict) and draft.get("state") == "skipped":
+                    if draft.get("email_check") in ("no_mx", "unchecked"):
+                        counts["drafts_mx_blocked"] += 1
+                    else:
+                        counts["drafts_other_blocked"] += 1
+                else:
+                    counts["drafts_other_blocked"] += 1
         finally:
             with db.cursor() as cur:
                 cur.execute("SELECT pg_advisory_unlock(985402619)")
@@ -199,6 +272,8 @@ def run(connection=None, *, env=None, discover=discover_email, now=None,
         output("CONTACT_RESEARCH: researched=" + str(counts["researched"])
                + "; public_addresses_found=" + str(counts["addresses_found"])
                + "; unsent_drafts_prepared=" + str(counts["drafts_prepared"])
+               + "; drafts_mx_blocked=" + str(counts["drafts_mx_blocked"])
+               + "; drafts_other_blocked=" + str(counts["drafts_other_blocked"])
                + "; no_unique_address=" + str(counts["not_found"])
                + "; host_cooldown=" + str(counts["host_cooldown"])
                + "; write_conflicts=" + str(counts["write_conflicts"])
