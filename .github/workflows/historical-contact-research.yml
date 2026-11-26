@@ -1,6 +1,12 @@
 name: Historical Business Contact Research (No SMTP)
 on:
   workflow_dispatch:
+    inputs:
+      batch_size:
+        description: Public business websites to research in this one run (no SMTP)
+        type: choice
+        options: ['10', '25', '50']
+        default: '10'
   schedule:
     # One free, bounded research batch per day, before the Istanbul daily report.
     - cron: '15 4 * * *'
@@ -28,4 +34,5 @@ jobs:
           AUTO_MAIL_ENABLED: 'false'
           OWNER_APPROVED_MAIL_ENABLED: 'false'
           MAIL_DRAFT_MODE: 'template'
+          CONTACT_RESEARCH_BATCH_SIZE: ${{ inputs.batch_size || '10' }}
         run: python -m leadhunter.historical_contact_research
