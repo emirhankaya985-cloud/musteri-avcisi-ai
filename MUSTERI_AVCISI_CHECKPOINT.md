@@ -64,3 +64,12 @@ Güncelleme: 2026-11-25 (Europe/Istanbul)
 - 2026.11.0 OSM türevi, açıkça resmî olmayan manifest üretildi: 81 il, 973 ilçe; sabitlenmiş kaynak commit ve özet hash doğrulandı. Bu yalnız sınır envanteridir; ilçe geometrisiyle streaming PBF tarayıcı, kalıcı ilçe checkpoint'i ve ulusal tarama hâlâ yok. Eski 402 tile ulusal kapsama kanıtı değildir.
 - Ntfy için yalnız opsiyonel, toplulaştırılmış bildirim taşıyıcısı eklendi; ntfy topic/secret yok, gerçek teslimat doğrulanmadı. Telegram günlük raporu PR #102 sonrası canlı teslim edilmişti.
 - Bu dalın yerel suite'i: `python -m unittest discover -s tests -v` = 460 geçti, 28 atlandı; `git diff --check` temiz. Üretimdeki son denetimde 0 belgelenmiş alıcı uygunluğu ve gönderici devre kesicisi paused olduğu için gerçek işletme gönderimi şu an 0; kilit açılmadı. Alıcı ön denetimi ve yasal kanıtlar temizlenmeden sistemin gönderdiği söylenemez.
+
+## Görev 6.3 devam kanıtı — 2026-11-26 akşamı
+
+- PR [#104](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/pull/104) ile günlük 10 adreslik SMTP'siz araştırma korunup manuel 10/25/50 işletme partisi eklendi. PR [#105](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/pull/105) ile kaynaklı bulunan adreslerin taslak durumunu yeniden ele alma ve toplu MX engeli raporu eklendi; her iki PR'ın test ve sentetik PostgreSQL CI kontrolleri geçti.
+- İlk 10'luk canlı araştırma [45856282377](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/45856282377): 10 site, 0 adres, 0 SMTP.
+- 50'lik canlı araştırma [45857249195](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/45857249195): 20 farklı host araştırıldı; 2 kamuya açık adres bulundu, 18 adres bulunamadı, 11 kayıt host tekilleştirmesi/soğutmasıyla atlandı. SMTP=0. İkinci aynı gün çalışması [45857559419] host soğutması nedeniyle yeni site ziyaret etmedi.
+- Mevcut adresleri SMTP'siz yeniden ele alan koşum [45858072245]: araştırılmış iki adresin ikisinde de `no_mx`; dolayısıyla 0 taslak, 2 MX engeli; SMTP=0. Kamuya açık adres, çalışır posta kutusu veya ileti izni anlamına gelmiyor.
+- Son suite: 461 geçti, 28 yerel DB testi atlandı; PR CI sentetik PostgreSQL testleri geçti. Gerçek işletme e-postası veya kendine test e-postası gönderilmedi.
+- Kalan büyük işler değişmedi: ilçe geometrisiyle streaming PBF tarayıcı ve ulusal tarama yok; 81/81 il defteri pending. Ntfy topic/token GitHub secret'ları yok, bu nedenle ntfy gerçek teslimat yapmıyor. İşletme e-postası sender circuit paused ve yasal alıcı uygunluğu sıfır olduğu için kapalı.
