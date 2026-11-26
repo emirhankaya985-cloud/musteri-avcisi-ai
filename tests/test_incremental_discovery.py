@@ -30,7 +30,9 @@ class FakeConn:
     def cursor(self):
         yield self
     def execute(self,sql,args=None):
-        if sql.startswith("SELECT pg_advisory"):
+        if sql.startswith("SELECT to_regclass"):
+            self.reply=(None,)
+        elif sql.startswith("SELECT pg_advisory"):
             self.reply=[]
         elif sql.startswith("SELECT osm_id,lead_data"):
             self.reply=[(k,self.rows[k]) for k in args[0] if k in self.rows]

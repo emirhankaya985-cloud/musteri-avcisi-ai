@@ -71,6 +71,14 @@ def aggregate(conn, day):
         cur.execute("SELECT count(*) FROM owner_mail_watch_runs "
                     "WHERE report_day=%s::date",(day,))
         measured_watches = cur.fetchone()[0]
+        cur.execute("SELECT to_regclass('owner_lead_lifecycle_state')")
+        lifecycle_ready = cur.fetchone()[0] is not None
+        lifecycle_stages = {}
+        if lifecycle_ready:
+            cur.execute(
+                "SELECT current_stage,count(*) FROM owner_lead_lifecycle_state "
+                "GROUP BY current_stage")
+            lifecycle_stages = {stage: int(count) for stage, count in cur.fetchall()}
         cur.execute("SELECT lead_data FROM owner_leads WHERE status='review' "
                     "AND lead_data->'_auto_mail'->>'state'='draft'")
         candidates = cur.fetchall()
@@ -92,7 +100,9 @@ def aggregate(conn, day):
                 measured_watches=int(measured_watches),
                 today_failed_notices=int(today_failed_notices) if measured_watches else None,
                 today_delays=int(today_delays) if measured_watches else None,
-                today_replies=int(today_replies) if measured_watches else None)
+                today_replies=int(today_replies) if measured_watches else None,
+                lifecycle_stages=lifecycle_stages,
+                lifecycle_recorded=sum(lifecycle_stages.values()))
 
 
 def compose(day, counts, enabled):
@@ -129,7 +139,12 @@ def compose(day, counts, enabled):
         f"📨 Bugün eşleşen yeni müşteri yanıtı: {amount(counts.get('today_replies'))} "
         f"| Toplam eşleşmiş yanıt: {counts['replies']}\n"
         f"🧩 Kanıtlı hizmet eşleşmeleri: {amount(counts.get('service_matches'))}\n"
-        "📝 Teklif, görüşme ve satış: CRM'de izleme alanı yok\n"
+        f"📝 Kalıcı satış aşaması kaydı: {counts.get('lifecycle_recorded', 0)} işletme"
+        f" | teklif: {counts.get('lifecycle_stages', {}).get('offer_made', 0)}"
+        f" | toplantı: {counts.get('lifecycle_stages', {}).get('meeting_scheduled', 0)}"
+        f" | kazanıldı: {counts.get('lifecycle_stages', {}).get('won', 0)}"
+        f" | kaybedildi: {counts.get('lifecycle_stages', {}).get('lost', 0)}\n"
+        "ℹ️ Geçmişi olmayan CRM kayıtlarına aşama atanmaz.\n"
         f"🔐 Otomatik gönderim: {'KOŞULLU' if live else 'KAPALI'} — {reason}\n"
         "ℹ️ SMTP kabulü, alıcının gelen kutusuna teslim kanıtı değildir."
     )

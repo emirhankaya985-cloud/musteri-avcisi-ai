@@ -321,7 +321,17 @@ def build_workbook(rows, counts, report_day, send_enabled=False, duplicate_pairs
         ("Kanıtlı hizmet eşleşmeleri", counts.get("service_matches", "Ölçülmedi")),
         ("81 il kapsam defteri - tamamlanan", f"{counts.get('provinces_completed', 'Bilinmiyor')}/{counts.get('provinces_total', 81)}"),
         ("81 il kapsam oranı (%)", counts.get("province_coverage_percent", "Bilinmiyor")),
-        ("Teklif / görüşme / satış takibi", "CRM'de ölçüm alanı yok"),
+        ("CRM'de kalıcı satış aşaması olan kayıt", counts.get("lifecycle_recorded", 0)),
+        ("Teklif hazırlanan", counts.get("lifecycle_stages", {}).get("proposal_prepared", 0)),
+        ("E-posta gönderildi aşaması", counts.get("lifecycle_stages", {}).get("email_sent", 0)),
+        ("Yanıt veren aşaması", counts.get("lifecycle_stages", {}).get("replied", 0)),
+        ("Toplantı planlandı", counts.get("lifecycle_stages", {}).get("meeting_scheduled", 0)),
+        ("Teklif verildi", counts.get("lifecycle_stages", {}).get("offer_made", 0)),
+        ("Kazanıldı", counts.get("lifecycle_stages", {}).get("won", 0)),
+        ("Kaybedildi", counts.get("lifecycle_stages", {}).get("lost", 0)),
+        ("İletişim istemiyor", counts.get("lifecycle_stages", {}).get("do_not_contact", 0)),
+        ("Aşaması bilinmeyen geçmiş CRM kaydı",
+         max(0, len(rows) - int(counts.get("lifecycle_recorded", 0) or 0))),
         ("Bugün taranan", counts.get("inspected", "Ölçülmedi")),
         ("Bugün yeni kayıt", counts.get("new", 0)),
         ("Şu an gönderilebilir", sendable),
@@ -330,7 +340,7 @@ def build_workbook(rows, counts, report_day, send_enabled=False, duplicate_pairs
         ("Eşleşen yanıt", counts.get("replies", 0)),
         ("Yasal uygunluğu doğrulanmış", counts.get("eligible", 0)),
         ("Bugün gönderilen", counts.get("accepted_today", 0)),
-        ("Kazanılan müşteri", "CRM'de takip edilmiyor"),
+        ("Kazanılan müşteri", counts.get("lifecycle_stages", {}).get("won", 0)),
     ]
     for index, (label, value) in enumerate(metrics):
         col = index * 2 + 1

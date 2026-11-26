@@ -100,8 +100,24 @@ class ReviewStore:
                         "'marketing_eligibility', owner_leads.lead_data->'marketing_eligibility')) "
                         "ELSE '{}'::jsonb END),updated_at=now() "
                         "WHERE owner_leads.status IN ('review','deferred') "
-                        "AND NOT (owner_leads.lead_data ? '_auto_mail')",
+                        "AND NOT (owner_leads.lead_data ? '_auto_mail') "
+                        "RETURNING (xmax = 0)",
                         (lead_id, json.dumps(lead, ensure_ascii=False)))
+                    inserted = cur.fetchone()
+            # Keep discovery provenance explicit. Existing CRM rows are not
+            # retroactively assigned a lifecycle stage; only a true insert is
+            # initialized, with the OSM object as evidence.
+            with self.db.cursor() as cur:
+                cur.execute("SELECT to_regclass('owner_lead_lifecycle_state')")
+                lifecycle_ready = cur.fetchone()[0] is not None
+            if inserted and inserted[0] and lifecycle_ready:
+                from .lifecycle_store import record_transition
+                record_transition(
+                    self.db, lead_id, "new_discovered",
+                    idempotency_key=f"discover:{lead_id}",
+                    reason="New OSM business registered in private CRM",
+                    evidence_refs=(f"osm://{lead_id}",),
+                )
         except Exception:
             raise RuntimeError("Private lead registration failed; details redacted") from None
 

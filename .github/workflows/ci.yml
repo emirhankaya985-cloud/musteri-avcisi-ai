@@ -98,3 +98,7 @@ jobs:
         env:
           TEST_POSTGRES_DSN: postgresql://synthetic:synthetic@localhost:5432/synthetic
         run: python -m unittest discover -s tests -p test_postgres_daily_report_migration.py -v
+      - name: CRM lifecycle migration and event safety (synthetic database only)
+        env:
+          TEST_POSTGRES_DSN: postgresql://synthetic:synthetic@localhost:5432/synthetic
+        run: python -m unittest discover -s tests -p test_postgres_lifecycle.py -v

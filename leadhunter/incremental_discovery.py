@@ -82,7 +82,20 @@ def ingest(db, features, digest, source_at, run_id, *, output=print):
                         " VALUES (%s,%s::jsonb,'review')"
                         " ON CONFLICT(osm_id) DO NOTHING RETURNING osm_id",
                         (lead_id,json.dumps(lead,ensure_ascii=False)))
-                    new += int(cur.fetchone() is not None)
+                    inserted = cur.fetchone() is not None
+                    new += int(inserted)
+                    if inserted:
+                        cur.execute("SELECT to_regclass('owner_lead_lifecycle_state')")
+                        lifecycle_ready = cur.fetchone()[0] is not None
+                        if lifecycle_ready:
+                            from .lifecycle_store import record_transition
+                            record_transition(
+                                db, lead_id, "new_discovered",
+                                idempotency_key=f"discover:{lead_id}",
+                                reason="New OSM business registered from verified PBF snapshot",
+                                evidence_refs=(f"osm://{lead_id}",
+                                              "https://download.geofabrik.de/europe/turkey/"),
+                            )
                 else:
                     fields=changed_fields(prior[lead_id],lead)
                     if fields:
