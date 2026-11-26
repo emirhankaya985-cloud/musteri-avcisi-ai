@@ -17,9 +17,9 @@ class BacklogStore(AutoMailStore):
                         "AND COALESCE(lead_data->'_mail'->>'state','draft') NOT IN ('sending','accepted') "
                         'ORDER BY updated_at LIMIT 201')
             rows=cur.fetchall()
-        if len(rows)>200:
-            raise RuntimeError('Backlog exceeds explicit catch-up limit')
-        return [{**(json.loads(data) if isinstance(data,str) else data),'id':lid} for lid,data in rows]
+        self.backlog_truncated = len(rows) > 200
+        return [{**(json.loads(data) if isinstance(data,str) else data),'id':lid}
+                for lid,data in rows[:200]]
 
     @private_operation
     def reopen_unsent(self, lead):
@@ -62,7 +62,8 @@ def run(env=None, opener=urlopen, output=print):
         seen=read_seen(Path(env.get('STATE_FILE','data/seen.json')))
         for lead in select_leads(raw,seen,maximum=200):
             combined.setdefault(lead['id'],lead)
-        output(f'OWNER_CATCHUP: previous={len(old)}; current_plus_previous={len(combined)}')
+        output(f'OWNER_CATCHUP: previous={len(old)}; backlog_truncated={int(store.backlog_truncated)}; '
+               f'current_plus_previous={len(combined)}')
         total=0
         stage = "owner_report_flush"
         while store.pending_reports():

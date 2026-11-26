@@ -49,6 +49,14 @@ class TemplateMailTests(unittest.TestCase):
         self.assertIn("NOT IN ('sending','accepted')",sql)
         self.assertIn("IN ('draft','skipped')",sql)
 
+    def test_large_backlog_is_paged_instead_of_aborting_the_run(self):
+        db=MagicMock();cur=db.cursor.return_value.__enter__.return_value
+        cur.fetchall.return_value=[(f'node/{n}',{},) for n in range(201)]
+        store=BacklogStore(MagicMock(db=db))
+        rows=store.backlog()
+        self.assertEqual(len(rows),200)
+        self.assertTrue(store.backlog_truncated)
+
     def test_backlog_reopen_never_resets_smtp_claim(self):
         db=MagicMock()
         BacklogStore(MagicMock(db=db)).reopen_unsent({'id':'node/1'})
