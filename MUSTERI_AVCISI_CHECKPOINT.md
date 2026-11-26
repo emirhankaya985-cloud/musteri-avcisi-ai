@@ -1,5 +1,14 @@
 # Müşteri Avcısı AI — Görev 6.2 checkpoint
 
+## Görev 6.3 devam notu — 2026-11-26
+
+- Kullanıcı talimatı: **kendisine test e-postası gönderilmesini tekrar etme**. Yukarıdaki 45802729311 self-test'i yalnız tarihsel kayıt olarak tut; bu checkpoint'ten sonraki çalışmalarda self-test veya işletme e-postası gönderilmedi.
+- PR #101 sonrası entegrasyon dalı `codex/task-63-automation-integration` açıldı. Eklenen `mail_recovery` denetimi Gmail başarısızlık sınıflarını toplu ve adres göstermeden raporlar; SMTP'ye bağlanmaz, yeniden denemez ve gönderici kilidini açmaz.
+- CRM satış aşamaları için 017 migrasyonu, kanıtlı ve idempotent geçiş kaydı ile DNC/ret koruması eklendi. `communication_eligible` pazarlama izni değildir. Normal CRM ve yeni PBF keşif kayıtları, migration mevcutsa yalnız gerçekten yeni CRM satırlarında `new_discovered` olarak başlatılır; eski 412 kayıt geriye dönük doldurulmaz. Günlük Telegram özeti ve XLSX, kalıcı aşama sayılarını ve geçmişi olmayan kayıt sayısını gösterecek şekilde bağlandı.
+- CI'ye lifecycle için sentetik PostgreSQL migrasyon testi eklendi; additive migration workflow'u 017'yi tek transaction'da uygular ve iki lifecycle tablosunu doğrular. Henüz PR/CI/production migration kanıtı yok.
+- Yerel doğrulama: `python -m unittest discover -s tests -v` = 424 geçti, 27 atlandı; `python tools/codex_acceptance.py` başarılı (aynı 424 test, 27 atlandı); `git diff --check` temiz. PostgreSQL DSN yerelde yok, 27 DB testi atlandı.
+- Üretim durumu değişmedi: 81 il Neon defteri 81 pending; ulusal/ilçe PBF taraması yok; ntfy yok; email eligibility=0; sender lock paused; 4 tarihsel SMTP hata kaydı incelenmiş fakat kilit açılmamış. Gerçek e-posta gönderilmedi.
+
 Güncelleme: 2026-11-25 (Europe/Istanbul)
 
 ## Görev 6.3 üretim durumu — 2026-11-26

@@ -46,6 +46,17 @@ class DailyStatusTests(unittest.TestCase):
         self.assertIn("KOŞULLU",text)
         self.assertIn("teslim kanıtı değildir",text)
 
+    def test_lifecycle_counts_are_reported_separately_from_mail_permission(self):
+        counts=dict(total=8,new=1,accepted=0,failed=0,delayed=0,
+                    replies=0,duplicate=0,accepted_today=0,eligible=0,
+                    lifecycle_recorded=2,
+                    lifecycle_stages={"meeting_scheduled":1,"do_not_contact":1})
+        text=compose("2026-11-01",counts,True)
+        self.assertIn("Kalıcı satış aşaması kaydı: 2 işletme",text)
+        self.assertIn("toplantı: 1",text)
+        self.assertIn("kaybedildi: 0",text)
+        self.assertIn("Geçmişi olmayan CRM kayıtlarına aşama atanmaz",text)
+
 
 if __name__ == '__main__':
     unittest.main()

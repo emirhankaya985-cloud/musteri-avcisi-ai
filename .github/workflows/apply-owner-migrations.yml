@@ -36,6 +36,7 @@ jobs:
               ("014", Path("migrations/014_duplicate_confidence_audit.sql")),
               ("015", Path("migrations/015_owner_daily_report_provenance.sql")),
               ("016", Path("migrations/016_owner_province_scan_coverage.sql")),
+              ("017", Path("migrations/017_owner_lead_lifecycle.sql")),
           )
           try:
               with psycopg.connect(dsn) as conn:
@@ -73,7 +74,11 @@ jobs:
                           report_columns = cur.fetchone()[0]
                           cur.execute("SELECT to_regclass('public.owner_province_scan_coverage')")
                           province_table = cur.fetchone()[0] is not None
-                          if not (duplicate_columns and report_columns and province_table):
+                          cur.execute(
+                              "SELECT to_regclass('public.owner_lead_lifecycle_state'), "
+                              "to_regclass('public.owner_lead_lifecycle_events')")
+                          lifecycle_tables = all(cur.fetchone())
+                          if not (duplicate_columns and report_columns and province_table and lifecycle_tables):
                               raise RuntimeError("Post-migration schema verification failed")
                   print("MIGRATION_RESULT: verified; all changes committed atomically")
           except Exception:

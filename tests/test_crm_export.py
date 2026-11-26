@@ -70,6 +70,20 @@ class CrmExportTests(unittest.TestCase):
                 self.assertEqual(cell.data_type, "s")
         self.assertEqual(len(workbook.sheetnames), 12)
 
+    def test_workbook_counts_sales_stages_and_marks_unrecorded_history(self):
+        workbook = load_workbook(io.BytesIO(build_workbook(
+            [{"osm_id":"node/1"},{"osm_id":"node/2"}],
+            {"total":2,"lifecycle_recorded":1,
+             "lifecycle_stages":{"meeting_scheduled":1,"won":1}},
+            "2026-11-26")), data_only=True)
+        summary = workbook["Tüm işletmeler"]
+        values = {summary.cell(row, col).value: summary.cell(row, col + 1).value
+                  for row in range(4, 5) for col in range(1, summary.max_column, 2)}
+        self.assertEqual(values["CRM'de kalıcı satış aşaması olan kayıt"], 1)
+        self.assertEqual(values["Toplantı planlandı"], 1)
+        self.assertEqual(values["Kazanıldı"], 1)
+        self.assertEqual(values["Aşaması bilinmeyen geçmiş CRM kaydı"], 1)
+
     def test_duplicate_rows_serialize_arrays_and_timestamps_as_safe_xlsx_cells(self):
         from datetime import datetime, timezone
         pair = ("node/1", "node/2", "needs_review", 72,
