@@ -7,6 +7,7 @@ import hashlib
 import html
 import json
 from datetime import datetime
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 from functools import wraps
 from .outreach import draft_mail, send_mail, valid_recipient
@@ -20,6 +21,25 @@ def daily_mail_limit(env):
         raise RuntimeError('Automatic daily mail quota must be a non-negative integer')
     value = int(raw)
     return None if value == 0 else value
+
+
+def _same_official_host(website, source_url):
+    def host(value):
+        value = str(value or '').strip()
+        if '://' not in value:
+            value = 'https://' + value
+        try:
+            parsed = urlsplit(value)
+            if (parsed.scheme != 'https' or not parsed.hostname
+                    or parsed.username or parsed.password
+                    or parsed.port not in (None, 443)):
+                return None
+            return parsed.hostname.casefold().removeprefix('www.')
+        except ValueError:
+            return None
+    site_host = host(website)
+    source_host = host(source_url)
+    return bool(site_host and source_host and site_host == source_host)
 
 
 def check_config(env):
@@ -40,33 +60,15 @@ def check_config(env):
 
 
 def template_mail(lead):
-    from .core import recommend
+    from .proposal_review import build_proposal_review
     name = ' '.join(str(lead.get('name') or 'İşletmeniz').split())[:100]
-    rec = recommend(lead)
-    if rec['focus'] == 'website':
-        subject = f'{name} için web sitesi tasarım önerisi'
-        proposal = (f"{name} için {rec['premium_scope']} içeren, işletmenizin kimliğine "
-                    'uygun bir web sitesi hazırlayabilirim. Ziyaretçilerin hizmetlerinizi '
-                    'inceleyip size kolayca ulaşabileceği sade bir yapı düşünüyorum.')
-    elif rec['focus'] == 'whatsapp':
-        subject = f'{name} için WhatsApp müşteri desteği önerisi'
-        proposal = (f"{name} için araştırmada doğrulanan WhatsApp müşteri desteği "
-                    f"ihtiyacına yönelik bir örnek paylaşabilirim: {rec['idea']}.")
-    elif rec['focus'] == 'combined':
-        subject = f'{name} için web ve süreç otomasyonu önerisi'
-        proposal = (f"{name} için araştırmada doğrulanan iki ihtiyaca yönelik bütünleşik "
-                    f"bir çözüm önermek isterim: {rec['premium_scope']}; ayrıca "
-                    f"{rec['idea']}. Kapsamı ve önceliği birlikte netleştirebiliriz.")
-    elif rec['focus'] == 'research':
-        subject = f'{name} için kısa bir araştırma sorusu'
-        proposal = (f"{name} için uygun olabilecek bir çalışma önermeden önce "
-                    'mevcut web, WhatsApp ve müşteri iletişimi süreçlerinizi anlamak isterim. '
-                    'İhtiyacınız varsa, doğruladıktan sonra kısa bir örnek paylaşabilirim.')
+    review = build_proposal_review(lead)
+    service = review.get('service')
+    if service:
+        subject = f'{name} için {service.lower()} hakkında kısa öneri'
     else:
-        subject = f'{name} için randevu ve talep takibi önerisi'
-        proposal = (f"{name} için değerlendirilebilecek bir çalışma: {rec['idea']}. "
-                    'Önce mevcut işleyişinizi öğrenip yalnızca ihtiyaç duyduğunuz '
-                    'adımlara uygun bir çözüm hazırlamak isterim.')
+        subject = f'{name} için kısa bir araştırma sorusu'
+    proposal = review['draft']
     return {'subject':subject,'body':
             f'Merhaba {name} ekibi,\n\n'
             'Ben Emirhan Kaya. Faultline Studio adıyla web geliştirme ve iş süreçlerini '
@@ -155,12 +157,46 @@ class AutoMailStore:
         # Private registration is immutable once a mail record exists.
         with self.db.cursor() as cur:
             cur.execute("INSERT INTO owner_leads (osm_id,lead_data,status) VALUES (%s,%s::jsonb,'review') "
-                        'ON CONFLICT (osm_id) DO NOTHING',(lead['id'],json.dumps(lead)))
+                        'ON CONFLICT (osm_id) DO NOTHING RETURNING (xmax = 0)',
+                        (lead['id'],json.dumps(lead)))
+            inserted = cur.fetchone()
+        if inserted and inserted[0] is True:
+            with self.db.cursor() as cur:
+                cur.execute("SELECT to_regclass('owner_lead_lifecycle_state')")
+                lifecycle_ready = cur.fetchone()[0] is not None
+            if lifecycle_ready:
+                from .lifecycle_store import record_transition
+                eligibility = lead.get('marketing_eligibility')
+                opted_out = (isinstance(eligibility, dict)
+                             and eligibility.get('opted_out') is True)
+                initial_stage = 'do_not_contact' if opted_out else 'new_discovered'
+                record_transition(
+                    self.db, lead['id'], initial_stage,
+                    idempotency_key=f"discover:{lead['id']}",
+                    reason=("New OSM business registered with existing opt-out suppression"
+                            if opted_out else
+                            "New OSM business registered for automatic contact review"),
+                    evidence_refs=(f"osm://{lead['id']}",),
+                )
         data,status = self.load(lead['id'])
         if status in ('rejected','deferred','email_sent'):
             return None
-        if data.get('_auto_mail'):
-            return data['_auto_mail']
+        previous_record = data.get('_auto_mail') or {}
+        if previous_record:
+            # A source-backed public address found later may replace a prior
+            # no-address/MX skip with a fresh unsent draft. Never revive a
+            # previously claimed, uncertain, accepted, or opted-out lead.
+            source = str(lead.get('email_source') or data.get('email_source') or '')
+            has_research_address = (
+                previous_record.get('state') == 'skipped'
+                and _same_official_host(lead.get('website') or data.get('website'), source)
+                and valid_recipient(lead.get('email') or data.get('email'))
+                and not (data.get('marketing_eligibility') or {}).get('opted_out')
+                and (data.get('_mail') or {}).get('state') not in
+                    ('sending','accepted','uncertain')
+            )
+            if not has_research_address:
+                return previous_record
         from .contact_email import discover_email
         from .mail_tracking import assess_contact
         # Tier-3 qualification is private research only; never copy it into
@@ -179,8 +215,13 @@ class AutoMailStore:
             record = {'state':'skipped', 'email_check':lead['email_check']}
         record['id'] = hashlib.sha256(('automatic:'+lead['id']).encode()).hexdigest()[:24]
         with self.db.cursor() as cur:
-            cur.execute("UPDATE owner_leads SET lead_data=jsonb_set(lead_data,'{_auto_mail}',%s::jsonb) "
-                        "WHERE osm_id=%s AND status='review' AND NOT (lead_data ? '_auto_mail')",
+            cur.execute("UPDATE owner_leads SET lead_data=jsonb_set(lead_data,'{_auto_mail}',%s::jsonb),"
+                        "updated_at=now() WHERE osm_id=%s AND status='review' "
+                        "AND (NOT (lead_data ? '_auto_mail') OR "
+                        "lead_data#>>'{_auto_mail,state}'='skipped') "
+                        "AND coalesce(lead_data#>>'{_mail,state}','') NOT IN "
+                        "('sending','accepted','uncertain') "
+                        "AND coalesce(lead_data->'marketing_eligibility'->>'opted_out','false') <> 'true'",
                         (json.dumps(record),lead['id']))
         data,status = self.load(lead['id'])
         return data.get('_auto_mail')
@@ -204,6 +245,12 @@ class AutoMailStore:
                 if row[1] != 'review' or record.get('state') != 'draft':
                     return None
                 recipient = record['recipient']
+                from .mail_tracking import normalized_email
+                sender = normalized_email(env.get('GMAIL_SENDER_ADDRESS'))
+                if sender and normalized_email(recipient) == sender:
+                    # Scheduled business outreach must never become a sender
+                    # self-test, even if that address appears in CRM.
+                    return None
                 # The scheduled automation is never allowed to infer legal
                 # marketing eligibility from an OSM address or an MX record.
                 # Business/IYS status, consent evidence and freshness are private.
@@ -275,11 +322,17 @@ class AutoMailStore:
 
     @private_operation
     def finish(self, lead_id, state):
-        with self.db.cursor() as cur:
-            cur.execute("UPDATE owner_leads SET lead_data=jsonb_set(lead_data,'{_auto_mail,state}',%s::jsonb), "
-                        "status=CASE WHEN %s='accepted' THEN 'email_sent' ELSE status END,updated_at=now() "
-                        "WHERE osm_id=%s AND lead_data->'_auto_mail'->>'state'='sending'",
-                        (json.dumps(state),state,lead_id))
+        with self.db.transaction():
+            with self.db.cursor() as cur:
+                cur.execute("UPDATE owner_leads SET lead_data=jsonb_set(lead_data,'{_auto_mail,state}',%s::jsonb), "
+                            "status=CASE WHEN %s='accepted' THEN 'email_sent' ELSE status END,updated_at=now() "
+                            "WHERE osm_id=%s AND lead_data->'_auto_mail'->>'state'='sending' "
+                            "RETURNING lead_data->'_auto_mail'->>'id'",
+                            (json.dumps(state),state,lead_id))
+                row = cur.fetchone()
+            if state == 'accepted' and row and row[0]:
+                from .mail_lifecycle import record_smtp_acceptance
+                record_smtp_acceptance(self.db, lead_id, claim_id=row[0])
 
     @private_operation
     def pending_reports(self):

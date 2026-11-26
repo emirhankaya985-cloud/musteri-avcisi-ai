@@ -71,6 +71,14 @@ def aggregate(conn, day):
         cur.execute("SELECT count(*) FROM owner_mail_watch_runs "
                     "WHERE report_day=%s::date",(day,))
         measured_watches = cur.fetchone()[0]
+        cur.execute(
+            "SELECT count(*) FILTER (WHERE left(lead_data#>>'{email_research,checked_at}',10)=%s "
+            "AND lead_data#>>'{email_research,status}'='public_address_found'),"
+            "count(*) FILTER (WHERE left(lead_data#>>'{email_research,checked_at}',10)=%s "
+            "AND lead_data#>>'{email_research,status}'='no_unique_public_address'),"
+            "count(*) FILTER (WHERE left(lead_data#>>'{email_research,checked_at}',10)=%s) "
+            "FROM owner_leads", (day,day,day))
+        researched_emails, new_public_addresses, no_public_address = cur.fetchone()
         cur.execute("SELECT to_regclass('owner_lead_lifecycle_state')")
         lifecycle_ready = cur.fetchone()[0] is not None
         lifecycle_stages = {}
@@ -101,6 +109,9 @@ def aggregate(conn, day):
                 today_failed_notices=int(today_failed_notices) if measured_watches else None,
                 today_delays=int(today_delays) if measured_watches else None,
                 today_replies=int(today_replies) if measured_watches else None,
+                email_research_count=int(researched_emails),
+                new_public_addresses=int(new_public_addresses),
+                email_research_no_address=int(no_public_address),
                 lifecycle_stages=lifecycle_stages,
                 lifecycle_recorded=sum(lifecycle_stages.values()))
 
@@ -128,6 +139,10 @@ def compose(day, counts, enabled):
         f"{amount(counts.get('provinces_total'))} il tamamlandı ({amount(counts.get('province_coverage_percent'))}%)\n"
         f"🆕 CRM'e yeni benzersiz aday: {counts['new']}\n"
         f"📧 Yeni kaydedilen teknik adres: {amount(addresses)}\n"
+        f"🌐 Resmî işletme sitesi araştırması: {counts.get('email_research_count', 0)}"
+        f" | yeni kamuya açık adres: {counts.get('new_public_addresses', 0)}"
+        f" | bulunamadı: {counts.get('email_research_no_address', 0)}\n"
+        "ℹ️ Kamuya açık adres bulunması, e-posta gönderme izni değildir.\n"
         f"🔎 Yeni adreslerden format+DNS MX kontrolünü geçen: {amount(checked)}"
         " (posta kutusu/teslim ve izin kanıtı değildir)\n"
         f"✅ Doğrulanmış iletişim uygunluğu: {counts['eligible']}\n"
@@ -276,6 +291,12 @@ def run(env=None, connection=None, messenger=api, day=None, document_sender=None
               f"workbook_telegram_message_id={document_id}; "
               f"summary_telegram_message_id={mid}; workbook_sha256={workbook_hash}; "
               f"crm_snapshot_sha256={snapshot_hash}; github_run_id={run_id or 'unknown'}; business_mail_sent=0")
+        # ntfy is optional and strictly secondary to the durable Telegram
+        # receipt. No ntfy settings means no request; failures never replay
+        # the already delivered Telegram report.
+        from .ntfy_report import send_daily as send_ntfy_daily
+        ntfy_status = send_ntfy_daily(message, env)
+        print(f"NTFY_DAILY_REPORT: status={ntfy_status}; delivery_receipt=not_available")
         return mid
     finally:
         if owns_connection:

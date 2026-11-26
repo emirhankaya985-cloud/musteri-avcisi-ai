@@ -20,11 +20,12 @@ class TemplateMailTests(unittest.TestCase):
             self.assertNotIn('TL',mail['body'])
             self.assertLess(len(mail['body']),2200)
 
-    def test_existing_site_receives_automation_instead_of_website_pitch(self):
+    def test_existing_site_without_need_evidence_gets_a_research_question(self):
         mail=template_mail({'name':'Örnek','category':'Kuaför/berber','website':'https://example.invalid'})
         self.assertIn('araştırma sorusu',mail['subject'])
-        self.assertIn('mevcut web',mail['body'])
+        self.assertIn('müşteri iletişim süreçleriniz',mail['body'])
         self.assertNotIn('web sitesi hazırlayabilirim',mail['body'])
+        self.assertNotIn('doğrulanmış',mail['body'].casefold())
 
     def test_template_mode_does_not_use_ai_or_require_key(self):
         env={'AUTO_MAIL_ENABLED':'true','REVIEW_DATABASE_URL':'fixture',

@@ -493,6 +493,17 @@ class PostgresDedupTests(unittest.TestCase):
         self.assertEqual(row["state"],"sending")
         self.assertTrue(row["claimed_day"])
 
+    def test_scheduled_outreach_never_claims_the_configured_sender_address(self):
+        self.insert("node/703")
+        env={"AUTO_MAIL_ENABLED":"true",
+             "GMAIL_SENDER_ADDRESS":"synthetic@example.invalid"}
+        store=AutoMailStore(ReviewStore(self.db))
+        self.assertIsNone(store.claim("node/703",env))
+        record=self.db.execute("SELECT lead_data->'_auto_mail' FROM owner_leads "
+                               "WHERE osm_id='node/703'").fetchone()[0]
+        self.assertEqual(record["state"],"draft")
+        self.assertNotIn("claimed_day",record)
+
     def test_bounce_pause_read_only_no_claims(self):
         for i in range(15):
             record={"state":"accepted","recipient":f"synthetic-{i}@example.invalid"}

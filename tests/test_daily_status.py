@@ -57,6 +57,16 @@ class DailyStatusTests(unittest.TestCase):
         self.assertIn("kaybedildi: 0",text)
         self.assertIn("Geçmişi olmayan CRM kayıtlarına aşama atanmaz",text)
 
+    def test_public_email_research_is_not_reported_as_permission(self):
+        counts=dict(total=8,new=1,accepted=0,failed=0,delayed=0,
+                    replies=0,duplicate=0,accepted_today=0,eligible=0,
+                    email_research_count=10,new_public_addresses=3,
+                    email_research_no_address=7)
+        text=compose("2026-11-01",counts,False)
+        self.assertIn("Resmî işletme sitesi araştırması: 10",text)
+        self.assertIn("yeni kamuya açık adres: 3",text)
+        self.assertIn("Kamuya açık adres bulunması, e-posta gönderme izni değildir",text)
+
 
 if __name__ == '__main__':
     unittest.main()

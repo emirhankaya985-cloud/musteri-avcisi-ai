@@ -46,6 +46,23 @@ class OutreachTests(unittest.TestCase):
         self.assertEqual(call.kwargs['to_addrs'],['owner@example.invalid'])
         self.assertEqual(call.args[0].get_content().strip(),self.draft['body'])
 
+    def test_business_smtp_never_targets_its_own_sender(self):
+        draft={**self.draft,"recipient":self.env["GMAIL_SENDER_ADDRESS"].upper()}
+        with self.assertRaisesRegex(RuntimeError,"cannot target the configured sender"):
+            send_mail(draft,self.env,lambda *a,**k:self.fail("SMTP must not connect"))
+
+    def test_owner_approved_claim_rejects_sender_address_before_any_smtp_claim(self):
+        review=MagicMock()
+        cursor=review.db.cursor.return_value.__enter__.return_value
+        cursor.fetchone.side_effect=[(
+            {"_mail":{"id":"a"*24,"state":"draft",
+                      "recipient":self.env["GMAIL_SENDER_ADDRESS"]}},
+            "email_pending",7)]
+        store=MailStore(review)
+        result=store._claim("node/2",7,"a"*24,self.env)
+        self.assertEqual(result,"not_eligible")
+        self.assertEqual(cursor.execute.call_count,2)
+
     def test_temporary_rcpt_450_retries_once_before_data(self):
         import smtplib
         smtp = MagicMock()

@@ -165,6 +165,8 @@ class MailWatchSafetyTests(unittest.TestCase):
                 if "SELECT osm_id, lead_data FROM owner_leads" in self.last:
                     return [("node/10",lead)]
                 return []
+            def fetchone(self):
+                return (None,) if "to_regclass" in self.last else None
             def __enter__(self): return self
             def __exit__(self,*a): return False
         class FakeConn:

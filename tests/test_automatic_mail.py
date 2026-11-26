@@ -28,6 +28,15 @@ class MemoryStore:
 
 
 class AutomaticMailTests(unittest.TestCase):
+    def test_template_uses_research_question_until_current_need_is_sourced(self):
+        from leadhunter.automatic_mail import template_mail
+        draft = template_mail({"id":"node/91", "name":"Örnek Kafe",
+                               "category":"Cafe", "website":"https://example.org",
+                               "phone":"+905551112233"})
+        self.assertIn("kısa bir araştırma sorusu", draft["subject"])
+        self.assertIn("ihtiyacı doğrulayıp", draft["body"])
+        self.assertNotIn("doğrulanmış WhatsApp", draft["body"])
+
     def setUp(self):
         self.env={'MAIL_DRAFT_MODE':'ai','AUTO_MAIL_ENABLED':'true','REVIEW_DATABASE_URL':'postgresql://fixture/?sslmode=require',
                   'GMAIL_SENDER_ADDRESS':'sender@gmail.com','GMAIL_APP_PASSWORD':'abcdefghijklmnop',
@@ -43,6 +52,35 @@ class AutomaticMailTests(unittest.TestCase):
         for key in ('MAIL_AI_API_KEY','REVIEW_DATABASE_URL','GMAIL_APP_PASSWORD'):
             with self.subTest(key=key), self.assertRaises(RuntimeError):
                 check_config({**self.env,key:''})
+
+    def test_smtp_acceptance_lifecycle_update_shares_crm_transaction(self):
+        from contextlib import contextmanager
+        events=[]
+        class Cursor:
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def execute(self,query,params):
+                events.append("crm_acceptance_update")
+                self.query=query
+            def fetchone(self): return ("c"*24,)
+        class Db:
+            def cursor(self): return Cursor()
+            @contextmanager
+            def transaction(self):
+                events.append("transaction_begin")
+                try: yield
+                except Exception:
+                    events.append("transaction_rollback")
+                    raise
+                else: events.append("transaction_commit")
+        store=AutoMailStore(MagicMock(db=Db()))
+        with patch("leadhunter.mail_lifecycle.record_smtp_acceptance",
+                   side_effect=lambda db,lid,claim_id:
+                   events.append(("lifecycle_acceptance",lid,claim_id))):
+            store.finish("node/1","accepted")
+        self.assertEqual(events,["transaction_begin","crm_acceptance_update",
+                                 ("lifecycle_acceptance","node/1","c"*24),
+                                 "transaction_commit"])
 
     def test_one_mail_without_callback_then_exact_private_report(self):
         store=MemoryStore(); calls=[]
@@ -103,6 +141,53 @@ class AutomaticMailTests(unittest.TestCase):
             self.assertEqual(store.prepare({'id':'node/1','email':'invalid'},self.env,None)['state'],'skipped')
             ai.assert_not_called()
         self.assertIn('jsonb_set',cur.execute.call_args.args[0])
+
+    def test_officially_researched_address_replaces_old_skip_with_unsent_draft(self):
+        db=MagicMock();cur=db.cursor.return_value.__enter__.return_value
+        existing={'email':'info@business.example','website':'https://business.example',
+                  'email_source':'https://business.example/contact',
+                  '_auto_mail':{'state':'skipped'}}
+        store=AutoMailStore(MagicMock(db=db))
+        store.load=MagicMock(side_effect=[(existing,'review'),
+                                          ({'_auto_mail':{'state':'draft'}},'review')])
+        lead={'id':'node/92','name':'Sample Business','website':'https://business.example',
+              'email':'info@business.example',
+              'email_source':'https://business.example/contact'}
+        with patch('leadhunter.mail_tracking.assess_contact',
+                   return_value={**lead,'email_check':'mx_present'}), \
+             patch('leadhunter.automatic_mail.compose_mail',
+                   return_value={'subject':'Research question','body':'Unsent proposal'}):
+            result=store.prepare(lead,{'MAIL_DRAFT_MODE':'template'},None)
+        self.assertEqual(result['state'],'draft')
+        query=cur.execute.call_args.args[0]
+        self.assertIn("lead_data#>>'{_auto_mail,state}'='skipped'",query)
+        self.assertIn("opted_out",query)
+
+    def test_official_address_from_another_host_does_not_reactivate_skip(self):
+        store=AutoMailStore(MagicMock())
+        store.load=MagicMock(return_value=(
+            {'email':'info@unrelated.example','website':'https://business.example',
+             'email_source':'https://unrelated.example/contact',
+             '_auto_mail':{'state':'skipped'}},'review'))
+        result=store.prepare({'id':'node/94','website':'https://business.example',
+                              'email':'info@unrelated.example',
+                              'email_source':'https://unrelated.example/contact'},
+                             {'MAIL_DRAFT_MODE':'template'},None)
+        self.assertEqual(result['state'],'skipped')
+
+    def test_official_address_does_not_revive_a_skipped_opted_out_lead(self):
+        db=MagicMock();cur=db.cursor.return_value.__enter__.return_value
+        existing={'email':'info@business.example','email_source':'https://business.example/contact',
+                  'marketing_eligibility':{'opted_out':True},
+                  '_auto_mail':{'state':'skipped'}}
+        store=AutoMailStore(MagicMock(db=db))
+        store.load=MagicMock(return_value=(existing,'review'))
+        result=store.prepare({'id':'node/93','email':existing['email'],
+                              'email_source':existing['email_source']},
+                             {'MAIL_DRAFT_MODE':'template'},None)
+        self.assertEqual(result['state'],'skipped')
+        self.assertEqual(cur.execute.call_count,1)
+        self.assertIn('INSERT INTO owner_leads',cur.execute.call_args.args[0])
 
     def test_completed_and_declined_businesses_are_not_selected(self):
         store=AutoMailStore(MagicMock())
