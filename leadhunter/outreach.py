@@ -55,6 +55,8 @@ def send_mail(draft, env, smtp_factory=None):
     if not valid_recipient(draft.get('recipient')):
         raise RuntimeError('Recipient missing or invalid')
     sender, password = sender_credentials(env)
+    if draft['recipient'].strip().casefold() == sender.strip().casefold():
+        raise RuntimeError('Business mail cannot target the configured sender address')
     msg = EmailMessage()
     msg['From'] = sender
     msg['To'] = draft['recipient']
@@ -142,6 +144,10 @@ class MailStore:
                 if draft.get('id') != draft_id or draft.get('state') != 'draft':
                     return 'already_claimed'
                 if not valid_recipient(recipient):
+                    return 'not_eligible'
+                from .mail_tracking import normalized_email
+                sender = normalized_email(env.get('GMAIL_SENDER_ADDRESS'))
+                if sender and recipient == sender:
                     return 'not_eligible'
                 if not eligible_recipient(data, recipient):
                     return 'not_eligible'

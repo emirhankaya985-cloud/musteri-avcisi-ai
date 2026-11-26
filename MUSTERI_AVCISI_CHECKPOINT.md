@@ -55,3 +55,12 @@ Güncelleme: 2026-11-25 (Europe/Istanbul)
 1. Lisanslı ve kaynaklı il/ilçe sınır manifesti, streaming PBF partitioner, ilçe checkpoint ve CRM upsert idempotency/duplicate guard CI kanıtları olmadan ulusal tarama başlatma.
 2. Gmail yalnızca OAuth consent ve hesap içi GitHub secret yapılandırması tamamlanınca; önce yalnız kullanıcının kendi adresine doğrulanmış self-test yap. İşletme alıcılarına gönderim kapalı kalsın.
 3. Yeni workbook/Telegram raporu ve doğal cron makbuzu oluşana kadar geçmiş Run `45543301939` kanıtını yeni sürüme aitmiş gibi sunma.
+
+## Görev 6.3 — Dış işletme iletişim akışı ve araştırma — 2026-11-26
+
+- Dış işletmelere yönelik zamanlanmış iletişim akışı eklendi: önce resmî web sitesi üzerinden günlük en fazla 10 eski CRM kaydı için kaynaklı e-posta araştırması; ardından ayrı akışta en fazla 5 uygun işletme/gün. Araştırma SMTP kullanmaz; adres keşfi hukuki ileti izni sayılmaz.
+- Kendine gönderim koruması hem otomatik alıcı claim noktasında hem SMTP öncesi son kapıda hem de sahip onaylı claim yolunda eklendi. Bu görevde self-test veya işletme e-postası gönderilmedi.
+- Yalnız güncel ve kaynaklı işletme sinyali varsa hizmet ihtiyacı iddia edilir; aksi durumda taslak keşif sorusu sorar. SMTP kabulü yanıt/teslimat olarak sayılmaz. Yanıt/ret yalnız eşleşen ve yeni lifecycle olaylarını ilerletir; geçmiş 412 işletmeye uydurma aşama atanmaz.
+- 2026.11.0 OSM türevi, açıkça resmî olmayan manifest üretildi: 81 il, 973 ilçe; sabitlenmiş kaynak commit ve özet hash doğrulandı. Bu yalnız sınır envanteridir; ilçe geometrisiyle streaming PBF tarayıcı, kalıcı ilçe checkpoint'i ve ulusal tarama hâlâ yok. Eski 402 tile ulusal kapsama kanıtı değildir.
+- Ntfy için yalnız opsiyonel, toplulaştırılmış bildirim taşıyıcısı eklendi; ntfy topic/secret yok, gerçek teslimat doğrulanmadı. Telegram günlük raporu PR #102 sonrası canlı teslim edilmişti.
+- Bu dalın yerel suite'i: `python -m unittest discover -s tests -v` = 460 geçti, 28 atlandı; `git diff --check` temiz. Üretimdeki son denetimde 0 belgelenmiş alıcı uygunluğu ve gönderici devre kesicisi paused olduğu için gerçek işletme gönderimi şu an 0; kilit açılmadı. Alıcı ön denetimi ve yasal kanıtlar temizlenmeden sistemin gönderdiği söylenemez.

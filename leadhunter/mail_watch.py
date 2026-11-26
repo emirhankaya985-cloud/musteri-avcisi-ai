@@ -327,6 +327,11 @@ def reconcile_mail(conn, notices):
                 # A reply requires an exact frozen outgoing Message-ID.
                 has_reply = matching_reply(notices, recipient, mail_id)
                 if has_reply and not record.get("reply_feedback"):
+                    matched_reply = next(
+                        n for n in notices if len(n) >= 2
+                        and n[0] == recipient
+                        and str(n[1]).startswith("reply:")
+                        and ("<" + mail_id + "@") in n[1])
                     matching_intents = [
                         (n[2].get("intent") if len(n) > 2 and isinstance(n[2],dict)
                          else "needs_review")
@@ -357,6 +362,16 @@ def reconcile_mail(conn, notices):
                             "COALESCE(lead_data->'marketing_eligibility','{}'::jsonb) || "
                             "'{\"opted_out\":true}'::jsonb,true),updated_at=now() "
                             "WHERE osm_id=%s",(lead_id,))
+                    # Keep lifecycle history in the same outer transaction as
+                    # the matched reply and opt-out suppression. A failure
+                    # rolls back both so the next read-only watcher can retry.
+                    # The helper only advances an existing email_sent stage;
+                    # explicit opt-out may initialize DNC from its verified
+                    # exact-thread evidence.
+                    from .mail_lifecycle import record_matched_reply
+                    record_matched_reply(
+                        conn, lead_id, sender=recipient,
+                        reply_reference=matched_reply[1], intent=intent)
                 before = record.get("delivery_feedback") or {}
                 if not state or before.get("state") == "failed" and state != "failed":
                     continue

@@ -1,0 +1,5048 @@
+{
+  "schema_version": 1,
+  "manifest_type": "osm_derived_non_official_admin_boundaries",
+  "official_boundary": false,
+  "source": {
+    "repository": "https://github.com/topografya/veri",
+    "release_tag": "v2026.11.0",
+    "tag_commit_sha": "2bd61aecb8e500ce049fa3ae4c6eb76350bcf9b0",
+    "summary_url": "https://raw.githubusercontent.com/topografya/veri/v2026.11.0/sinirlar/ozet.json",
+    "summary_sha256": "7dc6fbc3741aeb158f186e7860d8ba6399d6a46ee7c936d0f63a5aaf2a824803",
+    "source_data_date": "2026-11-01",
+    "generated_at": "2026-11-03T04:04:28Z",
+    "license": "ODbL 1.0",
+    "license_url": "https://opendatacommons.org/licenses/odbl/1-0/",
+    "attribution": "© OpenStreetMap contributors",
+    "readme_url": "https://github.com/topografya/veri#t%C3%BCrkiye-il-ve-il%C3%A7e-s%C4%B1n%C4%B1rlar%C4%B1"
+  },
+  "province_count": 81,
+  "district_count": 973,
+  "provinces": [
+    {
+      "code": "01",
+      "name": "Adana",
+      "relation_id": "relation/167216",
+      "bbox_wgs84": [
+        34.76974,
+        36.53881,
+        36.40958,
+        38.4046
+      ],
+      "district_count": 15,
+      "districts": [
+        {
+          "relation_id": "relation/1249246",
+          "name": "Aladağ"
+        },
+        {
+          "relation_id": "relation/1249247",
+          "name": "Sarıçam"
+        },
+        {
+          "relation_id": "relation/1249248",
+          "name": "Feke"
+        },
+        {
+          "relation_id": "relation/1249249",
+          "name": "Saimbeyli"
+        },
+        {
+          "relation_id": "relation/1249250",
+          "name": "Ceyhan"
+        },
+        {
+          "relation_id": "relation/1249251",
+          "name": "Karaisalı"
+        },
+        {
+          "relation_id": "relation/1249252",
+          "name": "Kozan"
+        },
+        {
+          "relation_id": "relation/1249253",
+          "name": "Çukurova"
+        },
+        {
+          "relation_id": "relation/1249254",
+          "name": "Karataş"
+        },
+        {
+          "relation_id": "relation/1249255",
+          "name": "Yüreğir"
+        },
+        {
+          "relation_id": "relation/1249256",
+          "name": "Pozantı"
+        },
+        {
+          "relation_id": "relation/1249257",
+          "name": "Seyhan"
+        },
+        {
+          "relation_id": "relation/1249258",
+          "name": "Tufanbeyli"
+        },
+        {
+          "relation_id": "relation/1249259",
+          "name": "Yumurtalık"
+        },
+        {
+          "relation_id": "relation/1249260",
+          "name": "İmamoğlu"
+        }
+      ]
+    },
+    {
+      "code": "02",
+      "name": "Adıyaman",
+      "relation_id": "relation/223141",
+      "bbox_wgs84": [
+        37.43303,
+        37.40969,
+        39.26327,
+        38.21006
+      ],
+      "district_count": 9,
+      "districts": [
+        {
+          "relation_id": "relation/1389197",
+          "name": "Gölbaşı"
+        },
+        {
+          "relation_id": "relation/1807479",
+          "name": "Gerger"
+        },
+        {
+          "relation_id": "relation/1825239",
+          "name": "Besni"
+        },
+        {
+          "relation_id": "relation/1825241",
+          "name": "Tut"
+        },
+        {
+          "relation_id": "relation/1825792",
+          "name": "Adıyaman Merkez"
+        },
+        {
+          "relation_id": "relation/1825793",
+          "name": "Kâhta"
+        },
+        {
+          "relation_id": "relation/1825794",
+          "name": "Samsat"
+        },
+        {
+          "relation_id": "relation/1825795",
+          "name": "Sincik"
+        },
+        {
+          "relation_id": "relation/1825796",
+          "name": "Çelikhan"
+        }
+      ]
+    },
+    {
+      "code": "03",
+      "name": "Afyonkarahisar",
+      "relation_id": "relation/223171",
+      "bbox_wgs84": [
+        29.65889,
+        37.77749,
+        31.73199,
+        39.27085
+      ],
+      "district_count": 18,
+      "districts": [
+        {
+          "relation_id": "relation/1263741",
+          "name": "Dinar"
+        },
+        {
+          "relation_id": "relation/1263742",
+          "name": "İhsaniye"
+        },
+        {
+          "relation_id": "relation/1263743",
+          "name": "Çay"
+        },
+        {
+          "relation_id": "relation/1263744",
+          "name": "Hocalar"
+        },
+        {
+          "relation_id": "relation/1263745",
+          "name": "Bayat"
+        },
+        {
+          "relation_id": "relation/1263746",
+          "name": "Evciler"
+        },
+        {
+          "relation_id": "relation/1263747",
+          "name": "Çobanlar"
+        },
+        {
+          "relation_id": "relation/1263748",
+          "name": "Başmakçı"
+        },
+        {
+          "relation_id": "relation/1263749",
+          "name": "Bolvadin"
+        },
+        {
+          "relation_id": "relation/1263750",
+          "name": "Sultandağı"
+        },
+        {
+          "relation_id": "relation/1263751",
+          "name": "Dazkırı"
+        },
+        {
+          "relation_id": "relation/1263752",
+          "name": "İscehisar"
+        },
+        {
+          "relation_id": "relation/1263753",
+          "name": "Afyonkarahisar Merkez"
+        },
+        {
+          "relation_id": "relation/1263754",
+          "name": "Şuhut"
+        },
+        {
+          "relation_id": "relation/1263755",
+          "name": "Sandıklı"
+        },
+        {
+          "relation_id": "relation/1263756",
+          "name": "Sinanpaşa"
+        },
+        {
+          "relation_id": "relation/1263757",
+          "name": "Emirdağ"
+        },
+        {
+          "relation_id": "relation/1824754",
+          "name": "Kızılören"
+        }
+      ]
+    },
+    {
+      "code": "04",
+      "name": "Ağrı",
+      "relation_id": "relation/186433",
+      "bbox_wgs84": [
+        42.27899,
+        38.92997,
+        44.48711,
+        40.0023
+      ],
+      "district_count": 8,
+      "districts": [
+        {
+          "relation_id": "relation/1780207",
+          "name": "Eleşkirt"
+        },
+        {
+          "relation_id": "relation/1780615",
+          "name": "Patnos"
+        },
+        {
+          "relation_id": "relation/1780622",
+          "name": "Tutak"
+        },
+        {
+          "relation_id": "relation/1837704",
+          "name": "Ağrı Merkez"
+        },
+        {
+          "relation_id": "relation/1837705",
+          "name": "Diyadin"
+        },
+        {
+          "relation_id": "relation/1837706",
+          "name": "Doğubayazıt"
+        },
+        {
+          "relation_id": "relation/1837707",
+          "name": "Hamur"
+        },
+        {
+          "relation_id": "relation/1837708",
+          "name": "Taşlıçay"
+        }
+      ]
+    },
+    {
+      "code": "05",
+      "name": "Amasya",
+      "relation_id": "relation/223452",
+      "bbox_wgs84": [
+        34.97884,
+        40.23301,
+        36.51225,
+        41.0776
+      ],
+      "district_count": 7,
+      "districts": [
+        {
+          "relation_id": "relation/1724394",
+          "name": "Gümüşhacıköy"
+        },
+        {
+          "relation_id": "relation/1724395",
+          "name": "Hamamözü"
+        },
+        {
+          "relation_id": "relation/1837141",
+          "name": "Amasya Merkez"
+        },
+        {
+          "relation_id": "relation/1837142",
+          "name": "Göynücek"
+        },
+        {
+          "relation_id": "relation/1837143",
+          "name": "Merzifon"
+        },
+        {
+          "relation_id": "relation/1837144",
+          "name": "Suluova"
+        },
+        {
+          "relation_id": "relation/1837145",
+          "name": "Taşova"
+        }
+      ]
+    },
+    {
+      "code": "06",
+      "name": "Ankara",
+      "relation_id": "relation/223422",
+      "bbox_wgs84": [
+        30.83438,
+        38.67286,
+        33.87325,
+        40.75628
+      ],
+      "district_count": 25,
+      "districts": [
+        {
+          "relation_id": "relation/1667099",
+          "name": "Akyurt"
+        },
+        {
+          "relation_id": "relation/1667201",
+          "name": "Çubuk"
+        },
+        {
+          "relation_id": "relation/1710801",
+          "name": "Ayaş"
+        },
+        {
+          "relation_id": "relation/1713914",
+          "name": "Evren"
+        },
+        {
+          "relation_id": "relation/1713916",
+          "name": "Şereflikoçhisar"
+        },
+        {
+          "relation_id": "relation/1738278",
+          "name": "Beypazarı"
+        },
+        {
+          "relation_id": "relation/1738279",
+          "name": "Nallıhan"
+        },
+        {
+          "relation_id": "relation/1739269",
+          "name": "Güdül"
+        },
+        {
+          "relation_id": "relation/1799855",
+          "name": "Polatlı"
+        },
+        {
+          "relation_id": "relation/1809464",
+          "name": "Gölbaşı"
+        },
+        {
+          "relation_id": "relation/1809594",
+          "name": "Balâ"
+        },
+        {
+          "relation_id": "relation/1809674",
+          "name": "Elmadağ"
+        },
+        {
+          "relation_id": "relation/1810229",
+          "name": "Haymana"
+        },
+        {
+          "relation_id": "relation/1811046",
+          "name": "Sincan"
+        },
+        {
+          "relation_id": "relation/1811108",
+          "name": "Çamlıdere"
+        },
+        {
+          "relation_id": "relation/1811128",
+          "name": "Kızılcahamam"
+        },
+        {
+          "relation_id": "relation/1811252",
+          "name": "Kalecik"
+        },
+        {
+          "relation_id": "relation/1811393",
+          "name": "Keçiören"
+        },
+        {
+          "relation_id": "relation/1811454",
+          "name": "Pursaklar"
+        },
+        {
+          "relation_id": "relation/1812317",
+          "name": "Altındağ"
+        },
+        {
+          "relation_id": "relation/1812319",
+          "name": "Mamak"
+        },
+        {
+          "relation_id": "relation/1812321",
+          "name": "Çankaya"
+        },
+        {
+          "relation_id": "relation/1812354",
+          "name": "Etimesgut"
+        },
+        {
+          "relation_id": "relation/1812355",
+          "name": "Kahramankazan"
+        },
+        {
+          "relation_id": "relation/1812356",
+          "name": "Yenimahalle"
+        }
+      ]
+    },
+    {
+      "code": "07",
+      "name": "Antalya",
+      "relation_id": "relation/223132",
+      "bbox_wgs84": [
+        29.26228,
+        36.09263,
+        32.62628,
+        37.45729
+      ],
+      "district_count": 19,
+      "districts": [
+        {
+          "relation_id": "relation/1443174",
+          "name": "Gazipaşa"
+        },
+        {
+          "relation_id": "relation/1726977",
+          "name": "Alanya"
+        },
+        {
+          "relation_id": "relation/1726981",
+          "name": "Gündoğmuş"
+        },
+        {
+          "relation_id": "relation/1726993",
+          "name": "Manavgat"
+        },
+        {
+          "relation_id": "relation/1726997",
+          "name": "Akseki"
+        },
+        {
+          "relation_id": "relation/1726998",
+          "name": "İbradı"
+        },
+        {
+          "relation_id": "relation/1727032",
+          "name": "Korkuteli"
+        },
+        {
+          "relation_id": "relation/1727186",
+          "name": "Kumluca"
+        },
+        {
+          "relation_id": "relation/1727262",
+          "name": "Demre"
+        },
+        {
+          "relation_id": "relation/1727263",
+          "name": "Elmalı"
+        },
+        {
+          "relation_id": "relation/1727264",
+          "name": "Finike"
+        },
+        {
+          "relation_id": "relation/1727265",
+          "name": "Kaş"
+        },
+        {
+          "relation_id": "relation/1727292",
+          "name": "Kemer"
+        },
+        {
+          "relation_id": "relation/1727384",
+          "name": "Konyaaltı"
+        },
+        {
+          "relation_id": "relation/1727454",
+          "name": "Döşemealtı"
+        },
+        {
+          "relation_id": "relation/1727470",
+          "name": "Kepez"
+        },
+        {
+          "relation_id": "relation/1727534",
+          "name": "Aksu"
+        },
+        {
+          "relation_id": "relation/1727535",
+          "name": "Muratpaşa"
+        },
+        {
+          "relation_id": "relation/1727536",
+          "name": "Serik"
+        }
+      ]
+    },
+    {
+      "code": "08",
+      "name": "Artvin",
+      "relation_id": "relation/223448",
+      "bbox_wgs84": [
+        41.14218,
+        40.55722,
+        42.59211,
+        41.52455
+      ],
+      "district_count": 9,
+      "districts": [
+        {
+          "relation_id": "relation/1385155",
+          "name": "Yusufeli"
+        },
+        {
+          "relation_id": "relation/1596278",
+          "name": "Hopa"
+        },
+        {
+          "relation_id": "relation/1838462",
+          "name": "Ardanuç"
+        },
+        {
+          "relation_id": "relation/1838463",
+          "name": "Arhavi"
+        },
+        {
+          "relation_id": "relation/1838464",
+          "name": "Artvin Merkez"
+        },
+        {
+          "relation_id": "relation/1838465",
+          "name": "Borçka"
+        },
+        {
+          "relation_id": "relation/1838466",
+          "name": "Murgul"
+        },
+        {
+          "relation_id": "relation/1838467",
+          "name": "Şavşat"
+        },
+        {
+          "relation_id": "relation/8101358",
+          "name": "Kemalpaşa"
+        }
+      ]
+    },
+    {
+      "code": "09",
+      "name": "Aydın",
+      "relation_id": "relation/223166",
+      "bbox_wgs84": [
+        26.99988,
+        37.32266,
+        28.87821,
+        38.1293
+      ],
+      "district_count": 17,
+      "districts": [
+        {
+          "relation_id": "relation/1246164",
+          "name": "Kuyucak"
+        },
+        {
+          "relation_id": "relation/1246169",
+          "name": "Buharkent"
+        },
+        {
+          "relation_id": "relation/1612669",
+          "name": "Söke"
+        },
+        {
+          "relation_id": "relation/1622039",
+          "name": "Karpuzlu"
+        },
+        {
+          "relation_id": "relation/1701079",
+          "name": "Karacasu"
+        },
+        {
+          "relation_id": "relation/1812965",
+          "name": "Germencik"
+        },
+        {
+          "relation_id": "relation/1812966",
+          "name": "Koçarlı"
+        },
+        {
+          "relation_id": "relation/1812967",
+          "name": "Çine"
+        },
+        {
+          "relation_id": "relation/1813052",
+          "name": "Köşk"
+        },
+        {
+          "relation_id": "relation/1813255",
+          "name": "Bozdoğan"
+        },
+        {
+          "relation_id": "relation/1813256",
+          "name": "Nazilli"
+        },
+        {
+          "relation_id": "relation/1813257",
+          "name": "Sultanhisar"
+        },
+        {
+          "relation_id": "relation/1813273",
+          "name": "Yenipazar"
+        },
+        {
+          "relation_id": "relation/1814654",
+          "name": "Efeler"
+        },
+        {
+          "relation_id": "relation/1814655",
+          "name": "Didim"
+        },
+        {
+          "relation_id": "relation/1814656",
+          "name": "Kuşadası"
+        },
+        {
+          "relation_id": "relation/1814657",
+          "name": "İncirliova"
+        }
+      ]
+    },
+    {
+      "code": "10",
+      "name": "Balıkesir",
+      "relation_id": "relation/223464",
+      "bbox_wgs84": [
+        26.52534,
+        39.07197,
+        28.99953,
+        40.66843
+      ],
+      "district_count": 20,
+      "districts": [
+        {
+          "relation_id": "relation/1588165",
+          "name": "Balya"
+        },
+        {
+          "relation_id": "relation/1814782",
+          "name": "Erdek"
+        },
+        {
+          "relation_id": "relation/1814783",
+          "name": "Marmara"
+        },
+        {
+          "relation_id": "relation/1814983",
+          "name": "Ayvalık"
+        },
+        {
+          "relation_id": "relation/1815033",
+          "name": "Edremit"
+        },
+        {
+          "relation_id": "relation/1815034",
+          "name": "Gömeç"
+        },
+        {
+          "relation_id": "relation/1815035",
+          "name": "İvrindi"
+        },
+        {
+          "relation_id": "relation/1819456",
+          "name": "Havran"
+        },
+        {
+          "relation_id": "relation/1819457",
+          "name": "Savaştepe"
+        },
+        {
+          "relation_id": "relation/1820649",
+          "name": "Dursunbey"
+        },
+        {
+          "relation_id": "relation/1820708",
+          "name": "Kepsut"
+        },
+        {
+          "relation_id": "relation/1820740",
+          "name": "Altıeylül"
+        },
+        {
+          "relation_id": "relation/1820741",
+          "name": "Bigadiç"
+        },
+        {
+          "relation_id": "relation/1820787",
+          "name": "Manyas"
+        },
+        {
+          "relation_id": "relation/1820788",
+          "name": "Susurluk"
+        },
+        {
+          "relation_id": "relation/1820912",
+          "name": "Bandırma"
+        },
+        {
+          "relation_id": "relation/1820913",
+          "name": "Burhaniye"
+        },
+        {
+          "relation_id": "relation/1820914",
+          "name": "Gönen"
+        },
+        {
+          "relation_id": "relation/1821207",
+          "name": "Sındırgı"
+        },
+        {
+          "relation_id": "relation/3666900",
+          "name": "Karesi"
+        }
+      ]
+    },
+    {
+      "code": "11",
+      "name": "Bilecik",
+      "relation_id": "relation/223420",
+      "bbox_wgs84": [
+        29.72059,
+        39.65987,
+        30.6637,
+        40.55137
+      ],
+      "district_count": 8,
+      "districts": [
+        {
+          "relation_id": "relation/1238962",
+          "name": "Yenipazar"
+        },
+        {
+          "relation_id": "relation/1238963",
+          "name": "Osmaneli"
+        },
+        {
+          "relation_id": "relation/1238964",
+          "name": "Gölpazarı"
+        },
+        {
+          "relation_id": "relation/1238965",
+          "name": "Bozüyük"
+        },
+        {
+          "relation_id": "relation/1238966",
+          "name": "Söğüt"
+        },
+        {
+          "relation_id": "relation/1238967",
+          "name": "İnhisar"
+        },
+        {
+          "relation_id": "relation/1238968",
+          "name": "Pazaryeri"
+        },
+        {
+          "relation_id": "relation/1238969",
+          "name": "Bilecik Merkez"
+        }
+      ]
+    },
+    {
+      "code": "12",
+      "name": "Bingöl",
+      "relation_id": "relation/223444",
+      "bbox_wgs84": [
+        39.92354,
+        38.4767,
+        41.26599,
+        39.56502
+      ],
+      "district_count": 8,
+      "districts": [
+        {
+          "relation_id": "relation/1836190",
+          "name": "Adaklı"
+        },
+        {
+          "relation_id": "relation/1836191",
+          "name": "Bingöl Merkez"
+        },
+        {
+          "relation_id": "relation/1836192",
+          "name": "Genç"
+        },
+        {
+          "relation_id": "relation/1836193",
+          "name": "Karlıova"
+        },
+        {
+          "relation_id": "relation/1836194",
+          "name": "Kiğı"
+        },
+        {
+          "relation_id": "relation/1836195",
+          "name": "Solhan"
+        },
+        {
+          "relation_id": "relation/1836196",
+          "name": "Yayladere"
+        },
+        {
+          "relation_id": "relation/1836197",
+          "name": "Yedisu"
+        }
+      ]
+    },
+    {
+      "code": "13",
+      "name": "Bitlis",
+      "relation_id": "relation/223441",
+      "bbox_wgs84": [
+        41.48718,
+        37.96924,
+        43.201,
+        39.02407
+      ],
+      "district_count": 7,
+      "districts": [
+        {
+          "relation_id": "relation/1668092",
+          "name": "Hizan"
+        },
+        {
+          "relation_id": "relation/1836395",
+          "name": "Adilcevaz"
+        },
+        {
+          "relation_id": "relation/1836396",
+          "name": "Ahlat"
+        },
+        {
+          "relation_id": "relation/1836397",
+          "name": "Bitlis Merkez"
+        },
+        {
+          "relation_id": "relation/1836398",
+          "name": "Güroymak"
+        },
+        {
+          "relation_id": "relation/1836399",
+          "name": "Mutki"
+        },
+        {
+          "relation_id": "relation/1836400",
+          "name": "Tatvan"
+        }
+      ]
+    },
+    {
+      "code": "14",
+      "name": "Bolu",
+      "relation_id": "relation/223461",
+      "bbox_wgs84": [
+        30.56244,
+        40.1344,
+        32.58214,
+        41.09808
+      ],
+      "district_count": 9,
+      "districts": [
+        {
+          "relation_id": "relation/1392573",
+          "name": "Mudurnu"
+        },
+        {
+          "relation_id": "relation/1392574",
+          "name": "Göynük"
+        },
+        {
+          "relation_id": "relation/1795630",
+          "name": "Bolu Merkez"
+        },
+        {
+          "relation_id": "relation/1795631",
+          "name": "Dörtdivan"
+        },
+        {
+          "relation_id": "relation/1795632",
+          "name": "Gerede"
+        },
+        {
+          "relation_id": "relation/1795633",
+          "name": "Kıbrıscık"
+        },
+        {
+          "relation_id": "relation/1795634",
+          "name": "Mengen"
+        },
+        {
+          "relation_id": "relation/1795635",
+          "name": "Seben"
+        },
+        {
+          "relation_id": "relation/1795636",
+          "name": "Yeniçağa"
+        }
+      ]
+    },
+    {
+      "code": "15",
+      "name": "Burdur",
+      "relation_id": "relation/2319368",
+      "bbox_wgs84": [
+        29.32559,
+        36.79817,
+        30.9889,
+        37.83266
+      ],
+      "district_count": 11,
+      "districts": [
+        {
+          "relation_id": "relation/1280041",
+          "name": "Ağlasun"
+        },
+        {
+          "relation_id": "relation/1280042",
+          "name": "Bucak"
+        },
+        {
+          "relation_id": "relation/1280043",
+          "name": "Çeltikçi"
+        },
+        {
+          "relation_id": "relation/1280044",
+          "name": "Yeşilova"
+        },
+        {
+          "relation_id": "relation/1280045",
+          "name": "Altınyayla"
+        },
+        {
+          "relation_id": "relation/1280046",
+          "name": "Kemer"
+        },
+        {
+          "relation_id": "relation/1280047",
+          "name": "Gölhisar"
+        },
+        {
+          "relation_id": "relation/1280048",
+          "name": "Burdur Merkez"
+        },
+        {
+          "relation_id": "relation/1280049",
+          "name": "Tefenni"
+        },
+        {
+          "relation_id": "relation/1280050",
+          "name": "Çavdır"
+        },
+        {
+          "relation_id": "relation/1280051",
+          "name": "Karamanlı"
+        }
+      ]
+    },
+    {
+      "code": "16",
+      "name": "Bursa",
+      "relation_id": "relation/223463",
+      "bbox_wgs84": [
+        28.08768,
+        39.59351,
+        29.91004,
+        40.61441
+      ],
+      "district_count": 17,
+      "districts": [
+        {
+          "relation_id": "relation/1273931",
+          "name": "İznik"
+        },
+        {
+          "relation_id": "relation/1273933",
+          "name": "Orhangazi"
+        },
+        {
+          "relation_id": "relation/1273936",
+          "name": "Yenişehir"
+        },
+        {
+          "relation_id": "relation/1273938",
+          "name": "İnegöl"
+        },
+        {
+          "relation_id": "relation/1273939",
+          "name": "Kestel"
+        },
+        {
+          "relation_id": "relation/1273941",
+          "name": "Keles"
+        },
+        {
+          "relation_id": "relation/1273944",
+          "name": "Büyükorhan"
+        },
+        {
+          "relation_id": "relation/1273945",
+          "name": "Harmancık"
+        },
+        {
+          "relation_id": "relation/1273947",
+          "name": "Mustafakemalpaşa"
+        },
+        {
+          "relation_id": "relation/1273950",
+          "name": "Karacabey"
+        },
+        {
+          "relation_id": "relation/1273951",
+          "name": "Orhaneli"
+        },
+        {
+          "relation_id": "relation/1273952",
+          "name": "Nilüfer"
+        },
+        {
+          "relation_id": "relation/1273953",
+          "name": "Mudanya"
+        },
+        {
+          "relation_id": "relation/1273954",
+          "name": "Osmangazi"
+        },
+        {
+          "relation_id": "relation/1273955",
+          "name": "Yıldırım"
+        },
+        {
+          "relation_id": "relation/1273957",
+          "name": "Gürsu"
+        },
+        {
+          "relation_id": "relation/1273958",
+          "name": "Gemlik"
+        }
+      ]
+    },
+    {
+      "code": "17",
+      "name": "Çanakkale",
+      "relation_id": "relation/223471",
+      "bbox_wgs84": [
+        25.66545,
+        39.45328,
+        27.5487,
+        40.75714
+      ],
+      "district_count": 12,
+      "districts": [
+        {
+          "relation_id": "relation/1589927",
+          "name": "Yenice"
+        },
+        {
+          "relation_id": "relation/1593709",
+          "name": "Biga"
+        },
+        {
+          "relation_id": "relation/1815219",
+          "name": "Eceabat"
+        },
+        {
+          "relation_id": "relation/1815220",
+          "name": "Gelibolu"
+        },
+        {
+          "relation_id": "relation/1815245",
+          "name": "Lapseki"
+        },
+        {
+          "relation_id": "relation/1815261",
+          "name": "Ayvacık"
+        },
+        {
+          "relation_id": "relation/1815262",
+          "name": "Bozcaada"
+        },
+        {
+          "relation_id": "relation/1815263",
+          "name": "Gökçeada"
+        },
+        {
+          "relation_id": "relation/1816280",
+          "name": "Çanakkale Merkez"
+        },
+        {
+          "relation_id": "relation/1816956",
+          "name": "Bayramiç"
+        },
+        {
+          "relation_id": "relation/1816957",
+          "name": "Ezine"
+        },
+        {
+          "relation_id": "relation/1816958",
+          "name": "Çan"
+        }
+      ]
+    },
+    {
+      "code": "18",
+      "name": "Çankırı",
+      "relation_id": "relation/223454",
+      "bbox_wgs84": [
+        32.56822,
+        40.24933,
+        34.16569,
+        41.09713
+      ],
+      "district_count": 12,
+      "districts": [
+        {
+          "relation_id": "relation/1647147",
+          "name": "Korgun"
+        },
+        {
+          "relation_id": "relation/1647148",
+          "name": "Bayramören"
+        },
+        {
+          "relation_id": "relation/1647149",
+          "name": "Yapraklı"
+        },
+        {
+          "relation_id": "relation/1647150",
+          "name": "Atkaracalar"
+        },
+        {
+          "relation_id": "relation/1647151",
+          "name": "Ilgaz"
+        },
+        {
+          "relation_id": "relation/1647152",
+          "name": "Orta"
+        },
+        {
+          "relation_id": "relation/1647153",
+          "name": "Eldivan"
+        },
+        {
+          "relation_id": "relation/1647154",
+          "name": "Çankırı Merkez"
+        },
+        {
+          "relation_id": "relation/1647155",
+          "name": "Kurşunlu"
+        },
+        {
+          "relation_id": "relation/1647156",
+          "name": "Kızılırmak"
+        },
+        {
+          "relation_id": "relation/1647157",
+          "name": "Çerkeş"
+        },
+        {
+          "relation_id": "relation/1647158",
+          "name": "Şabanözü"
+        }
+      ]
+    },
+    {
+      "code": "19",
+      "name": "Çorum",
+      "relation_id": "relation/223453",
+      "bbox_wgs84": [
+        33.95891,
+        39.93944,
+        35.53093,
+        41.34753
+      ],
+      "district_count": 14,
+      "districts": [
+        {
+          "relation_id": "relation/1330571",
+          "name": "Dodurga"
+        },
+        {
+          "relation_id": "relation/1331194",
+          "name": "Kargı"
+        },
+        {
+          "relation_id": "relation/1331195",
+          "name": "Osmancık"
+        },
+        {
+          "relation_id": "relation/1331274",
+          "name": "İskilip"
+        },
+        {
+          "relation_id": "relation/1331275",
+          "name": "Laçin"
+        },
+        {
+          "relation_id": "relation/1331276",
+          "name": "Ortaköy"
+        },
+        {
+          "relation_id": "relation/1331277",
+          "name": "Bayat"
+        },
+        {
+          "relation_id": "relation/1331278",
+          "name": "Sungurlu"
+        },
+        {
+          "relation_id": "relation/1331279",
+          "name": "Çorum Merkez"
+        },
+        {
+          "relation_id": "relation/1331280",
+          "name": "Oğuzlar"
+        },
+        {
+          "relation_id": "relation/1331281",
+          "name": "Alaca"
+        },
+        {
+          "relation_id": "relation/1331282",
+          "name": "Boğazkale"
+        },
+        {
+          "relation_id": "relation/1331283",
+          "name": "Mecitözü"
+        },
+        {
+          "relation_id": "relation/1331284",
+          "name": "Uğurludağ"
+        }
+      ]
+    },
+    {
+      "code": "20",
+      "name": "Denizli",
+      "relation_id": "relation/223169",
+      "bbox_wgs84": [
+        28.56905,
+        36.8466,
+        30.08319,
+        38.47409
+      ],
+      "district_count": 19,
+      "districts": [
+        {
+          "relation_id": "relation/1605440",
+          "name": "Tavas"
+        },
+        {
+          "relation_id": "relation/1605790",
+          "name": "Acıpayam"
+        },
+        {
+          "relation_id": "relation/1605791",
+          "name": "Çameli"
+        },
+        {
+          "relation_id": "relation/1606199",
+          "name": "Bozkurt"
+        },
+        {
+          "relation_id": "relation/1606200",
+          "name": "Babadağ"
+        },
+        {
+          "relation_id": "relation/1606201",
+          "name": "Pamukkale"
+        },
+        {
+          "relation_id": "relation/1606202",
+          "name": "Çardak"
+        },
+        {
+          "relation_id": "relation/1606203",
+          "name": "Bekilli"
+        },
+        {
+          "relation_id": "relation/1606204",
+          "name": "Buldan"
+        },
+        {
+          "relation_id": "relation/1606205",
+          "name": "Çal"
+        },
+        {
+          "relation_id": "relation/1606206",
+          "name": "Honaz"
+        },
+        {
+          "relation_id": "relation/1606207",
+          "name": "Baklan"
+        },
+        {
+          "relation_id": "relation/1606208",
+          "name": "Güney"
+        },
+        {
+          "relation_id": "relation/1606209",
+          "name": "Beyağaç"
+        },
+        {
+          "relation_id": "relation/1606210",
+          "name": "Çivril"
+        },
+        {
+          "relation_id": "relation/1606211",
+          "name": "Merkezefendi"
+        },
+        {
+          "relation_id": "relation/1606212",
+          "name": "Sarayköy"
+        },
+        {
+          "relation_id": "relation/1607200",
+          "name": "Kale"
+        },
+        {
+          "relation_id": "relation/3446022",
+          "name": "Serinhisar"
+        }
+      ]
+    },
+    {
+      "code": "21",
+      "name": "Diyarbakır",
+      "relation_id": "relation/223435",
+      "bbox_wgs84": [
+        39.10654,
+        37.51283,
+        41.36658,
+        38.71458
+      ],
+      "district_count": 17,
+      "districts": [
+        {
+          "relation_id": "relation/1354018",
+          "name": "Kocaköy"
+        },
+        {
+          "relation_id": "relation/1354885",
+          "name": "Ergani"
+        },
+        {
+          "relation_id": "relation/1357023",
+          "name": "Bismil"
+        },
+        {
+          "relation_id": "relation/1404649",
+          "name": "Çınar"
+        },
+        {
+          "relation_id": "relation/1664708",
+          "name": "Sur"
+        },
+        {
+          "relation_id": "relation/1665091",
+          "name": "Yenişehir"
+        },
+        {
+          "relation_id": "relation/1665230",
+          "name": "Bağlar"
+        },
+        {
+          "relation_id": "relation/1665231",
+          "name": "Kayapınar"
+        },
+        {
+          "relation_id": "relation/1665601",
+          "name": "Çermik"
+        },
+        {
+          "relation_id": "relation/1665602",
+          "name": "Çüngüş"
+        },
+        {
+          "relation_id": "relation/1842158",
+          "name": "Hazro"
+        },
+        {
+          "relation_id": "relation/1842159",
+          "name": "Kulp"
+        },
+        {
+          "relation_id": "relation/1842160",
+          "name": "Silvan"
+        },
+        {
+          "relation_id": "relation/1846360",
+          "name": "Dicle"
+        },
+        {
+          "relation_id": "relation/1846361",
+          "name": "Eğil"
+        },
+        {
+          "relation_id": "relation/1846362",
+          "name": "Hani"
+        },
+        {
+          "relation_id": "relation/1846363",
+          "name": "Lice"
+        }
+      ]
+    },
+    {
+      "code": "22",
+      "name": "Edirne",
+      "relation_id": "relation/223465",
+      "bbox_wgs84": [
+        26.03634,
+        40.58953,
+        27.01321,
+        42.0028
+      ],
+      "district_count": 9,
+      "districts": [
+        {
+          "relation_id": "relation/1277696",
+          "name": "Keşan"
+        },
+        {
+          "relation_id": "relation/1833421",
+          "name": "Lalapaşa"
+        },
+        {
+          "relation_id": "relation/1834221",
+          "name": "Edirne Merkez"
+        },
+        {
+          "relation_id": "relation/1834222",
+          "name": "Süloğlu"
+        },
+        {
+          "relation_id": "relation/1834460",
+          "name": "Enez"
+        },
+        {
+          "relation_id": "relation/1834461",
+          "name": "Havsa"
+        },
+        {
+          "relation_id": "relation/1834584",
+          "name": "Meriç"
+        },
+        {
+          "relation_id": "relation/1834585",
+          "name": "Uzunköprü"
+        },
+        {
+          "relation_id": "relation/1834586",
+          "name": "İpsala"
+        }
+      ]
+    },
+    {
+      "code": "23",
+      "name": "Elazığ",
+      "relation_id": "relation/223443",
+      "bbox_wgs84": [
+        38.35739,
+        38.24007,
+        40.35158,
+        39.1914
+      ],
+      "district_count": 11,
+      "districts": [
+        {
+          "relation_id": "relation/1829562",
+          "name": "Karakoçan"
+        },
+        {
+          "relation_id": "relation/1829599",
+          "name": "Kovancılar"
+        },
+        {
+          "relation_id": "relation/1829615",
+          "name": "Alacakaya"
+        },
+        {
+          "relation_id": "relation/1829616",
+          "name": "Arıcak"
+        },
+        {
+          "relation_id": "relation/1829617",
+          "name": "Palu"
+        },
+        {
+          "relation_id": "relation/1830505",
+          "name": "Ağın"
+        },
+        {
+          "relation_id": "relation/1830506",
+          "name": "Baskil"
+        },
+        {
+          "relation_id": "relation/1830507",
+          "name": "Elâzığ Merkez"
+        },
+        {
+          "relation_id": "relation/1830508",
+          "name": "Keban"
+        },
+        {
+          "relation_id": "relation/1830509",
+          "name": "Maden"
+        },
+        {
+          "relation_id": "relation/1830510",
+          "name": "Sivrice"
+        }
+      ]
+    },
+    {
+      "code": "24",
+      "name": "Erzincan",
+      "relation_id": "relation/223445",
+      "bbox_wgs84": [
+        38.28143,
+        39.0092,
+        40.75588,
+        40.08309
+      ],
+      "district_count": 9,
+      "districts": [
+        {
+          "relation_id": "relation/1754243",
+          "name": "Erzincan Merkez"
+        },
+        {
+          "relation_id": "relation/1754244",
+          "name": "İliç"
+        },
+        {
+          "relation_id": "relation/1754245",
+          "name": "Kemah"
+        },
+        {
+          "relation_id": "relation/1754246",
+          "name": "Kemaliye"
+        },
+        {
+          "relation_id": "relation/1754247",
+          "name": "Otlukbeli"
+        },
+        {
+          "relation_id": "relation/1754248",
+          "name": "Refahiye"
+        },
+        {
+          "relation_id": "relation/1754249",
+          "name": "Tercan"
+        },
+        {
+          "relation_id": "relation/1754250",
+          "name": "Çayırlı"
+        },
+        {
+          "relation_id": "relation/1754251",
+          "name": "Üzümlü"
+        }
+      ]
+    },
+    {
+      "code": "25",
+      "name": "Erzurum",
+      "relation_id": "relation/186432",
+      "bbox_wgs84": [
+        40.24604,
+        39.1521,
+        42.62019,
+        40.976
+      ],
+      "district_count": 20,
+      "districts": [
+        {
+          "relation_id": "relation/1831341",
+          "name": "Hınıs"
+        },
+        {
+          "relation_id": "relation/1832451",
+          "name": "Karayazı"
+        },
+        {
+          "relation_id": "relation/1832452",
+          "name": "Karaçoban"
+        },
+        {
+          "relation_id": "relation/1832453",
+          "name": "Horasan"
+        },
+        {
+          "relation_id": "relation/1832461",
+          "name": "Şenkaya"
+        },
+        {
+          "relation_id": "relation/1832462",
+          "name": "Olur"
+        },
+        {
+          "relation_id": "relation/1832469",
+          "name": "Köprüköy"
+        },
+        {
+          "relation_id": "relation/1832479",
+          "name": "Çat"
+        },
+        {
+          "relation_id": "relation/1832624",
+          "name": "Pazaryolu"
+        },
+        {
+          "relation_id": "relation/1832625",
+          "name": "İspir"
+        },
+        {
+          "relation_id": "relation/1832682",
+          "name": "Oltu"
+        },
+        {
+          "relation_id": "relation/1832683",
+          "name": "Uzundere"
+        },
+        {
+          "relation_id": "relation/1832781",
+          "name": "Aziziye"
+        },
+        {
+          "relation_id": "relation/1832853",
+          "name": "Aşkale"
+        },
+        {
+          "relation_id": "relation/1832937",
+          "name": "Narman"
+        },
+        {
+          "relation_id": "relation/1832938",
+          "name": "Palandöken"
+        },
+        {
+          "relation_id": "relation/1832939",
+          "name": "Pasinler"
+        },
+        {
+          "relation_id": "relation/1832940",
+          "name": "Tekman"
+        },
+        {
+          "relation_id": "relation/1832941",
+          "name": "Tortum"
+        },
+        {
+          "relation_id": "relation/1832942",
+          "name": "Yakutiye"
+        }
+      ]
+    },
+    {
+      "code": "26",
+      "name": "Eskişehir",
+      "relation_id": "relation/223421",
+      "bbox_wgs84": [
+        29.98837,
+        39.03492,
+        32.01154,
+        40.18726
+      ],
+      "district_count": 14,
+      "districts": [
+        {
+          "relation_id": "relation/1238921",
+          "name": "Mihalıççık"
+        },
+        {
+          "relation_id": "relation/1238922",
+          "name": "İnönü"
+        },
+        {
+          "relation_id": "relation/1238923",
+          "name": "Mahmudiye"
+        },
+        {
+          "relation_id": "relation/1238924",
+          "name": "Odunpazarı"
+        },
+        {
+          "relation_id": "relation/1238925",
+          "name": "Han"
+        },
+        {
+          "relation_id": "relation/1238926",
+          "name": "Sarıcakaya"
+        },
+        {
+          "relation_id": "relation/1238927",
+          "name": "Alpu"
+        },
+        {
+          "relation_id": "relation/1238928",
+          "name": "Günyüzü"
+        },
+        {
+          "relation_id": "relation/1238929",
+          "name": "Mihalgazi"
+        },
+        {
+          "relation_id": "relation/1238930",
+          "name": "Seyitgazi"
+        },
+        {
+          "relation_id": "relation/1238931",
+          "name": "Sivrihisar"
+        },
+        {
+          "relation_id": "relation/1238932",
+          "name": "Çifteler"
+        },
+        {
+          "relation_id": "relation/1238933",
+          "name": "Beylikova"
+        },
+        {
+          "relation_id": "relation/1687970",
+          "name": "Tepebaşı"
+        }
+      ]
+    },
+    {
+      "code": "27",
+      "name": "Gaziantep",
+      "relation_id": "relation/223139",
+      "bbox_wgs84": [
+        36.44341,
+        36.70392,
+        38.08505,
+        37.53734
+      ],
+      "district_count": 9,
+      "districts": [
+        {
+          "relation_id": "relation/1808031",
+          "name": "Araban"
+        },
+        {
+          "relation_id": "relation/1808093",
+          "name": "Karkamış"
+        },
+        {
+          "relation_id": "relation/1808094",
+          "name": "Nizip"
+        },
+        {
+          "relation_id": "relation/1808095",
+          "name": "Nurdağı"
+        },
+        {
+          "relation_id": "relation/1808096",
+          "name": "Oğuzeli"
+        },
+        {
+          "relation_id": "relation/1808097",
+          "name": "Yavuzeli"
+        },
+        {
+          "relation_id": "relation/1808098",
+          "name": "İslahiye"
+        },
+        {
+          "relation_id": "relation/1808099",
+          "name": "Şahinbey"
+        },
+        {
+          "relation_id": "relation/1808100",
+          "name": "Şehitkamil"
+        }
+      ]
+    },
+    {
+      "code": "28",
+      "name": "Giresun",
+      "relation_id": "relation/223449",
+      "bbox_wgs84": [
+        37.95967,
+        40.04576,
+        39.1825,
+        41.07934
+      ],
+      "district_count": 16,
+      "districts": [
+        {
+          "relation_id": "relation/1806620",
+          "name": "Şebinkarahisar"
+        },
+        {
+          "relation_id": "relation/1806690",
+          "name": "Çamoluk"
+        },
+        {
+          "relation_id": "relation/1835980",
+          "name": "Alucra"
+        },
+        {
+          "relation_id": "relation/1835981",
+          "name": "Bulancak"
+        },
+        {
+          "relation_id": "relation/1835982",
+          "name": "Dereli"
+        },
+        {
+          "relation_id": "relation/1835983",
+          "name": "Doğankent"
+        },
+        {
+          "relation_id": "relation/1835984",
+          "name": "Espiye"
+        },
+        {
+          "relation_id": "relation/1835985",
+          "name": "Eynesil"
+        },
+        {
+          "relation_id": "relation/1835986",
+          "name": "Giresun Merkez"
+        },
+        {
+          "relation_id": "relation/1835987",
+          "name": "Görele"
+        },
+        {
+          "relation_id": "relation/1835988",
+          "name": "Güce"
+        },
+        {
+          "relation_id": "relation/1835989",
+          "name": "Keşap"
+        },
+        {
+          "relation_id": "relation/1835990",
+          "name": "Piraziz"
+        },
+        {
+          "relation_id": "relation/1835991",
+          "name": "Tirebolu"
+        },
+        {
+          "relation_id": "relation/1835992",
+          "name": "Yağlıdere"
+        },
+        {
+          "relation_id": "relation/1835993",
+          "name": "Çanakçı"
+        }
+      ]
+    },
+    {
+      "code": "29",
+      "name": "Gümüşhane",
+      "relation_id": "relation/223541",
+      "bbox_wgs84": [
+        38.75052,
+        39.83619,
+        40.10333,
+        40.83732
+      ],
+      "district_count": 6,
+      "districts": [
+        {
+          "relation_id": "relation/1835646",
+          "name": "Torul"
+        },
+        {
+          "relation_id": "relation/1835700",
+          "name": "Gümüşhane Merkez"
+        },
+        {
+          "relation_id": "relation/1835701",
+          "name": "Kelkit"
+        },
+        {
+          "relation_id": "relation/1835702",
+          "name": "Köse"
+        },
+        {
+          "relation_id": "relation/1835703",
+          "name": "Kürtün"
+        },
+        {
+          "relation_id": "relation/1835704",
+          "name": "Şiran"
+        }
+      ]
+    },
+    {
+      "code": "30",
+      "name": "Hakkâri",
+      "relation_id": "relation/174742",
+      "bbox_wgs84": [
+        43.30649,
+        36.9629,
+        44.81519,
+        37.81058
+      ],
+      "district_count": 5,
+      "districts": [
+        {
+          "relation_id": "relation/1381572",
+          "name": "Hakkari Merkez"
+        },
+        {
+          "relation_id": "relation/1381573",
+          "name": "Yüksekova"
+        },
+        {
+          "relation_id": "relation/1381574",
+          "name": "Şemdinli"
+        },
+        {
+          "relation_id": "relation/1776630",
+          "name": "Çukurca"
+        },
+        {
+          "relation_id": "relation/9218922",
+          "name": "Derecik"
+        }
+      ]
+    },
+    {
+      "code": "31",
+      "name": "Hatay",
+      "relation_id": "relation/223122",
+      "bbox_wgs84": [
+        35.78002,
+        35.8059,
+        36.70488,
+        37.03401
+      ],
+      "district_count": 15,
+      "districts": [
+        {
+          "relation_id": "relation/1240891",
+          "name": "İskenderun"
+        },
+        {
+          "relation_id": "relation/1240892",
+          "name": "Yayladağı"
+        },
+        {
+          "relation_id": "relation/1240893",
+          "name": "Kumlu"
+        },
+        {
+          "relation_id": "relation/1240894",
+          "name": "Erzin"
+        },
+        {
+          "relation_id": "relation/1240895",
+          "name": "Reyhanlı"
+        },
+        {
+          "relation_id": "relation/1240896",
+          "name": "Samandağ"
+        },
+        {
+          "relation_id": "relation/1240897",
+          "name": "Altınözü"
+        },
+        {
+          "relation_id": "relation/1240898",
+          "name": "Antakya"
+        },
+        {
+          "relation_id": "relation/1240899",
+          "name": "Hassa"
+        },
+        {
+          "relation_id": "relation/1240900",
+          "name": "Kırıkhan"
+        },
+        {
+          "relation_id": "relation/1240901",
+          "name": "Belen"
+        },
+        {
+          "relation_id": "relation/1240902",
+          "name": "Dörtyol"
+        },
+        {
+          "relation_id": "relation/3663389",
+          "name": "Defne"
+        },
+        {
+          "relation_id": "relation/3664512",
+          "name": "Arsuz"
+        },
+        {
+          "relation_id": "relation/3664639",
+          "name": "Payas"
+        }
+      ]
+    },
+    {
+      "code": "32",
+      "name": "Isparta",
+      "relation_id": "relation/223134",
+      "bbox_wgs84": [
+        30.12162,
+        37.34304,
+        31.53972,
+        38.5053
+      ],
+      "district_count": 13,
+      "districts": [
+        {
+          "relation_id": "relation/10012274",
+          "name": "Yenişarbademli"
+        },
+        {
+          "relation_id": "relation/1601952",
+          "name": "Aksu"
+        },
+        {
+          "relation_id": "relation/1827186",
+          "name": "Atabey"
+        },
+        {
+          "relation_id": "relation/1827187",
+          "name": "Eğirdir"
+        },
+        {
+          "relation_id": "relation/1827188",
+          "name": "Gelendost"
+        },
+        {
+          "relation_id": "relation/1827189",
+          "name": "Gönen"
+        },
+        {
+          "relation_id": "relation/1827190",
+          "name": "Isparta Merkez"
+        },
+        {
+          "relation_id": "relation/1827191",
+          "name": "Keçiborlu"
+        },
+        {
+          "relation_id": "relation/1827192",
+          "name": "Senirkent"
+        },
+        {
+          "relation_id": "relation/1827193",
+          "name": "Sütçüler"
+        },
+        {
+          "relation_id": "relation/1827194",
+          "name": "Uluborlu"
+        },
+        {
+          "relation_id": "relation/1827195",
+          "name": "Yalvaç"
+        },
+        {
+          "relation_id": "relation/1827196",
+          "name": "Şarkikaraağaç"
+        }
+      ]
+    },
+    {
+      "code": "33",
+      "name": "Mersin",
+      "relation_id": "relation/223131",
+      "bbox_wgs84": [
+        32.53756,
+        36.01672,
+        35.15165,
+        37.42835
+      ],
+      "district_count": 13,
+      "districts": [
+        {
+          "relation_id": "relation/1442334",
+          "name": "Silifke"
+        },
+        {
+          "relation_id": "relation/1442351",
+          "name": "Mut"
+        },
+        {
+          "relation_id": "relation/1442756",
+          "name": "Gülnar"
+        },
+        {
+          "relation_id": "relation/1586057",
+          "name": "Tarsus"
+        },
+        {
+          "relation_id": "relation/1626398",
+          "name": "Toroslar"
+        },
+        {
+          "relation_id": "relation/1626475",
+          "name": "Çamlıyayla"
+        },
+        {
+          "relation_id": "relation/1827891",
+          "name": "Akdeniz"
+        },
+        {
+          "relation_id": "relation/1827892",
+          "name": "Anamur"
+        },
+        {
+          "relation_id": "relation/1827893",
+          "name": "Aydıncık"
+        },
+        {
+          "relation_id": "relation/1827894",
+          "name": "Bozyazı"
+        },
+        {
+          "relation_id": "relation/1827895",
+          "name": "Erdemli"
+        },
+        {
+          "relation_id": "relation/1827896",
+          "name": "Mezitli"
+        },
+        {
+          "relation_id": "relation/1827897",
+          "name": "Yenişehir"
+        }
+      ]
+    },
+    {
+      "code": "34",
+      "name": "İstanbul",
+      "relation_id": "relation/223474",
+      "bbox_wgs84": [
+        27.97085,
+        40.79006,
+        29.9588,
+        41.59074
+      ],
+      "district_count": 39,
+      "districts": [
+        {
+          "relation_id": "relation/1275310",
+          "name": "Şile"
+        },
+        {
+          "relation_id": "relation/1275379",
+          "name": "Silivri"
+        },
+        {
+          "relation_id": "relation/1275387",
+          "name": "Büyükçekmece"
+        },
+        {
+          "relation_id": "relation/1275389",
+          "name": "Çatalca"
+        },
+        {
+          "relation_id": "relation/1276010",
+          "name": "Tuzla"
+        },
+        {
+          "relation_id": "relation/1276011",
+          "name": "Pendik"
+        },
+        {
+          "relation_id": "relation/1276012",
+          "name": "Sultanbeyli"
+        },
+        {
+          "relation_id": "relation/1276013",
+          "name": "Kartal"
+        },
+        {
+          "relation_id": "relation/1276014",
+          "name": "Sancaktepe"
+        },
+        {
+          "relation_id": "relation/1276034",
+          "name": "Çekmeköy"
+        },
+        {
+          "relation_id": "relation/1276407",
+          "name": "Maltepe"
+        },
+        {
+          "relation_id": "relation/1276548",
+          "name": "Kadıköy"
+        },
+        {
+          "relation_id": "relation/1276672",
+          "name": "Ataşehir"
+        },
+        {
+          "relation_id": "relation/1276889",
+          "name": "Üsküdar"
+        },
+        {
+          "relation_id": "relation/1276890",
+          "name": "Ümraniye"
+        },
+        {
+          "relation_id": "relation/1276910",
+          "name": "Beykoz"
+        },
+        {
+          "relation_id": "relation/1765892",
+          "name": "Beyoğlu"
+        },
+        {
+          "relation_id": "relation/1765893",
+          "name": "Beşiktaş"
+        },
+        {
+          "relation_id": "relation/1765894",
+          "name": "Kâğıthane"
+        },
+        {
+          "relation_id": "relation/1765895",
+          "name": "Sarıyer"
+        },
+        {
+          "relation_id": "relation/1765896",
+          "name": "Şişli"
+        },
+        {
+          "relation_id": "relation/1766093",
+          "name": "Arnavutköy"
+        },
+        {
+          "relation_id": "relation/1766094",
+          "name": "Avcılar"
+        },
+        {
+          "relation_id": "relation/1766095",
+          "name": "Bahçelievler"
+        },
+        {
+          "relation_id": "relation/1766096",
+          "name": "Bakırköy"
+        },
+        {
+          "relation_id": "relation/1766097",
+          "name": "Bayrampaşa"
+        },
+        {
+          "relation_id": "relation/1766098",
+          "name": "Bağcılar"
+        },
+        {
+          "relation_id": "relation/1766099",
+          "name": "Başakşehir"
+        },
+        {
+          "relation_id": "relation/1766100",
+          "name": "Beylikdüzü"
+        },
+        {
+          "relation_id": "relation/1766101",
+          "name": "Esenler"
+        },
+        {
+          "relation_id": "relation/1766102",
+          "name": "Esenyurt"
+        },
+        {
+          "relation_id": "relation/1766103",
+          "name": "Eyüpsultan"
+        },
+        {
+          "relation_id": "relation/1766104",
+          "name": "Fatih"
+        },
+        {
+          "relation_id": "relation/1766105",
+          "name": "Gaziosmanpaşa"
+        },
+        {
+          "relation_id": "relation/1766106",
+          "name": "Güngören"
+        },
+        {
+          "relation_id": "relation/1766108",
+          "name": "Sultangazi"
+        },
+        {
+          "relation_id": "relation/1766109",
+          "name": "Zeytinburnu"
+        },
+        {
+          "relation_id": "relation/7786498",
+          "name": "Küçükçekmece"
+        },
+        {
+          "relation_id": "relation/963209",
+          "name": "Adalar"
+        }
+      ]
+    },
+    {
+      "code": "35",
+      "name": "İzmir",
+      "relation_id": "relation/223167",
+      "bbox_wgs84": [
+        26.19407,
+        37.81523,
+        28.49308,
+        39.38549
+      ],
+      "district_count": 30,
+      "districts": [
+        {
+          "relation_id": "relation/1268452",
+          "name": "Foça"
+        },
+        {
+          "relation_id": "relation/1268453",
+          "name": "Aliağa"
+        },
+        {
+          "relation_id": "relation/1268454",
+          "name": "Çeşme"
+        },
+        {
+          "relation_id": "relation/1268481",
+          "name": "Bayraklı"
+        },
+        {
+          "relation_id": "relation/1268482",
+          "name": "Çiğli"
+        },
+        {
+          "relation_id": "relation/1268483",
+          "name": "Karşıyaka"
+        },
+        {
+          "relation_id": "relation/1268484",
+          "name": "Menemen"
+        },
+        {
+          "relation_id": "relation/1269192",
+          "name": "Urla"
+        },
+        {
+          "relation_id": "relation/1269193",
+          "name": "Karaburun"
+        },
+        {
+          "relation_id": "relation/1269194",
+          "name": "Güzelbahçe"
+        },
+        {
+          "relation_id": "relation/1269195",
+          "name": "Seferihisar"
+        },
+        {
+          "relation_id": "relation/1269196",
+          "name": "Menderes"
+        },
+        {
+          "relation_id": "relation/1269251",
+          "name": "Gaziemir"
+        },
+        {
+          "relation_id": "relation/1269252",
+          "name": "Bornova"
+        },
+        {
+          "relation_id": "relation/1269253",
+          "name": "Balçova"
+        },
+        {
+          "relation_id": "relation/1269254",
+          "name": "Buca"
+        },
+        {
+          "relation_id": "relation/1269255",
+          "name": "Konak"
+        },
+        {
+          "relation_id": "relation/1269256",
+          "name": "Karabağlar"
+        },
+        {
+          "relation_id": "relation/1269257",
+          "name": "Narlıdere"
+        },
+        {
+          "relation_id": "relation/1269519",
+          "name": "Torbalı"
+        },
+        {
+          "relation_id": "relation/1269520",
+          "name": "Kemalpaşa"
+        },
+        {
+          "relation_id": "relation/1819082",
+          "name": "Bergama"
+        },
+        {
+          "relation_id": "relation/1819083",
+          "name": "Dikili"
+        },
+        {
+          "relation_id": "relation/1820958",
+          "name": "Kınık"
+        },
+        {
+          "relation_id": "relation/1823316",
+          "name": "Beydağ"
+        },
+        {
+          "relation_id": "relation/1823317",
+          "name": "Kiraz"
+        },
+        {
+          "relation_id": "relation/1823318",
+          "name": "Ödemiş"
+        },
+        {
+          "relation_id": "relation/1841223",
+          "name": "Bayındır"
+        },
+        {
+          "relation_id": "relation/1841225",
+          "name": "Selçuk"
+        },
+        {
+          "relation_id": "relation/1841226",
+          "name": "Tire"
+        }
+      ]
+    },
+    {
+      "code": "36",
+      "name": "Kars",
+      "relation_id": "relation/186431",
+      "bbox_wgs84": [
+        42.10066,
+        39.93464,
+        43.74995,
+        41.09648
+      ],
+      "district_count": 8,
+      "districts": [
+        {
+          "relation_id": "relation/1838389",
+          "name": "Akyaka"
+        },
+        {
+          "relation_id": "relation/1838390",
+          "name": "Arpaçay"
+        },
+        {
+          "relation_id": "relation/1838391",
+          "name": "Digor"
+        },
+        {
+          "relation_id": "relation/1838392",
+          "name": "Kars Merkez"
+        },
+        {
+          "relation_id": "relation/1838393",
+          "name": "Kağızman"
+        },
+        {
+          "relation_id": "relation/1838394",
+          "name": "Sarıkamış"
+        },
+        {
+          "relation_id": "relation/1838395",
+          "name": "Selim"
+        },
+        {
+          "relation_id": "relation/1838396",
+          "name": "Susuz"
+        }
+      ]
+    },
+    {
+      "code": "37",
+      "name": "Kastamonu",
+      "relation_id": "relation/223456",
+      "bbox_wgs84": [
+        32.74674,
+        40.81334,
+        34.60676,
+        42.01961
+      ],
+      "district_count": 20,
+      "districts": [
+        {
+          "relation_id": "relation/1426789",
+          "name": "Taşköprü"
+        },
+        {
+          "relation_id": "relation/1426790",
+          "name": "Hanönü"
+        },
+        {
+          "relation_id": "relation/1781114",
+          "name": "Tosya"
+        },
+        {
+          "relation_id": "relation/1801985",
+          "name": "Abana"
+        },
+        {
+          "relation_id": "relation/1801986",
+          "name": "Araç"
+        },
+        {
+          "relation_id": "relation/1801987",
+          "name": "Azdavay"
+        },
+        {
+          "relation_id": "relation/1801988",
+          "name": "Ağlı"
+        },
+        {
+          "relation_id": "relation/1801989",
+          "name": "Bozkurt"
+        },
+        {
+          "relation_id": "relation/1801990",
+          "name": "Cide"
+        },
+        {
+          "relation_id": "relation/1801991",
+          "name": "Daday"
+        },
+        {
+          "relation_id": "relation/1801992",
+          "name": "Devrekani"
+        },
+        {
+          "relation_id": "relation/1801993",
+          "name": "Doğanyurt"
+        },
+        {
+          "relation_id": "relation/1801994",
+          "name": "Kastamonu Merkez"
+        },
+        {
+          "relation_id": "relation/1801995",
+          "name": "Küre"
+        },
+        {
+          "relation_id": "relation/1801996",
+          "name": "Pınarbaşı"
+        },
+        {
+          "relation_id": "relation/1801997",
+          "name": "Seydiler"
+        },
+        {
+          "relation_id": "relation/1801998",
+          "name": "Çatalzeytin"
+        },
+        {
+          "relation_id": "relation/1801999",
+          "name": "İhsangazi"
+        },
+        {
+          "relation_id": "relation/1802000",
+          "name": "İnebolu"
+        },
+        {
+          "relation_id": "relation/1802001",
+          "name": "Şenpazar"
+        }
+      ]
+    },
+    {
+      "code": "38",
+      "name": "Kayseri",
+      "relation_id": "relation/154451",
+      "bbox_wgs84": [
+        34.84693,
+        37.69144,
+        36.95977,
+        39.32233
+      ],
+      "district_count": 16,
+      "districts": [
+        {
+          "relation_id": "relation/1731539",
+          "name": "Sarız"
+        },
+        {
+          "relation_id": "relation/1797146",
+          "name": "Melikgazi"
+        },
+        {
+          "relation_id": "relation/1797157",
+          "name": "İncesu"
+        },
+        {
+          "relation_id": "relation/1797158",
+          "name": "Hacılar"
+        },
+        {
+          "relation_id": "relation/1797260",
+          "name": "Talas"
+        },
+        {
+          "relation_id": "relation/1797399",
+          "name": "Felahiye"
+        },
+        {
+          "relation_id": "relation/1797400",
+          "name": "Kocasinan"
+        },
+        {
+          "relation_id": "relation/1798306",
+          "name": "Pınarbaşı"
+        },
+        {
+          "relation_id": "relation/1798307",
+          "name": "Tomarza"
+        },
+        {
+          "relation_id": "relation/1798518",
+          "name": "Akkışla"
+        },
+        {
+          "relation_id": "relation/1798519",
+          "name": "Bünyan"
+        },
+        {
+          "relation_id": "relation/1798520",
+          "name": "Sarıoğlan"
+        },
+        {
+          "relation_id": "relation/1798521",
+          "name": "Özvatan"
+        },
+        {
+          "relation_id": "relation/1798542",
+          "name": "Develi"
+        },
+        {
+          "relation_id": "relation/1798543",
+          "name": "Yahyalı"
+        },
+        {
+          "relation_id": "relation/1798544",
+          "name": "Yeşilhisar"
+        }
+      ]
+    },
+    {
+      "code": "39",
+      "name": "Kırklareli",
+      "relation_id": "relation/223469",
+      "bbox_wgs84": [
+        26.86868,
+        41.21999,
+        28.1468,
+        42.1048
+      ],
+      "district_count": 8,
+      "districts": [
+        {
+          "relation_id": "relation/1834226",
+          "name": "Kofçaz"
+        },
+        {
+          "relation_id": "relation/1834227",
+          "name": "Kırklareli Merkez"
+        },
+        {
+          "relation_id": "relation/1835616",
+          "name": "Babaeski"
+        },
+        {
+          "relation_id": "relation/1835617",
+          "name": "Demirköy"
+        },
+        {
+          "relation_id": "relation/1835618",
+          "name": "Lüleburgaz"
+        },
+        {
+          "relation_id": "relation/1835619",
+          "name": "Pehlivanköy"
+        },
+        {
+          "relation_id": "relation/1835620",
+          "name": "Pınarhisar"
+        },
+        {
+          "relation_id": "relation/1835621",
+          "name": "Vize"
+        }
+      ]
+    },
+    {
+      "code": "40",
+      "name": "Kırşehir",
+      "relation_id": "relation/154452",
+      "bbox_wgs84": [
+        33.42065,
+        38.81993,
+        34.70484,
+        39.79876
+      ],
+      "district_count": 7,
+      "districts": [
+        {
+          "relation_id": "relation/1721351",
+          "name": "Mucur"
+        },
+        {
+          "relation_id": "relation/1830534",
+          "name": "Akpınar"
+        },
+        {
+          "relation_id": "relation/1830535",
+          "name": "Akçakent"
+        },
+        {
+          "relation_id": "relation/1830536",
+          "name": "Boztepe"
+        },
+        {
+          "relation_id": "relation/1830537",
+          "name": "Kaman"
+        },
+        {
+          "relation_id": "relation/1830538",
+          "name": "Kırşehir Merkez"
+        },
+        {
+          "relation_id": "relation/1830539",
+          "name": "Çiçekdağı"
+        }
+      ]
+    },
+    {
+      "code": "41",
+      "name": "Kocaeli",
+      "relation_id": "relation/223473",
+      "bbox_wgs84": [
+        29.33339,
+        40.52354,
+        30.36714,
+        41.21773
+      ],
+      "district_count": 12,
+      "districts": [
+        {
+          "relation_id": "relation/1211033",
+          "name": "Kartepe"
+        },
+        {
+          "relation_id": "relation/1211204",
+          "name": "Çayırova"
+        },
+        {
+          "relation_id": "relation/1211488",
+          "name": "Dilovası"
+        },
+        {
+          "relation_id": "relation/1211489",
+          "name": "Karamürsel"
+        },
+        {
+          "relation_id": "relation/1211490",
+          "name": "Darıca"
+        },
+        {
+          "relation_id": "relation/1211491",
+          "name": "Kandıra"
+        },
+        {
+          "relation_id": "relation/1211492",
+          "name": "Körfez"
+        },
+        {
+          "relation_id": "relation/1211493",
+          "name": "İzmit"
+        },
+        {
+          "relation_id": "relation/1211494",
+          "name": "Gölcük"
+        },
+        {
+          "relation_id": "relation/1211495",
+          "name": "Derince"
+        },
+        {
+          "relation_id": "relation/1211496",
+          "name": "Gebze"
+        },
+        {
+          "relation_id": "relation/1211497",
+          "name": "Başiskele"
+        }
+      ]
+    },
+    {
+      "code": "42",
+      "name": "Konya",
+      "relation_id": "relation/223133",
+      "bbox_wgs84": [
+        31.2377,
+        36.73338,
+        34.46201,
+        39.30736
+      ],
+      "district_count": 31,
+      "districts": [
+        {
+          "relation_id": "relation/1250945",
+          "name": "Ereğli"
+        },
+        {
+          "relation_id": "relation/1250946",
+          "name": "Taşkent"
+        },
+        {
+          "relation_id": "relation/1250947",
+          "name": "Yunak"
+        },
+        {
+          "relation_id": "relation/1250948",
+          "name": "Güneysınır"
+        },
+        {
+          "relation_id": "relation/1250949",
+          "name": "Halkapınar"
+        },
+        {
+          "relation_id": "relation/1250950",
+          "name": "Hadim"
+        },
+        {
+          "relation_id": "relation/1250951",
+          "name": "Karatay"
+        },
+        {
+          "relation_id": "relation/1250952",
+          "name": "Yalıhüyük"
+        },
+        {
+          "relation_id": "relation/1250953",
+          "name": "Emirgazi"
+        },
+        {
+          "relation_id": "relation/1250954",
+          "name": "Beyşehir"
+        },
+        {
+          "relation_id": "relation/1250955",
+          "name": "Bozkır"
+        },
+        {
+          "relation_id": "relation/1250956",
+          "name": "Akşehir"
+        },
+        {
+          "relation_id": "relation/1250957",
+          "name": "Akören"
+        },
+        {
+          "relation_id": "relation/1250958",
+          "name": "Meram"
+        },
+        {
+          "relation_id": "relation/1250959",
+          "name": "Tuzlukçu"
+        },
+        {
+          "relation_id": "relation/1250960",
+          "name": "Sarayönü"
+        },
+        {
+          "relation_id": "relation/1250961",
+          "name": "Karapınar"
+        },
+        {
+          "relation_id": "relation/1250962",
+          "name": "Kadınhanı"
+        },
+        {
+          "relation_id": "relation/1250963",
+          "name": "Altınekin"
+        },
+        {
+          "relation_id": "relation/1250964",
+          "name": "Ahırlı"
+        },
+        {
+          "relation_id": "relation/1250965",
+          "name": "Çeltik"
+        },
+        {
+          "relation_id": "relation/1250966",
+          "name": "Derbent"
+        },
+        {
+          "relation_id": "relation/1250967",
+          "name": "Seydişehir"
+        },
+        {
+          "relation_id": "relation/1250968",
+          "name": "Doğanhisar"
+        },
+        {
+          "relation_id": "relation/1250969",
+          "name": "Kulu"
+        },
+        {
+          "relation_id": "relation/1250970",
+          "name": "Derebucak"
+        },
+        {
+          "relation_id": "relation/1250971",
+          "name": "Cihanbeyli"
+        },
+        {
+          "relation_id": "relation/1250972",
+          "name": "Selçuklu"
+        },
+        {
+          "relation_id": "relation/1250973",
+          "name": "Ilgın"
+        },
+        {
+          "relation_id": "relation/1250974",
+          "name": "Hüyük"
+        },
+        {
+          "relation_id": "relation/280991",
+          "name": "Çumra"
+        }
+      ]
+    },
+    {
+      "code": "43",
+      "name": "Kütahya",
+      "relation_id": "relation/223172",
+      "bbox_wgs84": [
+        28.60771,
+        38.79048,
+        30.46457,
+        39.87886
+      ],
+      "district_count": 13,
+      "districts": [
+        {
+          "relation_id": "relation/1593755",
+          "name": "Simav"
+        },
+        {
+          "relation_id": "relation/1668902",
+          "name": "Gediz"
+        },
+        {
+          "relation_id": "relation/1669548",
+          "name": "Pazarlar"
+        },
+        {
+          "relation_id": "relation/1669549",
+          "name": "Şaphane"
+        },
+        {
+          "relation_id": "relation/1671338",
+          "name": "Domaniç"
+        },
+        {
+          "relation_id": "relation/1824811",
+          "name": "Çavdarhisar"
+        },
+        {
+          "relation_id": "relation/1824831",
+          "name": "Emet"
+        },
+        {
+          "relation_id": "relation/1824832",
+          "name": "Hisarcık"
+        },
+        {
+          "relation_id": "relation/1824948",
+          "name": "Altıntaş"
+        },
+        {
+          "relation_id": "relation/1824949",
+          "name": "Aslanapa"
+        },
+        {
+          "relation_id": "relation/1824950",
+          "name": "Dumlupınar"
+        },
+        {
+          "relation_id": "relation/1824951",
+          "name": "Kütahya Merkez"
+        },
+        {
+          "relation_id": "relation/1824952",
+          "name": "Tavşanlı"
+        }
+      ]
+    },
+    {
+      "code": "44",
+      "name": "Malatya",
+      "relation_id": "relation/223426",
+      "bbox_wgs84": [
+        37.26063,
+        37.88651,
+        39.16639,
+        39.14294
+      ],
+      "district_count": 13,
+      "districts": [
+        {
+          "relation_id": "relation/1246231",
+          "name": "Doğanyol"
+        },
+        {
+          "relation_id": "relation/1246232",
+          "name": "Pütürge"
+        },
+        {
+          "relation_id": "relation/1825945",
+          "name": "Doğanşehir"
+        },
+        {
+          "relation_id": "relation/1826120",
+          "name": "Kale"
+        },
+        {
+          "relation_id": "relation/1826216",
+          "name": "Yeşilyurt"
+        },
+        {
+          "relation_id": "relation/1826235",
+          "name": "Akçadağ"
+        },
+        {
+          "relation_id": "relation/1826260",
+          "name": "Darende"
+        },
+        {
+          "relation_id": "relation/1826311",
+          "name": "Hekimhan"
+        },
+        {
+          "relation_id": "relation/1826312",
+          "name": "Kuluncak"
+        },
+        {
+          "relation_id": "relation/1826363",
+          "name": "Arapgir"
+        },
+        {
+          "relation_id": "relation/1826364",
+          "name": "Arguvan"
+        },
+        {
+          "relation_id": "relation/1826497",
+          "name": "Yazıhan"
+        },
+        {
+          "relation_id": "relation/1826542",
+          "name": "Battalgazi"
+        }
+      ]
+    },
+    {
+      "code": "45",
+      "name": "Manisa",
+      "relation_id": "relation/223168",
+      "bbox_wgs84": [
+        27.11241,
+        38.0835,
+        29.11863,
+        39.40712
+      ],
+      "district_count": 17,
+      "districts": [
+        {
+          "relation_id": "relation/1758898",
+          "name": "Kırkağaç"
+        },
+        {
+          "relation_id": "relation/1758899",
+          "name": "Soma"
+        },
+        {
+          "relation_id": "relation/1761487",
+          "name": "Ahmetli"
+        },
+        {
+          "relation_id": "relation/1820450",
+          "name": "Gördes"
+        },
+        {
+          "relation_id": "relation/1821042",
+          "name": "Köprübaşı"
+        },
+        {
+          "relation_id": "relation/1821131",
+          "name": "Demirci"
+        },
+        {
+          "relation_id": "relation/1821205",
+          "name": "Kula"
+        },
+        {
+          "relation_id": "relation/1821206",
+          "name": "Selendi"
+        },
+        {
+          "relation_id": "relation/1821255",
+          "name": "Salihli"
+        },
+        {
+          "relation_id": "relation/1822655",
+          "name": "Akhisar"
+        },
+        {
+          "relation_id": "relation/1822723",
+          "name": "Gölmarmara"
+        },
+        {
+          "relation_id": "relation/1822900",
+          "name": "Şehzadeler"
+        },
+        {
+          "relation_id": "relation/1822901",
+          "name": "Saruhanlı"
+        },
+        {
+          "relation_id": "relation/1822902",
+          "name": "Turgutlu"
+        },
+        {
+          "relation_id": "relation/1822974",
+          "name": "Alaşehir"
+        },
+        {
+          "relation_id": "relation/1822975",
+          "name": "Sarıgöl"
+        },
+        {
+          "relation_id": "relation/3668268",
+          "name": "Yunusemre"
+        }
+      ]
+    },
+    {
+      "code": "46",
+      "name": "Kahramanmaraş",
+      "relation_id": "relation/223138",
+      "bbox_wgs84": [
+        36.2013,
+        37.19494,
+        37.75168,
+        38.60909
+      ],
+      "district_count": 11,
+      "districts": [
+        {
+          "relation_id": "relation/1335884",
+          "name": "Göksun"
+        },
+        {
+          "relation_id": "relation/1336189",
+          "name": "Andırın"
+        },
+        {
+          "relation_id": "relation/1340567",
+          "name": "Çağlayancerit"
+        },
+        {
+          "relation_id": "relation/1340568",
+          "name": "Nurhak"
+        },
+        {
+          "relation_id": "relation/1341115",
+          "name": "Türkoğlu"
+        },
+        {
+          "relation_id": "relation/1341116",
+          "name": "Ekinözü"
+        },
+        {
+          "relation_id": "relation/1341117",
+          "name": "Afşin"
+        },
+        {
+          "relation_id": "relation/1341119",
+          "name": "Pazarcık"
+        },
+        {
+          "relation_id": "relation/1341120",
+          "name": "Elbistan"
+        },
+        {
+          "relation_id": "relation/3671448",
+          "name": "Dulkadiroğlu"
+        },
+        {
+          "relation_id": "relation/3671449",
+          "name": "Onikişubat"
+        }
+      ]
+    },
+    {
+      "code": "47",
+      "name": "Mardin",
+      "relation_id": "relation/223436",
+      "bbox_wgs84": [
+        39.8841,
+        36.91126,
+        41.8974,
+        37.73865
+      ],
+      "district_count": 10,
+      "districts": [
+        {
+          "relation_id": "relation/1358708",
+          "name": "Ömerli"
+        },
+        {
+          "relation_id": "relation/1361267",
+          "name": "Dargeçit"
+        },
+        {
+          "relation_id": "relation/1692098",
+          "name": "Midyat"
+        },
+        {
+          "relation_id": "relation/1692099",
+          "name": "Nusaybin"
+        },
+        {
+          "relation_id": "relation/1693939",
+          "name": "Artuklu"
+        },
+        {
+          "relation_id": "relation/1693940",
+          "name": "Yeşilli"
+        },
+        {
+          "relation_id": "relation/1693976",
+          "name": "Mazıdağı"
+        },
+        {
+          "relation_id": "relation/1694026",
+          "name": "Derik"
+        },
+        {
+          "relation_id": "relation/1694027",
+          "name": "Kızıltepe"
+        },
+        {
+          "relation_id": "relation/1849197",
+          "name": "Savur"
+        }
+      ]
+    },
+    {
+      "code": "48",
+      "name": "Muğla",
+      "relation_id": "relation/223136",
+      "bbox_wgs84": [
+        27.1443,
+        36.29315,
+        29.79321,
+        37.60175
+      ],
+      "district_count": 13,
+      "districts": [
+        {
+          "relation_id": "relation/1613889",
+          "name": "Yatağan"
+        },
+        {
+          "relation_id": "relation/1624125",
+          "name": "Kavaklıdere"
+        },
+        {
+          "relation_id": "relation/1645432",
+          "name": "Datça"
+        },
+        {
+          "relation_id": "relation/1827275",
+          "name": "Bodrum"
+        },
+        {
+          "relation_id": "relation/1827276",
+          "name": "Milas"
+        },
+        {
+          "relation_id": "relation/1827293",
+          "name": "Marmaris"
+        },
+        {
+          "relation_id": "relation/1827294",
+          "name": "Menteşe"
+        },
+        {
+          "relation_id": "relation/1827295",
+          "name": "Ula"
+        },
+        {
+          "relation_id": "relation/1827377",
+          "name": "Köyceğiz"
+        },
+        {
+          "relation_id": "relation/1827378",
+          "name": "Ortaca"
+        },
+        {
+          "relation_id": "relation/1827399",
+          "name": "Dalaman"
+        },
+        {
+          "relation_id": "relation/1827656",
+          "name": "Fethiye"
+        },
+        {
+          "relation_id": "relation/3671798",
+          "name": "Seydikemer"
+        }
+      ]
+    },
+    {
+      "code": "49",
+      "name": "Muş",
+      "relation_id": "relation/223440",
+      "bbox_wgs84": [
+        41.1045,
+        38.48299,
+        42.71261,
+        39.53825
+      ],
+      "district_count": 6,
+      "districts": [
+        {
+          "relation_id": "relation/1831009",
+          "name": "Bulanık"
+        },
+        {
+          "relation_id": "relation/1831010",
+          "name": "Hasköy"
+        },
+        {
+          "relation_id": "relation/1831011",
+          "name": "Korkut"
+        },
+        {
+          "relation_id": "relation/1831012",
+          "name": "Malazgirt"
+        },
+        {
+          "relation_id": "relation/1831013",
+          "name": "Muş Merkez"
+        },
+        {
+          "relation_id": "relation/1831014",
+          "name": "Varto"
+        }
+      ]
+    },
+    {
+      "code": "50",
+      "name": "Nevşehir",
+      "relation_id": "relation/154449",
+      "bbox_wgs84": [
+        34.2388,
+        38.29025,
+        35.1664,
+        39.38365
+      ],
+      "district_count": 8,
+      "districts": [
+        {
+          "relation_id": "relation/281080",
+          "name": "Kozaklı"
+        },
+        {
+          "relation_id": "relation/281083",
+          "name": "Avanos"
+        },
+        {
+          "relation_id": "relation/281228",
+          "name": "Hacıbektaş"
+        },
+        {
+          "relation_id": "relation/281359",
+          "name": "Ürgüp"
+        },
+        {
+          "relation_id": "relation/281360",
+          "name": "Derinkuyu"
+        },
+        {
+          "relation_id": "relation/282342",
+          "name": "Nevşehir Merkez"
+        },
+        {
+          "relation_id": "relation/282353",
+          "name": "Acıgöl"
+        },
+        {
+          "relation_id": "relation/282354",
+          "name": "Gülşehir"
+        }
+      ]
+    },
+    {
+      "code": "51",
+      "name": "Niğde",
+      "relation_id": "relation/154456",
+      "bbox_wgs84": [
+        33.97554,
+        37.36657,
+        35.31111,
+        38.39025
+      ],
+      "district_count": 6,
+      "districts": [
+        {
+          "relation_id": "relation/1249726",
+          "name": "Ulukışla"
+        },
+        {
+          "relation_id": "relation/1249727",
+          "name": "Çamardı"
+        },
+        {
+          "relation_id": "relation/1249728",
+          "name": "Bor"
+        },
+        {
+          "relation_id": "relation/1249729",
+          "name": "Altunhisar"
+        },
+        {
+          "relation_id": "relation/1249730",
+          "name": "Niğde Merkez"
+        },
+        {
+          "relation_id": "relation/1249731",
+          "name": "Çiftlik"
+        }
+      ]
+    },
+    {
+      "code": "52",
+      "name": "Ordu",
+      "relation_id": "relation/223450",
+      "bbox_wgs84": [
+        36.68101,
+        40.33057,
+        38.15964,
+        41.14767
+      ],
+      "district_count": 19,
+      "districts": [
+        {
+          "relation_id": "relation/1805920",
+          "name": "İkizce"
+        },
+        {
+          "relation_id": "relation/1806052",
+          "name": "Çaybaşı"
+        },
+        {
+          "relation_id": "relation/1806116",
+          "name": "Ünye"
+        },
+        {
+          "relation_id": "relation/1806483",
+          "name": "Mesudiye"
+        },
+        {
+          "relation_id": "relation/1806539",
+          "name": "Kabadüz"
+        },
+        {
+          "relation_id": "relation/1839057",
+          "name": "Akkuş"
+        },
+        {
+          "relation_id": "relation/1839058",
+          "name": "Aybastı"
+        },
+        {
+          "relation_id": "relation/1839059",
+          "name": "Fatsa"
+        },
+        {
+          "relation_id": "relation/1839060",
+          "name": "Gölköy"
+        },
+        {
+          "relation_id": "relation/1839061",
+          "name": "Gülyalı"
+        },
+        {
+          "relation_id": "relation/1839062",
+          "name": "Gürgentepe"
+        },
+        {
+          "relation_id": "relation/1839063",
+          "name": "Kabataş"
+        },
+        {
+          "relation_id": "relation/1839064",
+          "name": "Korgan"
+        },
+        {
+          "relation_id": "relation/1839065",
+          "name": "Kumru"
+        },
+        {
+          "relation_id": "relation/1839066",
+          "name": "Altınordu"
+        },
+        {
+          "relation_id": "relation/1839067",
+          "name": "Perşembe"
+        },
+        {
+          "relation_id": "relation/1839068",
+          "name": "Ulubey"
+        },
+        {
+          "relation_id": "relation/1839069",
+          "name": "Çamaş"
+        },
+        {
+          "relation_id": "relation/1839070",
+          "name": "Çatalpınar"
+        }
+      ]
+    },
+    {
+      "code": "53",
+      "name": "Rize",
+      "relation_id": "relation/223542",
+      "bbox_wgs84": [
+        40.32736,
+        40.51642,
+        41.4296,
+        41.32561
+      ],
+      "district_count": 12,
+      "districts": [
+        {
+          "relation_id": "relation/1725548",
+          "name": "İkizdere"
+        },
+        {
+          "relation_id": "relation/1725592",
+          "name": "Ardeşen"
+        },
+        {
+          "relation_id": "relation/1725593",
+          "name": "Fındıklı"
+        },
+        {
+          "relation_id": "relation/1838677",
+          "name": "Derepazarı"
+        },
+        {
+          "relation_id": "relation/1838678",
+          "name": "Güneysu"
+        },
+        {
+          "relation_id": "relation/1838679",
+          "name": "Hemşin"
+        },
+        {
+          "relation_id": "relation/1838680",
+          "name": "Kalkandere"
+        },
+        {
+          "relation_id": "relation/1838681",
+          "name": "Pazar"
+        },
+        {
+          "relation_id": "relation/1838682",
+          "name": "Rize Merkez"
+        },
+        {
+          "relation_id": "relation/1838683",
+          "name": "Çamlıhemşin"
+        },
+        {
+          "relation_id": "relation/1838684",
+          "name": "Çayeli"
+        },
+        {
+          "relation_id": "relation/1838685",
+          "name": "İyidere"
+        }
+      ]
+    },
+    {
+      "code": "54",
+      "name": "Sakarya",
+      "relation_id": "relation/223462",
+      "bbox_wgs84": [
+        29.96698,
+        40.29441,
+        31.01267,
+        41.1792
+      ],
+      "district_count": 16,
+      "districts": [
+        {
+          "relation_id": "relation/1252521",
+          "name": "Kaynarca"
+        },
+        {
+          "relation_id": "relation/1252522",
+          "name": "Akyazı"
+        },
+        {
+          "relation_id": "relation/1252523",
+          "name": "Söğütlü"
+        },
+        {
+          "relation_id": "relation/1252524",
+          "name": "Geyve"
+        },
+        {
+          "relation_id": "relation/1252526",
+          "name": "Adapazarı"
+        },
+        {
+          "relation_id": "relation/1252527",
+          "name": "Taraklı"
+        },
+        {
+          "relation_id": "relation/1252528",
+          "name": "Ferizli"
+        },
+        {
+          "relation_id": "relation/1252530",
+          "name": "Hendek"
+        },
+        {
+          "relation_id": "relation/1252531",
+          "name": "Karapürçek"
+        },
+        {
+          "relation_id": "relation/1252532",
+          "name": "Kocaali"
+        },
+        {
+          "relation_id": "relation/1775177",
+          "name": "Arifiye"
+        },
+        {
+          "relation_id": "relation/1775571",
+          "name": "Erenler"
+        },
+        {
+          "relation_id": "relation/1775627",
+          "name": "Pamukova"
+        },
+        {
+          "relation_id": "relation/1775628",
+          "name": "Sapanca"
+        },
+        {
+          "relation_id": "relation/4161128",
+          "name": "Karasu"
+        },
+        {
+          "relation_id": "relation/6989045",
+          "name": "Serdivan"
+        }
+      ]
+    },
+    {
+      "code": "55",
+      "name": "Samsun",
+      "relation_id": "relation/223451",
+      "bbox_wgs84": [
+        34.87866,
+        40.82195,
+        37.16951,
+        41.73794
+      ],
+      "district_count": 17,
+      "districts": [
+        {
+          "relation_id": "relation/1722709",
+          "name": "Vezirköprü"
+        },
+        {
+          "relation_id": "relation/1837360",
+          "name": "Alaçam"
+        },
+        {
+          "relation_id": "relation/1837361",
+          "name": "Asarcık"
+        },
+        {
+          "relation_id": "relation/1837362",
+          "name": "Atakum"
+        },
+        {
+          "relation_id": "relation/1837363",
+          "name": "Ayvacık"
+        },
+        {
+          "relation_id": "relation/1837364",
+          "name": "Bafra"
+        },
+        {
+          "relation_id": "relation/1837365",
+          "name": "Canik"
+        },
+        {
+          "relation_id": "relation/1837366",
+          "name": "Havza"
+        },
+        {
+          "relation_id": "relation/1837367",
+          "name": "Kavak"
+        },
+        {
+          "relation_id": "relation/1837368",
+          "name": "Ladik"
+        },
+        {
+          "relation_id": "relation/1837369",
+          "name": "19 Mayıs"
+        },
+        {
+          "relation_id": "relation/1837370",
+          "name": "Salıpazarı"
+        },
+        {
+          "relation_id": "relation/1837371",
+          "name": "Tekkeköy"
+        },
+        {
+          "relation_id": "relation/1837372",
+          "name": "Terme"
+        },
+        {
+          "relation_id": "relation/1837373",
+          "name": "Yakakent"
+        },
+        {
+          "relation_id": "relation/1837374",
+          "name": "Çarşamba"
+        },
+        {
+          "relation_id": "relation/1837375",
+          "name": "İlkadım"
+        }
+      ]
+    },
+    {
+      "code": "56",
+      "name": "Siirt",
+      "relation_id": "relation/223543",
+      "bbox_wgs84": [
+        41.35733,
+        37.58925,
+        42.88452,
+        38.26214
+      ],
+      "district_count": 7,
+      "districts": [
+        {
+          "relation_id": "relation/1246472",
+          "name": "Şirvan"
+        },
+        {
+          "relation_id": "relation/1246473",
+          "name": "Siirt Merkez"
+        },
+        {
+          "relation_id": "relation/1246474",
+          "name": "Pervari"
+        },
+        {
+          "relation_id": "relation/1246475",
+          "name": "Eruh"
+        },
+        {
+          "relation_id": "relation/1246476",
+          "name": "Kurtalan"
+        },
+        {
+          "relation_id": "relation/1246477",
+          "name": "Tillo"
+        },
+        {
+          "relation_id": "relation/1246478",
+          "name": "Baykan"
+        }
+      ]
+    },
+    {
+      "code": "57",
+      "name": "Sinop",
+      "relation_id": "relation/223457",
+      "bbox_wgs84": [
+        34.22371,
+        41.21081,
+        35.47828,
+        42.09805
+      ],
+      "district_count": 9,
+      "districts": [
+        {
+          "relation_id": "relation/1427183",
+          "name": "Türkeli"
+        },
+        {
+          "relation_id": "relation/1428702",
+          "name": "Ayancık"
+        },
+        {
+          "relation_id": "relation/1428703",
+          "name": "Sinop Merkez"
+        },
+        {
+          "relation_id": "relation/1428705",
+          "name": "Gerze"
+        },
+        {
+          "relation_id": "relation/1428706",
+          "name": "Durağan"
+        },
+        {
+          "relation_id": "relation/1428707",
+          "name": "Erfelek"
+        },
+        {
+          "relation_id": "relation/1428708",
+          "name": "Saraydüzü"
+        },
+        {
+          "relation_id": "relation/1428709",
+          "name": "Boyabat"
+        },
+        {
+          "relation_id": "relation/1428710",
+          "name": "Dikmen"
+        }
+      ]
+    },
+    {
+      "code": "58",
+      "name": "Sivas",
+      "relation_id": "relation/223425",
+      "bbox_wgs84": [
+        35.83929,
+        38.53709,
+        38.77236,
+        40.52693
+      ],
+      "district_count": 17,
+      "districts": [
+        {
+          "relation_id": "relation/1335055",
+          "name": "Şarkışla"
+        },
+        {
+          "relation_id": "relation/1335056",
+          "name": "Gemerek"
+        },
+        {
+          "relation_id": "relation/1438944",
+          "name": "Yıldızeli"
+        },
+        {
+          "relation_id": "relation/1440079",
+          "name": "Sivas Merkez"
+        },
+        {
+          "relation_id": "relation/1482222",
+          "name": "Kangal"
+        },
+        {
+          "relation_id": "relation/1483861",
+          "name": "Divriği"
+        },
+        {
+          "relation_id": "relation/1493364",
+          "name": "Zara"
+        },
+        {
+          "relation_id": "relation/1493876",
+          "name": "Koyulhisar"
+        },
+        {
+          "relation_id": "relation/1502459",
+          "name": "Suşehri"
+        },
+        {
+          "relation_id": "relation/1503860",
+          "name": "İmranlı"
+        },
+        {
+          "relation_id": "relation/1507008",
+          "name": "Akıncılar"
+        },
+        {
+          "relation_id": "relation/1507010",
+          "name": "Gölova"
+        },
+        {
+          "relation_id": "relation/1731766",
+          "name": "Gürün"
+        },
+        {
+          "relation_id": "relation/1742197",
+          "name": "Altınyayla"
+        },
+        {
+          "relation_id": "relation/1742198",
+          "name": "Hafik"
+        },
+        {
+          "relation_id": "relation/1742199",
+          "name": "Ulaş"
+        },
+        {
+          "relation_id": "relation/1843703",
+          "name": "Doğanşar"
+        }
+      ]
+    },
+    {
+      "code": "59",
+      "name": "Tekirdağ",
+      "relation_id": "relation/223470",
+      "bbox_wgs84": [
+        26.69333,
+        40.53826,
+        28.15546,
+        41.61632
+      ],
+      "district_count": 11,
+      "districts": [
+        {
+          "relation_id": "relation/1771120",
+          "name": "Hayrabolu"
+        },
+        {
+          "relation_id": "relation/1771121",
+          "name": "Malkara"
+        },
+        {
+          "relation_id": "relation/1771122",
+          "name": "Marmaraereğlisi"
+        },
+        {
+          "relation_id": "relation/1771123",
+          "name": "Muratlı"
+        },
+        {
+          "relation_id": "relation/1771124",
+          "name": "Saray"
+        },
+        {
+          "relation_id": "relation/1771125",
+          "name": "Süleymanpaşa"
+        },
+        {
+          "relation_id": "relation/1771126",
+          "name": "Çerkezköy"
+        },
+        {
+          "relation_id": "relation/1771127",
+          "name": "Çorlu"
+        },
+        {
+          "relation_id": "relation/1771128",
+          "name": "Şarköy"
+        },
+        {
+          "relation_id": "relation/3525530",
+          "name": "Ergene"
+        },
+        {
+          "relation_id": "relation/3527588",
+          "name": "Kapaklı"
+        }
+      ]
+    },
+    {
+      "code": "60",
+      "name": "Tokat",
+      "relation_id": "relation/223424",
+      "bbox_wgs84": [
+        35.43958,
+        39.86212,
+        37.62246,
+        40.91031
+      ],
+      "district_count": 12,
+      "districts": [
+        {
+          "relation_id": "relation/1802575",
+          "name": "Erbaa"
+        },
+        {
+          "relation_id": "relation/1802583",
+          "name": "Başçiftlik"
+        },
+        {
+          "relation_id": "relation/1802584",
+          "name": "Reşadiye"
+        },
+        {
+          "relation_id": "relation/1804071",
+          "name": "Niksar"
+        },
+        {
+          "relation_id": "relation/1804073",
+          "name": "Almus"
+        },
+        {
+          "relation_id": "relation/1804160",
+          "name": "Sulusaray"
+        },
+        {
+          "relation_id": "relation/1804161",
+          "name": "Yeşilyurt"
+        },
+        {
+          "relation_id": "relation/1804176",
+          "name": "Artova"
+        },
+        {
+          "relation_id": "relation/1804177",
+          "name": "Pazar"
+        },
+        {
+          "relation_id": "relation/1804178",
+          "name": "Tokat Merkez"
+        },
+        {
+          "relation_id": "relation/1804179",
+          "name": "Turhal"
+        },
+        {
+          "relation_id": "relation/1804180",
+          "name": "Zile"
+        }
+      ]
+    },
+    {
+      "code": "61",
+      "name": "Trabzon",
+      "relation_id": "relation/223447",
+      "bbox_wgs84": [
+        39.12333,
+        40.51354,
+        40.50777,
+        41.10765
+      ],
+      "district_count": 18,
+      "districts": [
+        {
+          "relation_id": "relation/1236143",
+          "name": "Hayrat"
+        },
+        {
+          "relation_id": "relation/1236144",
+          "name": "Beşikdüzü"
+        },
+        {
+          "relation_id": "relation/1236145",
+          "name": "Düzköy"
+        },
+        {
+          "relation_id": "relation/1236146",
+          "name": "Dernekpazarı"
+        },
+        {
+          "relation_id": "relation/1236147",
+          "name": "Yomra"
+        },
+        {
+          "relation_id": "relation/1236148",
+          "name": "Tonya"
+        },
+        {
+          "relation_id": "relation/1236149",
+          "name": "Köprübaşı"
+        },
+        {
+          "relation_id": "relation/1236150",
+          "name": "Vakfıkebir"
+        },
+        {
+          "relation_id": "relation/1236151",
+          "name": "Araklı"
+        },
+        {
+          "relation_id": "relation/1236152",
+          "name": "Maçka"
+        },
+        {
+          "relation_id": "relation/1236153",
+          "name": "Sürmene"
+        },
+        {
+          "relation_id": "relation/1236154",
+          "name": "Of"
+        },
+        {
+          "relation_id": "relation/1236155",
+          "name": "Arsin"
+        },
+        {
+          "relation_id": "relation/1236156",
+          "name": "Akçaabat"
+        },
+        {
+          "relation_id": "relation/1236157",
+          "name": "Ortahisar"
+        },
+        {
+          "relation_id": "relation/1236158",
+          "name": "Çaykara"
+        },
+        {
+          "relation_id": "relation/1236159",
+          "name": "Çarşıbaşı"
+        },
+        {
+          "relation_id": "relation/1236160",
+          "name": "Şalpazarı"
+        }
+      ]
+    },
+    {
+      "code": "62",
+      "name": "Tunceli",
+      "relation_id": "relation/223537",
+      "bbox_wgs84": [
+        38.73192,
+        38.76317,
+        40.40383,
+        39.615
+      ],
+      "district_count": 8,
+      "districts": [
+        {
+          "relation_id": "relation/1829324",
+          "name": "Hozat"
+        },
+        {
+          "relation_id": "relation/1829325",
+          "name": "Mazgirt"
+        },
+        {
+          "relation_id": "relation/1829326",
+          "name": "Nazımiye"
+        },
+        {
+          "relation_id": "relation/1829327",
+          "name": "Ovacık"
+        },
+        {
+          "relation_id": "relation/1829328",
+          "name": "Pertek"
+        },
+        {
+          "relation_id": "relation/1829329",
+          "name": "Pülümür"
+        },
+        {
+          "relation_id": "relation/1829330",
+          "name": "Tunceli Merkez"
+        },
+        {
+          "relation_id": "relation/1829331",
+          "name": "Çemişgezek"
+        }
+      ]
+    },
+    {
+      "code": "63",
+      "name": "Şanlıurfa",
+      "relation_id": "relation/223434",
+      "bbox_wgs84": [
+        37.83528,
+        36.66887,
+        40.23847,
+        38.02052
+      ],
+      "district_count": 13,
+      "districts": [
+        {
+          "relation_id": "relation/1596129",
+          "name": "Siverek"
+        },
+        {
+          "relation_id": "relation/1694298",
+          "name": "Viranşehir"
+        },
+        {
+          "relation_id": "relation/1747576",
+          "name": "Akçakale"
+        },
+        {
+          "relation_id": "relation/1747577",
+          "name": "Birecik"
+        },
+        {
+          "relation_id": "relation/1747578",
+          "name": "Bozova"
+        },
+        {
+          "relation_id": "relation/1747579",
+          "name": "Ceylanpınar"
+        },
+        {
+          "relation_id": "relation/1747580",
+          "name": "Halfeti"
+        },
+        {
+          "relation_id": "relation/1747581",
+          "name": "Harran"
+        },
+        {
+          "relation_id": "relation/1747582",
+          "name": "Hilvan"
+        },
+        {
+          "relation_id": "relation/1747583",
+          "name": "Suruç"
+        },
+        {
+          "relation_id": "relation/1747584",
+          "name": "Haliliye"
+        },
+        {
+          "relation_id": "relation/3677452",
+          "name": "Eyyübiye"
+        },
+        {
+          "relation_id": "relation/3677455",
+          "name": "Karaköprü"
+        }
+      ]
+    },
+    {
+      "code": "64",
+      "name": "Uşak",
+      "relation_id": "relation/223170",
+      "bbox_wgs84": [
+        28.74463,
+        38.16586,
+        30.02383,
+        38.94846
+      ],
+      "district_count": 6,
+      "districts": [
+        {
+          "relation_id": "relation/1609669",
+          "name": "Uşak Merkez"
+        },
+        {
+          "relation_id": "relation/1609670",
+          "name": "Eşme"
+        },
+        {
+          "relation_id": "relation/1609671",
+          "name": "Sivaslı"
+        },
+        {
+          "relation_id": "relation/1609672",
+          "name": "Ulubey"
+        },
+        {
+          "relation_id": "relation/1609673",
+          "name": "Banaz"
+        },
+        {
+          "relation_id": "relation/1609674",
+          "name": "Karahallı"
+        }
+      ]
+    },
+    {
+      "code": "65",
+      "name": "Van",
+      "relation_id": "relation/223442",
+      "bbox_wgs84": [
+        42.6622,
+        37.72009,
+        44.51255,
+        39.37097
+      ],
+      "district_count": 13,
+      "districts": [
+        {
+          "relation_id": "relation/1778014",
+          "name": "Başkale"
+        },
+        {
+          "relation_id": "relation/1778550",
+          "name": "Tuşba"
+        },
+        {
+          "relation_id": "relation/1778557",
+          "name": "Gürpınar"
+        },
+        {
+          "relation_id": "relation/1778676",
+          "name": "Bahçesaray"
+        },
+        {
+          "relation_id": "relation/1778677",
+          "name": "Edremit"
+        },
+        {
+          "relation_id": "relation/1778678",
+          "name": "Gevaş"
+        },
+        {
+          "relation_id": "relation/1778679",
+          "name": "Çatak"
+        },
+        {
+          "relation_id": "relation/1779032",
+          "name": "Erciş"
+        },
+        {
+          "relation_id": "relation/1779033",
+          "name": "Muradiye"
+        },
+        {
+          "relation_id": "relation/1779034",
+          "name": "Saray"
+        },
+        {
+          "relation_id": "relation/1779035",
+          "name": "Çaldıran"
+        },
+        {
+          "relation_id": "relation/1779036",
+          "name": "Özalp"
+        },
+        {
+          "relation_id": "relation/3678626",
+          "name": "İpekyolu"
+        }
+      ]
+    },
+    {
+      "code": "66",
+      "name": "Yozgat",
+      "relation_id": "relation/154450",
+      "bbox_wgs84": [
+        34.06066,
+        38.98602,
+        36.16356,
+        40.25508
+      ],
+      "district_count": 14,
+      "districts": [
+        {
+          "relation_id": "relation/1240430",
+          "name": "Yerköy"
+        },
+        {
+          "relation_id": "relation/1559325",
+          "name": "Akdağmadeni"
+        },
+        {
+          "relation_id": "relation/1561845",
+          "name": "Kadışehri"
+        },
+        {
+          "relation_id": "relation/1561846",
+          "name": "Saraykent"
+        },
+        {
+          "relation_id": "relation/1561847",
+          "name": "Yenifakılı"
+        },
+        {
+          "relation_id": "relation/1561848",
+          "name": "Çandır"
+        },
+        {
+          "relation_id": "relation/1561849",
+          "name": "Yozgat Merkez"
+        },
+        {
+          "relation_id": "relation/1561850",
+          "name": "Sarıkaya"
+        },
+        {
+          "relation_id": "relation/1561851",
+          "name": "Çekerek"
+        },
+        {
+          "relation_id": "relation/1561852",
+          "name": "Aydıncık"
+        },
+        {
+          "relation_id": "relation/1561853",
+          "name": "Çayıralan"
+        },
+        {
+          "relation_id": "relation/1561854",
+          "name": "Şefaatli"
+        },
+        {
+          "relation_id": "relation/1561855",
+          "name": "Boğazlıyan"
+        },
+        {
+          "relation_id": "relation/1561856",
+          "name": "Sorgun"
+        }
+      ]
+    },
+    {
+      "code": "67",
+      "name": "Zonguldak",
+      "relation_id": "relation/223459",
+      "bbox_wgs84": [
+        31.28284,
+        41.0038,
+        32.2947,
+        41.59514
+      ],
+      "district_count": 8,
+      "districts": [
+        {
+          "relation_id": "relation/1793737",
+          "name": "Alaplı"
+        },
+        {
+          "relation_id": "relation/1830383",
+          "name": "Çaycuma"
+        },
+        {
+          "relation_id": "relation/1840248",
+          "name": "Devrek"
+        },
+        {
+          "relation_id": "relation/1840249",
+          "name": "Gökçebey"
+        },
+        {
+          "relation_id": "relation/1840250",
+          "name": "Ereğli"
+        },
+        {
+          "relation_id": "relation/1840251",
+          "name": "Zonguldak Merkez"
+        },
+        {
+          "relation_id": "relation/3680519",
+          "name": "Kozlu"
+        },
+        {
+          "relation_id": "relation/3680552",
+          "name": "Kilimli"
+        }
+      ]
+    },
+    {
+      "code": "68",
+      "name": "Aksaray",
+      "relation_id": "relation/154454",
+      "bbox_wgs84": [
+        33.17106,
+        37.97699,
+        34.49444,
+        39.05093
+      ],
+      "district_count": 8,
+      "districts": [
+        {
+          "relation_id": "relation/1246396",
+          "name": "Ortaköy"
+        },
+        {
+          "relation_id": "relation/1713915",
+          "name": "Sarıyahşi"
+        },
+        {
+          "relation_id": "relation/1714007",
+          "name": "Eskil"
+        },
+        {
+          "relation_id": "relation/1717633",
+          "name": "Aksaray Merkez"
+        },
+        {
+          "relation_id": "relation/1717634",
+          "name": "Ağaçören"
+        },
+        {
+          "relation_id": "relation/1717635",
+          "name": "Gülağaç"
+        },
+        {
+          "relation_id": "relation/1717636",
+          "name": "Güzelyurt"
+        },
+        {
+          "relation_id": "relation/8100757",
+          "name": "Sultanhanı"
+        }
+      ]
+    },
+    {
+      "code": "69",
+      "name": "Bayburt",
+      "relation_id": "relation/223446",
+      "bbox_wgs84": [
+        39.64708,
+        39.92715,
+        40.70784,
+        40.56835
+      ],
+      "district_count": 3,
+      "districts": [
+        {
+          "relation_id": "relation/1596962",
+          "name": "Bayburt Merkez"
+        },
+        {
+          "relation_id": "relation/1596963",
+          "name": "Demirözü"
+        },
+        {
+          "relation_id": "relation/1596964",
+          "name": "Aydıntepe"
+        }
+      ]
+    },
+    {
+      "code": "70",
+      "name": "Karaman",
+      "relation_id": "relation/223137",
+      "bbox_wgs84": [
+        32.46357,
+        36.43584,
+        34.26064,
+        37.56573
+      ],
+      "district_count": 6,
+      "districts": [
+        {
+          "relation_id": "relation/1446437",
+          "name": "Ermenek"
+        },
+        {
+          "relation_id": "relation/1446934",
+          "name": "Başyayla"
+        },
+        {
+          "relation_id": "relation/1446935",
+          "name": "Sarıveliler"
+        },
+        {
+          "relation_id": "relation/1477818",
+          "name": "Ayrancı"
+        },
+        {
+          "relation_id": "relation/1477819",
+          "name": "Karaman Merkez"
+        },
+        {
+          "relation_id": "relation/1477820",
+          "name": "Kazımkarabekir"
+        }
+      ]
+    },
+    {
+      "code": "71",
+      "name": "Kırıkkale",
+      "relation_id": "relation/223423",
+      "bbox_wgs84": [
+        33.18609,
+        39.39674,
+        34.2078,
+        40.34242
+      ],
+      "district_count": 9,
+      "districts": [
+        {
+          "relation_id": "relation/1251085",
+          "name": "Çelebi"
+        },
+        {
+          "relation_id": "relation/1251090",
+          "name": "Karakeçili"
+        },
+        {
+          "relation_id": "relation/1251131",
+          "name": "Keskin"
+        },
+        {
+          "relation_id": "relation/1251196",
+          "name": "Yahşihan"
+        },
+        {
+          "relation_id": "relation/1251197",
+          "name": "Delice"
+        },
+        {
+          "relation_id": "relation/1251198",
+          "name": "Balışeyh"
+        },
+        {
+          "relation_id": "relation/1251199",
+          "name": "Kırıkkale Merkez"
+        },
+        {
+          "relation_id": "relation/1251200",
+          "name": "Bahşılı"
+        },
+        {
+          "relation_id": "relation/1251201",
+          "name": "Sulakyurt"
+        }
+      ]
+    },
+    {
+      "code": "72",
+      "name": "Batman",
+      "relation_id": "relation/223437",
+      "bbox_wgs84": [
+        40.98644,
+        37.49516,
+        41.82192,
+        38.54212
+      ],
+      "district_count": 6,
+      "districts": [
+        {
+          "relation_id": "relation/1361162",
+          "name": "Hasankeyf"
+        },
+        {
+          "relation_id": "relation/1842145",
+          "name": "Batman Merkez"
+        },
+        {
+          "relation_id": "relation/1842146",
+          "name": "Beşiri"
+        },
+        {
+          "relation_id": "relation/1842147",
+          "name": "Gercüş"
+        },
+        {
+          "relation_id": "relation/1842148",
+          "name": "Kozluk"
+        },
+        {
+          "relation_id": "relation/1842149",
+          "name": "Sason"
+        }
+      ]
+    },
+    {
+      "code": "73",
+      "name": "Şırnak",
+      "relation_id": "relation/223438",
+      "bbox_wgs84": [
+        41.54549,
+        37.10696,
+        43.49919,
+        37.76984
+      ],
+      "district_count": 7,
+      "districts": [
+        {
+          "relation_id": "relation/1751837",
+          "name": "Beytüşşebap"
+        },
+        {
+          "relation_id": "relation/1751838",
+          "name": "Cizre"
+        },
+        {
+          "relation_id": "relation/1751839",
+          "name": "Güçlükonak"
+        },
+        {
+          "relation_id": "relation/1751840",
+          "name": "Silopi"
+        },
+        {
+          "relation_id": "relation/1751841",
+          "name": "Uludere"
+        },
+        {
+          "relation_id": "relation/1751842",
+          "name": "İdil"
+        },
+        {
+          "relation_id": "relation/1751843",
+          "name": "Şırnak Merkez"
+        }
+      ]
+    },
+    {
+      "code": "74",
+      "name": "Bartın",
+      "relation_id": "relation/223458",
+      "bbox_wgs84": [
+        32.09491,
+        41.30294,
+        32.93898,
+        41.84923
+      ],
+      "district_count": 4,
+      "districts": [
+        {
+          "relation_id": "relation/1423094",
+          "name": "Ulus"
+        },
+        {
+          "relation_id": "relation/1423095",
+          "name": "Amasra"
+        },
+        {
+          "relation_id": "relation/1423096",
+          "name": "Kurucaşile"
+        },
+        {
+          "relation_id": "relation/1423097",
+          "name": "Bartın Merkez"
+        }
+      ]
+    },
+    {
+      "code": "75",
+      "name": "Ardahan",
+      "relation_id": "relation/1251450",
+      "bbox_wgs84": [
+        42.31592,
+        40.62917,
+        43.47415,
+        41.60027
+      ],
+      "district_count": 6,
+      "districts": [
+        {
+          "relation_id": "relation/1649770",
+          "name": "Çıldır"
+        },
+        {
+          "relation_id": "relation/1651532",
+          "name": "Göle"
+        },
+        {
+          "relation_id": "relation/1651533",
+          "name": "Hanak"
+        },
+        {
+          "relation_id": "relation/1651534",
+          "name": "Posof"
+        },
+        {
+          "relation_id": "relation/1651535",
+          "name": "Damal"
+        },
+        {
+          "relation_id": "relation/1651536",
+          "name": "Ardahan Merkez"
+        }
+      ]
+    },
+    {
+      "code": "76",
+      "name": "Iğdır",
+      "relation_id": "relation/186434",
+      "bbox_wgs84": [
+        43.28427,
+        39.62734,
+        44.81766,
+        40.13158
+      ],
+      "district_count": 4,
+      "districts": [
+        {
+          "relation_id": "relation/1251328",
+          "name": "Tuzluca"
+        },
+        {
+          "relation_id": "relation/1251329",
+          "name": "Aralık"
+        },
+        {
+          "relation_id": "relation/1251330",
+          "name": "Iğdır Merkez"
+        },
+        {
+          "relation_id": "relation/1251331",
+          "name": "Karakoyunlu"
+        }
+      ]
+    },
+    {
+      "code": "77",
+      "name": "Yalova",
+      "relation_id": "relation/223472",
+      "bbox_wgs84": [
+        28.77964,
+        40.45623,
+        29.5583,
+        40.74306
+      ],
+      "district_count": 6,
+      "districts": [
+        {
+          "relation_id": "relation/1840930",
+          "name": "Altınova"
+        },
+        {
+          "relation_id": "relation/1840931",
+          "name": "Armutlu"
+        },
+        {
+          "relation_id": "relation/1840932",
+          "name": "Termal"
+        },
+        {
+          "relation_id": "relation/1840933",
+          "name": "Yalova Merkez"
+        },
+        {
+          "relation_id": "relation/1840934",
+          "name": "Çiftlikköy"
+        },
+        {
+          "relation_id": "relation/1840935",
+          "name": "Çınarcık"
+        }
+      ]
+    },
+    {
+      "code": "78",
+      "name": "Karabük",
+      "relation_id": "relation/223455",
+      "bbox_wgs84": [
+        32.08969,
+        40.7975,
+        33.15562,
+        41.58786
+      ],
+      "district_count": 6,
+      "districts": [
+        {
+          "relation_id": "relation/1245153",
+          "name": "Yenice"
+        },
+        {
+          "relation_id": "relation/1245154",
+          "name": "Karabük Merkez"
+        },
+        {
+          "relation_id": "relation/1245155",
+          "name": "Eskipazar"
+        },
+        {
+          "relation_id": "relation/1245156",
+          "name": "Eflani"
+        },
+        {
+          "relation_id": "relation/1245157",
+          "name": "Ovacık"
+        },
+        {
+          "relation_id": "relation/1245158",
+          "name": "Safranbolu"
+        }
+      ]
+    },
+    {
+      "code": "79",
+      "name": "Kilis",
+      "relation_id": "relation/223140",
+      "bbox_wgs84": [
+        36.71414,
+        36.63206,
+        37.56858,
+        37.03837
+      ],
+      "district_count": 4,
+      "districts": [
+        {
+          "relation_id": "relation/1240867",
+          "name": "Polateli"
+        },
+        {
+          "relation_id": "relation/1240868",
+          "name": "Kilis Merkez"
+        },
+        {
+          "relation_id": "relation/1240869",
+          "name": "Elbeyli"
+        },
+        {
+          "relation_id": "relation/1240870",
+          "name": "Musabeyli"
+        }
+      ]
+    },
+    {
+      "code": "80",
+      "name": "Osmaniye",
+      "relation_id": "relation/167232",
+      "bbox_wgs84": [
+        35.87645,
+        36.92973,
+        36.72398,
+        37.74992
+      ],
+      "district_count": 7,
+      "districts": [
+        {
+          "relation_id": "relation/1248429",
+          "name": "Bahçe"
+        },
+        {
+          "relation_id": "relation/1248430",
+          "name": "Toprakkale"
+        },
+        {
+          "relation_id": "relation/1248432",
+          "name": "Hasanbeyli"
+        },
+        {
+          "relation_id": "relation/1248433",
+          "name": "Osmaniye Merkez"
+        },
+        {
+          "relation_id": "relation/1248434",
+          "name": "Sumbas"
+        },
+        {
+          "relation_id": "relation/1248435",
+          "name": "Kadirli"
+        },
+        {
+          "relation_id": "relation/1248436",
+          "name": "Düziçi"
+        }
+      ]
+    },
+    {
+      "code": "81",
+      "name": "Düzce",
+      "relation_id": "relation/223460",
+      "bbox_wgs84": [
+        30.77818,
+        40.62175,
+        31.84986,
+        41.11273
+      ],
+      "district_count": 8,
+      "districts": [
+        {
+          "relation_id": "relation/1393949",
+          "name": "Cumayeri"
+        },
+        {
+          "relation_id": "relation/1393950",
+          "name": "Çilimli"
+        },
+        {
+          "relation_id": "relation/1393951",
+          "name": "Gölyaka"
+        },
+        {
+          "relation_id": "relation/1393952",
+          "name": "Kaynaşlı"
+        },
+        {
+          "relation_id": "relation/1393953",
+          "name": "Düzce Merkez"
+        },
+        {
+          "relation_id": "relation/1393954",
+          "name": "Yığılca"
+        },
+        {
+          "relation_id": "relation/1393955",
+          "name": "Akçakoca"
+        },
+        {
+          "relation_id": "relation/1393956",
+          "name": "Gümüşova"
+        }
+      ]
+    }
+  ]
+}

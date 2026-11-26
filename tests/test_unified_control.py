@@ -55,15 +55,20 @@ class ControlSafetyTests(unittest.TestCase):
                          FakeResponse(url,{"status":"ok","database":"ok"},status=503)),
                          "unverified")
 
-    def test_scheduled_mail_requires_verified_recipient_and_manual_batches_stay_off(self):
+    def test_outreach_is_business_only_bounded_and_keeps_other_mail_paths_off(self):
         root=Path(__file__).parents[1]/".github/workflows"
         scheduled=(root/"lead-digest.yml").read_text(encoding="utf-8")
         self.assertIn("AUTO_MAIL_ENABLED: 'true'",scheduled)
         self.assertNotIn("AUTO_MAIL_ENABLED: 'false'",scheduled)
-        for name in ("verified-mail-batch.yml","execute-outreach.yml"):
+        for name in ("verified-mail-batch.yml",):
             source=(root/name).read_text(encoding="utf-8")
             self.assertIn("AUTO_MAIL_ENABLED: 'false'", source)
             self.assertNotIn("AUTO_MAIL_ENABLED: 'true'",source)
+        outreach=(root/"execute-outreach.yml").read_text(encoding="utf-8")
+        self.assertIn("AUTO_MAIL_ENABLED: 'true'",outreach)
+        self.assertIn("MAIL_BATCH_LIMIT: '5'",outreach)
+        self.assertIn("AUTO_MAIL_DAILY_LIMIT: '5'",outreach)
+        self.assertIn("recipient_audit --dry-run",outreach)
         self.assertIn("OWNER_VERIFIED_BATCH_APPROVED: NO_LIVE_BATCH",
                       (root/"verified-mail-batch.yml").read_text(encoding="utf-8"))
         self.assertIn("OWNER_APPROVED_MAIL_ENABLED: 'false'",

@@ -24,6 +24,8 @@ jobs:
           REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NTFY_TOPIC_URL: ${{ secrets.NTFY_TOPIC_URL }}
+          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
           # Reporting reads the main workflow's real safety gates; this job
           # has no mailer code and can never send business email.
           AUTO_MAIL_ENABLED: 'true'
