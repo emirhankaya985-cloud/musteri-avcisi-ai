@@ -1,0 +1,48 @@
+name: Initialize 81 Province Coverage Ledger
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: musteri-avcisi-province-ledger-init
+  cancel-in-progress: false
+jobs:
+  initialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install free private PostgreSQL driver
+        run: python -m pip install 'psycopg[binary]==3.2.12'
+      - name: Insert missing province rows only; do not scan or change CRM
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: |
+          python - <<'PY'
+          import os
+          from collections import Counter
+
+          import psycopg
+          from leadhunter.province_coverage_store import initialize_and_read
+
+          dsn = os.environ.get('REVIEW_DATABASE_URL')
+          if not dsn:
+              raise SystemExit('PROVINCE_LEDGER_BLOCKED: database unavailable')
+
+          with psycopg.connect(dsn) as conn:
+              registry = initialize_and_read(conn)
+              states = Counter(p['status'] for p in registry['provinces'])
+              planned = sum(p.get('plan') is not None for p in registry['provinces'])
+              if len(registry['provinces']) != 81:
+                  raise SystemExit('PROVINCE_LEDGER_INVALID: expected 81 rows')
+              print('PROVINCE_LEDGER: validated=81; '
+                    f"pending={states.get('pending', 0)}; "
+                    f"running={states.get('running', 0)}; "
+                    f"completed={states.get('completed', 0)}; "
+                    f"partial={states.get('partial', 0)}; "
+                    f"failed={states.get('failed', 0)}; "
+                    f"plans={planned}; scan_started=0; crm_rows_written=0")
+          PY
