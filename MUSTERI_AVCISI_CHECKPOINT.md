@@ -2,6 +2,16 @@
 
 Güncelleme: 2026-11-25 (Europe/Istanbul)
 
+## Görev 6.3 üretim durumu — 2026-11-26
+
+- PR #98 ve #99 korunarak `main`e alınmıştı. Görev 6.3 sırasında 81 il kapsam satırını Neon'da başlatan insert-only workflow PR [#100](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/pull/100) ile birleştirildi (`08088af`). Üretim run [45804423103](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/45804423103): 81/81 il satırı doğrulandı; 81 pending, 0 plan, 0 tarama, 0 CRM yazımı. İlçe manifesti/taraması hâlâ yok.
+- Güncel Neon salt-okunur denetimi [45802947224](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/45802947224): toplam 412 kayıt, 25 e-posta kaydı, 25 denetlenmiş, 0 belgelenmiş iletişim uygunluğu; 15 geçmiş SMTP kabulü, 4 başarısızlık, 0 gecikmeli bildirim, 0 eşleşen yanıt, 11 kabulün teslim kanıtı eksik. Gönderici kilidi `paused=True`, `sendable=0`.
+- Önceki dört başarısızlık sınıfı: DNS NXDOMAIN (1), posta kutusu yok (1), relay denied (1), iki gecikme bildirimi ardından connection refused (1). Sender kimlik doğrulama arızası kanıtlanmadı; geçmiş kayıtlar silinmedi veya bypass edilmedi.
+- Sahibine tek test e-postası [45802729311](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/45802729311) ile gönderildi; Gmail SMTP 1 iletiyi kabul etti. Gelen kutusuna teslim bağımsız doğrulanmadı. Gmail IMAP salt-okunur watcher [45802947224](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/45802947224) başarılı; `business_mail_sent=0`.
+- Planlı lead-digest [45759291065](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/45759291065) 402/402 eski tile tamamlandığı için `new_public_queries=0` ile atlandı. 402 eski tile kanıtı korunuyor; ayrı sürümlü il/ilçe PBF checkpoint/processor henüz yok. Sonraki freshness kontrolü [45787176561](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/45787176561) scan ve Gmail makbuzlarını stale bulmuştu; Gmail watcher sonradan manuel çalıştırıldı, scan cron tazeliği hâlâ düzeltilmedi.
+- Son günlük Telegram owner rapor koşumu [45748407617](https://github.com/emirhankaya985-cloud/musteri-avcisi-ai/actions/runs/45748407617) başarılı. Depoda ntfy entegrasyonu yok. Kalıcı satış aşamaları (teklif/toplantı/kazanıldı/kaybedildi) şeması da bulunmuyor.
+- Bu görevde işletmelere e-posta gönderilmedi; ek maliyet oluşturulmadı. İşletmelere gönderim uygunluğu yalnızca CRM/ret/İYS kayıtları ve sender kilidi kanıtla temizlendikten sonra değerlendirilebilir.
+
 ## Kurtarılan çalışma ve Git durumu
 
 - Kaynak `main`: `6e6b92c38f030a20ef19ed83977cdd16976feff2` (başlangıç doğrulaması).
