@@ -15,6 +15,7 @@ from .review_private import connect_private_database
 from .telegram_buttons import api
 
 ZONE = ZoneInfo("Europe/Istanbul")
+DISTRICT_MANIFEST = "data/osm_boundary_manifest_v2026.11.0.json"
 
 
 def report_day(env=None, now=None):
@@ -55,6 +56,11 @@ def aggregate(conn, day):
             "sum(new_addresses),sum(new_mx) "
             "FROM owner_scan_run_metrics WHERE report_day=%s::date", (day,))
         measured_runs, inspected, registered_runs, found_addresses, checked_mx = cur.fetchone()
+        cur.execute(
+            "SELECT count(*),count(*) FILTER (WHERE outcome IN ('failure','partial','cancelled') "
+            "OR mirror_outcome='failure') FROM owner_scan_attempts "
+            "WHERE (recorded_at AT TIME ZONE 'Europe/Istanbul')::date=%s::date", (day,))
+        measured_scan_attempts, system_errors = cur.fetchone()
         cur.execute(
             "SELECT count(*) FROM owner_leads WHERE "
             "(first_seen_at AT TIME ZONE 'Europe/Istanbul')::date=%s::date "
@@ -100,6 +106,8 @@ def aggregate(conn, day):
                 failed=int(failed),delayed=int(delayed),replies=int(replies),
                 duplicate=int(duplicate),accepted_today=int(accepted_today),
                 eligible=eligible, measured_runs=int(measured_runs),
+                measured_scan_attempts=int(measured_scan_attempts),
+                system_errors=(int(system_errors) if measured_scan_attempts else None),
                 inspected=None if inspected is None else int(inspected),
                 found_addresses=None if found_addresses is None else int(found_addresses),
                 checked_mx=None if checked_mx is None else int(checked_mx),
@@ -137,6 +145,8 @@ def compose(day, counts, enabled):
         f"🔎 İncelenen işletme: {amount(inspected)} (tekrarları içerir; {coverage})\n"
         f"🗺️ İl kapsam defteri: {amount(counts.get('provinces_completed'))}/"
         f"{amount(counts.get('provinces_total'))} il tamamlandı ({amount(counts.get('province_coverage_percent'))}%)\n"
+        f"📍 İlçe sınır envanteri: {amount(counts.get('districts_completed'))}/"
+        f"{amount(counts.get('districts_total'))} ilçe taraması kanıtlandı\n"
         f"🆕 CRM'e yeni benzersiz aday: {counts['new']}\n"
         f"📧 Yeni kaydedilen teknik adres: {amount(addresses)}\n"
         f"🌐 Resmî işletme sitesi araştırması: {counts.get('email_research_count', 0)}"
@@ -154,6 +164,9 @@ def compose(day, counts, enabled):
         f"📨 Bugün eşleşen yeni müşteri yanıtı: {amount(counts.get('today_replies'))} "
         f"| Toplam eşleşmiş yanıt: {counts['replies']}\n"
         f"🧩 Kanıtlı hizmet eşleşmeleri: {amount(counts.get('service_matches'))}\n"
+        f"🛠️ Sistem hatası olan tarama koşumu: {amount(counts.get('system_errors'))}"
+        f" / {amount(counts.get('measured_scan_attempts'))}\n"
+        "💸 Toplam maliyet: ölçülmedi (altyapı faturalama verisi bağlı değil)\n"
         f"📝 Kalıcı satış aşaması kaydı: {counts.get('lifecycle_recorded', 0)} işletme"
         f" | teklif: {counts.get('lifecycle_stages', {}).get('offer_made', 0)}"
         f" | toplantı: {counts.get('lifecycle_stages', {}).get('meeting_scheduled', 0)}"
@@ -163,6 +176,32 @@ def compose(day, counts, enabled):
         f"🔐 Otomatik gönderim: {'KOŞULLU' if live else 'KAPALI'} — {reason}\n"
         "ℹ️ SMTP kabulü, alıcının gelen kutusuna teslim kanıtı değildir."
     )
+
+
+def district_coverage(registry, path=DISTRICT_MANIFEST):
+    """Count only district relation IDs explicitly planned and receipt-confirmed."""
+    try:
+        with open(path, "r", encoding="utf-8") as manifest_file:
+            manifest = json.load(manifest_file)
+        provinces = manifest["provinces"]
+        districts = [row["relation_id"] for province in provinces
+                     for row in province["districts"]]
+        district_ids = set(districts)
+        if (manifest.get("province_count") != 81
+                or manifest.get("district_count") != len(districts)
+                or len(district_ids) != len(districts)
+                or not all(isinstance(value, str) and value.startswith("relation/")
+                           for value in district_ids)):
+            return None, None
+        completed = set()
+        for province in registry["provinces"]:
+            plan = province.get("plan") or {}
+            planned = set(plan.get("work_item_ids") or ())
+            receipts = set((province.get("completed_items") or {}).keys())
+            completed.update(planned & receipts & district_ids)
+        return len(completed), len(district_ids)
+    except (OSError, ValueError, KeyError, TypeError):
+        return None, None
 
 
 def run(env=None, connection=None, messenger=api, day=None, document_sender=None):
@@ -204,6 +243,7 @@ def run(env=None, connection=None, messenger=api, day=None, document_sender=None
             from .commercial_scoring import match_service
             email_present = sum(bool(str(row.get("email") or "").strip()) for row in crm_rows)
             provinces_completed = sum(row.get("status") == "completed" for row in province_coverage)
+            districts_completed, districts_total = district_coverage(province_registry)
             counts.update(
                 total=len(crm_rows), email_missing=len(crm_rows) - email_present,
                 provinces_completed=provinces_completed,
@@ -211,6 +251,8 @@ def run(env=None, connection=None, messenger=api, day=None, document_sender=None
                 province_coverage_percent=(
                     round(100 * provinces_completed / len(province_coverage), 1)
                     if province_coverage else 0),
+                districts_completed=districts_completed,
+                districts_total=districts_total,
                 service_matches=sum(
                     match_service({"qualification": row.get("qualification") or {}})["category"] is not None
                     for row in crm_rows))

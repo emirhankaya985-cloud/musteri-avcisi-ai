@@ -82,6 +82,58 @@ class TelegramOwnerOnlyTests(unittest.TestCase):
             process_owner_command(message(), "fixture", "123", env,
                                   opener_for([], accepted_id=0))
 
+    def test_crm_stage_command_is_owner_only_audited_and_never_sends_email(self):
+        from unittest.mock import Mock, patch
+        update = {"update_id": 123456789, **message(
+            "/crm node/12345678 researched osm://node/12345678 official-site-reviewed")}
+        review = Mock()
+        review.db = object()
+        result = {"previous_stage": "new_discovered", "current_stage": "researched",
+                  "event_id": 17, "changed": True}
+        calls = []
+        with patch("leadhunter.lifecycle_store.record_transition", return_value=result) as record:
+            self.assertTrue(process_owner_command(
+                update, "fixture", "123", {}, opener_for(calls), review_store=review))
+        record.assert_called_once_with(
+            review.db, "node/12345678", "researched",
+            idempotency_key="telegram-crm:123456789",
+            reason="official-site-reviewed",
+            evidence_refs=("osm://node/12345678",), actor="owner_telegram")
+        self.assertEqual([method for method, _ in calls], ["sendMessage"])
+        self.assertIn("e-posta göndermedi", calls[0][1]["text"])
+
+        forged_owner = {"update_id": 123456790, **message(
+            "/crm node/12345678 researched osm://node/12345678 owner-change", owner_id=444)}
+        self.assertFalse(process_owner_command(
+            forged_owner, "fixture", "123", {}, opener_for([]), review_store=review))
+        invalid_evidence = {"update_id": 123456791, **message(
+            "/crm node/12345678 researched https://example.invalid/ref owner-change")}
+        self.assertTrue(process_owner_command(
+            invalid_evidence, "fixture", "123", {}, opener_for([]), review_store=review))
+        self.assertEqual(record.call_count, 1)
+
+    def test_crm_command_receipt_logs_command_name_only(self):
+        from unittest.mock import Mock, patch
+        with tempfile.TemporaryDirectory() as tmp:
+            calls = []
+            env = {"TELEGRAM_BOT_TOKEN": "fixture", "TELEGRAM_CHAT_ID": "123",
+                   "REVIEW_DATABASE_URL": "postgresql://synthetic/?sslmode=require",
+                   "CALLBACK_OFFSET_FILE": str(Path(tmp) / "cursor.json"),
+                   "OWNER_COMMAND_RECEIPT_FILE": str(Path(tmp) / "receipt.json")}
+            update = {"update_id": 371, **message(
+                "/crm node/12345678 researched osm://node/12345678 private-sensitive-reason")}
+            log = []
+            with patch("leadhunter.review_private.connect_private_database", return_value=Mock()), \
+                 patch("leadhunter.review_private.ReviewStore") as store_class, \
+                 patch("leadhunter.lifecycle_store.record_transition", return_value={
+                     "previous_stage": "new_discovered", "current_stage": "researched",
+                     "event_id": 17, "changed": True}):
+                store_class.return_value.db = object()
+                self.assertEqual(poll(env, opener_for(calls, [update]), output=log.append), 1)
+            receipt = json.loads(Path(env["OWNER_COMMAND_RECEIPT_FILE"]).read_text())
+            self.assertEqual(receipt["command"], "crm")
+            self.assertTrue(all("private-sensitive-reason" not in entry for entry in log))
+
     def test_old_review_buttons_are_not_required_or_processed(self):
         from unittest.mock import Mock, patch
         with tempfile.TemporaryDirectory() as tmp:
