@@ -1,0 +1,22 @@
+name: Gmail SMTP Authentication Check (No Message)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: owner-readonly-gmail-smtp-auth
+  cancel-in-progress: false
+jobs:
+  authenticate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Authenticate with existing Gmail SMTP credentials; send nothing
+        env:
+          GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python -m leadhunter.smtp_auth_check
