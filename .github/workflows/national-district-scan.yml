@@ -1,6 +1,9 @@
 name: Manual National OSM District Scan (No Outreach)
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/ops/one-time-national-district-scan-20261128.txt']
   schedule:
     # Weekly full-source refresh; the private district ledger resumes only
     # items without a verified receipt.
