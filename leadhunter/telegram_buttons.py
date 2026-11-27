@@ -116,13 +116,16 @@ def process_owner_command(update, token, owner, env, opener=urlopen, review_stor
             or str(chat.get("id")) != owner
             or str(sender.get("id")) != owner
             or sender.get("is_bot") is True
-            or not isinstance(command, str)
-            or command not in ("/durum", "/eposta", "/yardim", "/start")):
+            or not isinstance(command, str)):
+        return False
+    parts = command.split(maxsplit=4)
+    command_name = parts[0].split("@", 1)[0]
+    if command_name not in ("/durum", "/eposta", "/yardim", "/start", "/crm"):
         return False
     timestamp = message.get("date")
     if type(timestamp) is int and abs(time.time() - timestamp) > 24 * 3600:
         return False  # never replay a command outside the bounded Telegram buffer
-    if command == "/durum":
+    if command_name == "/durum" and len(parts) == 1:
         text = status_message(env)
         if review_store is not None:
             try:
@@ -135,20 +138,53 @@ def process_owner_command(update, token, owner, env, opener=urlopen, review_stor
                 text += "\n\n📊 Özel CRM ve son tarama/Gmail bilgisi: doğrulanamadı."
         else:
             text += "\n\n📊 Özel CRM ve son tarama/Gmail bilgisi: doğrulanamadı."
-    elif command == "/eposta":
+    elif command_name == "/eposta" and len(parts) == 1:
         try:
             text = mail_status_message(review_store)
         except Exception:
             text = "📮 Özel Gmail/SMTP geçmişi: doğrulanamadı."
-    else:
+    elif command_name == "/crm":
+        if len(parts) != 5 or review_store is None:
+            text = (
+                "CRM aşaması kaydedilemedi. Kullanım: /crm <osm_id> <aşama> "
+                "<kanıt_ref> <kısa gerekçe>. Örnek: /crm node/12345678 researched "
+                "osm://node/12345678 site-kontrolü-tamamlandı. Özel Neon bağlantısı "
+                "yoksa CRM değişmez. Bu komut e-posta göndermez."
+            )
+        else:
+            _, lead_id, stage, evidence_ref, reason = parts
+            update_id = update.get("update_id") if isinstance(update, dict) else None
+            try:
+                if type(update_id) is not int or update_id < 0:
+                    raise ValueError("Missing Telegram update identity")
+                if evidence_ref.startswith("osm://"):
+                    from .review_private import OSM_ID
+                    if not OSM_ID.fullmatch(lead_id) or evidence_ref != "osm://" + lead_id:
+                        raise ValueError("OSM evidence must match the exact CRM lead")
+                from .lifecycle_store import record_transition
+                result = record_transition(
+                    review_store.db, lead_id, stage,
+                    idempotency_key=f"telegram-crm:{update_id}",
+                    reason=reason, evidence_refs=(evidence_ref,), actor="owner_telegram")
+                previous = result.get("previous_stage") or "başlangıç"
+                text = (f"CRM aşaması kaydedildi: {previous} → {result['current_stage']}. "
+                        "Bu işlem e-posta göndermedi.")
+            except Exception:
+                text = ("CRM aşaması kaydedilemedi. İşletme kimliği, izin verilen "
+                        "aşama geçişi ve kanıt referansını kontrol et. CRM değişikliği "
+                        "ve e-posta gönderimi yapılmadı.")
+    elif command_name in ("/yardim", "/start") and len(parts) == 1:
         text = (
             "🤖 Müşteri Avcısı AI — yalnızca sahip Telegram sohbeti\n"
             "🔎 /durum — otomasyon ve tarama durumunu göster.\n"
             "📮 /eposta — özel veritabanındaki eski mail ve atlama sayılarını göster.\n"
+            "🧾 /crm <osm_id> <aşama> <kanıt_ref> <gerekçe> — CRM satış aşamasını kaydet; mail göndermez.\n"
             "📩 Yeni fırsatlar otomatik gelir; Evet/Hayır/Beklet gerekmez.\n"
             "ℹ️ Web paneli veya izlenecek site eklemeniz gerekmez.\n"
             "✉️ Bu bot komutları hiçbir işletmeye mail göndermez."
         )
+    else:
+        return False
     response = api(token, "sendMessage", {
         "chat_id": owner, "text": text, "disable_web_page_preview": True,
     }, opener=opener)
@@ -240,10 +276,10 @@ def poll(env=None, opener=urlopen, output=print):
                 review_store=review_store, receipt=command_receipt)
             if handled:
                 # Only the actual private owner command can reach here.
-                owner_receipts.append((uid, str(update["message"]["text"])[1:],
+                owner_receipts.append((uid, str(update["message"]["text"]).split(maxsplit=1)[0][1:].split("@", 1)[0],
                                        command_receipt[0]))
                 output("OWNER_COMMAND_RECEIPT: update_id=" + str(uid) +
-                       "; command=" + str(update["message"]["text"])[1:] +
+                       "; command=" + str(update["message"]["text"]).split(maxsplit=1)[0][1:].split("@", 1)[0] +
                        "; telegram_message_id=" + str(command_receipt[0]) +
                        "; api_accepted=1")
             if not handled:

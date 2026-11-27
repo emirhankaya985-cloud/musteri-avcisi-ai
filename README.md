@@ -27,6 +27,9 @@ Alıcılar, mail gövdeleri ve gönderim geçmişi özel veritabanında kalır. 
 İYS uygunluk kanıtını özel Neon CRM'e eşlemek için dosya biçimi ve komut:
 [özel İYS kanıtı içe aktarma](docs/IYS_EVIDENCE_IMPORT.md). Bu adım gerçek İYS kontrolünün yerine geçmez ve gönderici itibar kilidini kaldırmaz.
 
+Sahip, satış aşamalarını mevcut izinli geçişlere göre özel Telegram DM'den
+`/crm` ile kaydedebilir; komut e-posta göndermez. [CRM aşama komutları](docs/CRM_LIFECYCLE_OWNER.md).
+
 ## Doğrulama ve sınırlar
 
 ```bash

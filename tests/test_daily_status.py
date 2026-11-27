@@ -1,7 +1,10 @@
 """Daily owner-only reporting: tests use synthetic data, no network or SMTP."""
 import unittest
-from leadhunter.daily_status import compose, report_day
+from leadhunter.daily_status import compose, district_coverage, report_day
 from datetime import datetime, timezone
+import json
+from pathlib import Path
+import tempfile
 
 
 class DailyStatusTests(unittest.TestCase):
@@ -66,6 +69,32 @@ class DailyStatusTests(unittest.TestCase):
         self.assertIn("Resmî işletme sitesi araştırması: 10",text)
         self.assertIn("yeni kamuya açık adres: 3",text)
         self.assertIn("Kamuya açık adres bulunması, e-posta gönderme izni değildir",text)
+
+    def test_daily_report_is_explicit_about_districts_cost_and_system_errors(self):
+        counts=dict(total=0,new=0,accepted=0,failed=0,delayed=0,replies=0,
+                    duplicate=0,accepted_today=0,eligible=0,
+                    districts_completed=0,districts_total=973,
+                    system_errors=2,measured_scan_attempts=4)
+        text=compose("2026-11-28",counts,False)
+        self.assertIn("0/973 ilçe taraması kanıtlandı",text)
+        self.assertIn("2 / 4",text)
+        self.assertIn("maliyet: ölçülmedi",text)
+
+    def test_district_coverage_counts_only_exact_planned_receipts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/"manifest.json"
+            path.write_text(json.dumps({
+                "province_count":81,"district_count":2,
+                "provinces":[{"districts":[{"relation_id":"relation/123"},
+                                                {"relation_id":"relation/456"}]}]
+            }),encoding="utf-8")
+            registry={"provinces":[
+                {"plan":{"work_item_ids":["relation/123"]},
+                 "completed_items":{"relation/123": {"state":"success"}}},
+                {"plan":{"work_item_ids":["relation/456"]},
+                 "completed_items":{}},
+            ]}
+            self.assertEqual(district_coverage(registry,path),(1,2))
 
 
 if __name__ == '__main__':
