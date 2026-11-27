@@ -11,6 +11,52 @@ from urllib.parse import urljoin, urlsplit, unquote
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from .outreach import valid_recipient
 
+MAX_PAGES = 8
+MAX_PAGE_BYTES = 300_000
+PAGE_TIMEOUT = 5
+CONTACT_TERMS = ('contact', 'iletisim', 'iletişim', 'hakkimizda', 'hakkımızda',
+                 'about', 'kurumsal', 'bize-ulasin', 'bize-ulaşın', 'contact-us')
+COMMON_CONTACT_PATHS = ('/iletisim', '/iletisim/', '/contact', '/contact/',
+                        '/contact-us', '/contact-us/', '/hakkimizda', '/about')
+
+
+def _canonical_host(host):
+    return str(host or '').casefold().removeprefix('www.')
+
+
+def _same_site(host, site_host):
+    return bool(host and site_host and _canonical_host(host) == _canonical_host(site_host))
+
+
+def _email_text_variants(value):
+    """Normalize common, explicitly published anti-spam spellings."""
+    yield value
+    normalized = value
+    normalized = re.sub(r'\s*(?:\[at\]|\(at\)|\{at\}|\bat\b)\s*', '@', normalized, flags=re.I)
+    normalized = re.sub(r'\s*(?:\[dot\]|\(dot\)|\{dot\}|\bdot\b)\s*', '.', normalized, flags=re.I)
+    if normalized != value:
+        yield normalized
+
+
+def _email_rank(email):
+    local = email.split('@', 1)[0].casefold().split('+', 1)[0]
+    role = re.split(r'[._-]', local, maxsplit=1)[0]
+    priorities = {'info': 0, 'iletisim': 1, 'contact': 2, 'satis': 3,
+                  'sales': 4, 'hello': 5, 'office': 6, 'destek': 7,
+                  'support': 8}
+    return priorities.get(role, 100)
+
+
+def _choose_email(found):
+    if len(found) == 1:
+        return next(iter(found.items()))
+    ranked = sorted((_email_rank(email), email, source)
+                    for email, source in found.items())
+    if not ranked or ranked[0][0] == 100:
+        return None
+    best = [row for row in ranked if row[0] == ranked[0][0]]
+    return (best[0][1], best[0][2]) if len(best) == 1 else None
+
 
 class Contacts(HTMLParser):
     def __init__(self):
@@ -25,10 +71,15 @@ class Contacts(HTMLParser):
             self.hidden += 1
         if tag != 'a':
             return
-        href = dict(attrs).get('href', '')
+        attributes = dict(attrs)
+        href = attributes.get('href', '')
         if href.lower().startswith('mailto:'):
-            self.emails.add(unquote(href[7:].split('?')[0]).strip().lower())
-        elif any(term in href.lower() for term in ('contact', 'iletisim', 'iletişim')):
+            for variant in _email_text_variants(unquote(href[7:].split('?')[0]).strip().lower()):
+                self.emails.update(re.findall(
+                    r'[A-Za-z0-9.!#$%&\x27*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}',
+                    variant))
+        elif any(term in (href + ' ' + str(attributes.get('title', ''))).casefold()
+                 for term in CONTACT_TERMS):
             self.links.append(href)
 
     def handle_endtag(self, tag):
@@ -41,13 +92,19 @@ class Contacts(HTMLParser):
 
     def candidates(self):
         visible = ' '.join(self.parts)
-        self.emails.update(re.findall(r'[A-Za-z0-9.!#$%&\x27*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', visible))
-        return {x.lower() for x in self.emails if valid_recipient(x.lower())}
+        joined = ''.join(self.parts)
+        for text in (visible, joined):
+            for variant in _email_text_variants(text):
+                self.emails.update(re.findall(
+                    r'[A-Za-z0-9.!#$%&\x27*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}',
+                    variant))
+        return {x.strip().lower() for x in self.emails
+                if valid_recipient(x.strip().lower())}
 
 
 def public_url(url, host, resolver=socket.getaddrinfo):
     parsed = urlsplit(url)
-    if (parsed.scheme not in ('http', 'https') or parsed.hostname != host
+    if (parsed.scheme not in ('http', 'https') or not _same_site(parsed.hostname, host)
             or parsed.username or parsed.password or parsed.port not in (None, 80, 443)):
         raise ValueError('Unsupported business website URL')
     addresses = resolver(host, parsed.port or (443 if parsed.scheme == 'https' else 80), type=socket.SOCK_STREAM)
@@ -66,7 +123,8 @@ class SameHostRedirect(HTTPRedirectHandler):
 
 
 def discover_email(lead):
-    if valid_recipient(str(lead.get('email') or '').strip().lower()):
+    if (valid_recipient(str(lead.get('email') or '').strip().lower())
+            and not lead.get('_force_email_research')):
         return lead
     url = str(lead.get('website') or '').strip()
     if not url:
@@ -81,7 +139,8 @@ def discover_email(lead):
         queue = [url]
         seen = set()
         found = {}
-        while queue and len(seen) < 3:
+        path_candidates = [urljoin(url, path) for path in COMMON_CONTACT_PATHS]
+        while queue and len(seen) < MAX_PAGES:
             page = queue.pop(0)
             if page in seen:
                 continue
@@ -92,20 +151,32 @@ def discover_email(lead):
                 public_url(response.geturl(), host)
                 if 'html' not in response.headers.get('Content-Type', '').lower():
                     continue
-                raw = response.read(500001)
-                if len(raw) > 500000:
+                raw = response.read(MAX_PAGE_BYTES + 1)
+                if len(raw) > MAX_PAGE_BYTES:
                     continue
                 parser = Contacts()
                 parser.feed(raw.decode(response.headers.get_content_charset() or 'utf-8', errors='replace'))
             for email in parser.candidates():
                 found[email] = page
+            links = []
             for href in parser.links:
                 candidate = urljoin(page, href)
-                if urlsplit(candidate).hostname == host and candidate not in seen:
-                    queue.append(candidate)
-        # A unique address published by the recorded business site is required.
-        if len(found) == 1:
-            email, source = next(iter(found.items()))
+                if _same_site(urlsplit(candidate).hostname, host) and candidate not in seen:
+                    links.append(candidate)
+            links.sort(key=lambda candidate: (
+                not any(term in candidate.casefold() for term in CONTACT_TERMS), candidate))
+            queue.extend(candidate for candidate in links if candidate not in queue)
+            if not queue:
+                selected_now = _choose_email(found)
+                if selected_now and _email_rank(selected_now[0]) == 0:
+                    break
+                queue.extend(candidate for candidate in path_candidates
+                             if candidate not in seen and candidate not in queue)
+        # Prefer a single publicly listed role address when a site also lists
+        # unrelated departments. Never construct an address from a domain.
+        selected = _choose_email(found)
+        if selected:
+            email, source = selected
             return {**lead, 'email': email, 'email_source': source}
     except Exception:
         # Research failure must never invent an address or expose private URLs.

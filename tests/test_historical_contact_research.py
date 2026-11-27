@@ -5,7 +5,8 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-from leadhunter.historical_contact_research import _public_email_draft_lead, run
+from leadhunter.historical_contact_research import (
+    RESEARCHER_VERSION, _eligible, _public_email_draft_lead, run)
 
 
 class FakeCursor:
@@ -46,7 +47,9 @@ class FakeCursor:
             if row and row[1] == "review":
                 data = row[0]
                 if (data.get("website", "") == website
-                        and not str(data.get("email") or "").strip()
+                        and (not str(data.get("email") or "").strip()
+                             or data.get("email_check") == "no_mx"
+                             or data.get("_auto_mail", {}).get("email_check") == "no_mx")
                         and data.get("_auto_mail", {}).get("state") not in
                         ("sending", "accepted", "uncertain")
                         and data.get("_mail", {}).get("state") not in
@@ -122,6 +125,7 @@ class HistoricalResearchTests(unittest.TestCase):
         self.assertEqual(data["email"], "info@shop.example")
         self.assertEqual(data["email_source"], "https://shop.example/iletisim")
         self.assertEqual(data["email_research"]["status"], "public_address_found")
+        self.assertIsNone(data["email_check"])
         self.assertNotIn("_auto_mail", data)
         self.assertNotIn("marketing_eligibility", data)
 
@@ -136,9 +140,31 @@ class HistoricalResearchTests(unittest.TestCase):
         self.assertEqual(data["email_research"]["status"],
                          "no_unique_public_address")
 
+    def test_new_research_version_retries_old_host_and_replaces_only_no_mx_email(self):
+        old = make("node/8", website="shop.example", email="old@unreachable.invalid",
+                   _auto_mail={"state": "skipped", "email_check": "no_mx"},
+                   email_research={"status": "public_address_found",
+                                   "checked_at": "2026-11-26T00:00:00+00:00"})
+        self.assertTrue(_eligible((old[0], old[1][0], old[1][1]))["_force_email_research"])
+        db = FakeDB([old])
+        with patch("leadhunter.automatic_mail.AutoMailStore") as auto_store:
+            auto_store.return_value.prepare.return_value = {"state": "draft"}
+            out = run(db, discover=lambda lead: {
+                **lead, "email": "info@gmail.com",
+                "email_source": "https://shop.example/iletisim",
+                "email_check": "mx_present"},
+                now=datetime(2026, 11, 27, tzinfo=timezone.utc),
+                output=lambda _: None)
+        self.assertEqual(out["addresses_found"], 1)
+        data = db.rows["node/8"][0]
+        self.assertEqual(data["email"], "info@gmail.com")
+        self.assertEqual(data["email_research"]["researcher_version"], RESEARCHER_VERSION)
+        self.assertNotIn("_force_email_research", data)
+
     def test_same_host_cooldown_limits_repeat_fetches_across_branches(self):
-        db = FakeDB([make("node/3", website="www.shop.example", email_research={
+        db = FakeDB([make("node/3", website="www.shop.example", email_research_attempt={
             "status": "no_unique_public_address",
+            "researcher_version": RESEARCHER_VERSION,
             "checked_at": "2026-11-25T00:00:00+00:00"}),
             make("node/4", website="shop.example/branch")])
         calls = []
