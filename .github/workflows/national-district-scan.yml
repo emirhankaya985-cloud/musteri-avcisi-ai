@@ -51,7 +51,7 @@ jobs:
           test "$(stat -c %s turkey-latest.osm.pbf)" -gt 100000000
           test "$(stat -c %s turkey-latest.osm.pbf)" -le 2147483648
           sha="$(sha256sum turkey-latest.osm.pbf | cut -d' ' -f1)"
-          timestamp="$(osmium fileinfo -g header.option.osmosis_replication_timestamp turkey-latest.osm.pbf)"
+          timestamp="$(python -c 'import osmium; r=osmium.io.Reader("turkey-latest.osm.pbf"); print(r.header().get("osmosis_replication_timestamp")); r.close()')"
           test -n "$timestamp"
           echo "sha256=$sha" >> "$GITHUB_OUTPUT"
           echo "timestamp=$timestamp" >> "$GITHUB_OUTPUT"
