@@ -83,18 +83,28 @@ class DailyStatusTests(unittest.TestCase):
     def test_district_coverage_counts_only_exact_planned_receipts(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/"manifest.json"
+            provinces = [
+                    {"code":"01","districts":[{"relation_id":"relation/123"}]},
+                    {"code":"02","districts":[{"relation_id":"relation/456"}]},
+                ] + [{"code":f"{code:02d}","districts":[]}
+                     for code in range(3,82)]
             path.write_text(json.dumps({
                 "province_count":81,"district_count":2,
-                "provinces":[{"districts":[{"relation_id":"relation/123"},
-                                                {"relation_id":"relation/456"}]}]
+                "provinces":provinces
             }),encoding="utf-8")
             registry={"provinces":[
-                {"plan":{"work_item_ids":["relation/123"]},
+                {"code":"01","plan":{"work_item_ids":["relation/123"]},
                  "completed_items":{"relation/123": {"state":"success"}}},
-                {"plan":{"work_item_ids":["relation/456"]},
+                {"code":"02","plan":{"work_item_ids":["relation/456"]},
                  "completed_items":{}},
-            ]}
+            ] + [{"code":f"{code:02d}","plan":None,"completed_items":{}}
+                 for code in range(3,82)]}
             self.assertEqual(district_coverage(registry,path),(1,2))
+            registry["provinces"][0]["plan"] = {"work_item_ids":[]}
+            registry["provinces"][0]["completed_items"] = {}
+            registry["provinces"][1]["plan"] = {"work_item_ids":["relation/123"]}
+            registry["provinces"][1]["completed_items"] = {"relation/123":{"state":"success"}}
+            self.assertEqual(district_coverage(registry,path),(0,2))
 
 
 if __name__ == '__main__':

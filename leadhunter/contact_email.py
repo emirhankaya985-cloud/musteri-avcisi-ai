@@ -144,18 +144,25 @@ def discover_email(lead):
             page = queue.pop(0)
             if page in seen:
                 continue
-            public_url(page, host)
             seen.add(page)
-            req = Request(page, headers={'User-Agent': 'MusteriAvcisiAI/0.1 contact research'})
-            with client.open(req, timeout=8) as response:
-                public_url(response.geturl(), host)
-                if 'html' not in response.headers.get('Content-Type', '').lower():
-                    continue
-                raw = response.read(MAX_PAGE_BYTES + 1)
-                if len(raw) > MAX_PAGE_BYTES:
-                    continue
-                parser = Contacts()
-                parser.feed(raw.decode(response.headers.get_content_charset() or 'utf-8', errors='replace'))
+            try:
+                public_url(page, host)
+                req = Request(page, headers={'User-Agent': 'MusteriAvcisiAI/0.1 contact research'})
+                with client.open(req, timeout=8) as response:
+                    public_url(response.geturl(), host)
+                    if 'html' not in response.headers.get('Content-Type', '').lower():
+                        continue
+                    raw = response.read(MAX_PAGE_BYTES + 1)
+                    if len(raw) > MAX_PAGE_BYTES:
+                        continue
+                    parser = Contacts()
+                    parser.feed(raw.decode(response.headers.get_content_charset() or 'utf-8', errors='replace'))
+            except Exception:
+                # A broken contact/about subpage must not discard public
+                # evidence already found on the business home page. The
+                # failed URL remains same-host checked, and other bounded
+                # candidates may still be inspected.
+                continue
             for email in parser.candidates():
                 found[email] = page
             links = []

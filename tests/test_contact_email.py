@@ -47,6 +47,25 @@ class ContactEmailTests(unittest.TestCase):
             self.assertEqual(result['email'], 'info@business.invalid')
             self.assertEqual(result['email_source'], 'https://business.invalid/')
 
+    def test_broken_contact_subpage_does_not_discard_homepage_email(self):
+        class Response(io.BytesIO):
+            def __init__(self):
+                super().__init__(b'<a href="/iletisim">Contact</a> info@business.invalid')
+                self.headers = Message()
+                self.headers['Content-Type'] = 'text/html; charset=utf-8'
+            def geturl(self):
+                return 'https://business.invalid/'
+        def open_page(request, timeout):
+            if request.full_url == 'https://business.invalid/':
+                return Response()
+            raise OSError('synthetic contact subpage unavailable')
+        with patch('leadhunter.contact_email.public_url'), patch(
+                'leadhunter.contact_email.build_opener') as client:
+            client.return_value.open.side_effect = open_page
+            result = discover_email({'website': 'https://business.invalid/'})
+        self.assertEqual(result['email'], 'info@business.invalid')
+        self.assertEqual(result['email_source'], 'https://business.invalid/')
+
     def test_prefers_published_general_contact_over_another_department(self):
         class Response(io.BytesIO):
             def __init__(self, body, url):
