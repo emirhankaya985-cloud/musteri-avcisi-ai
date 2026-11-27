@@ -56,11 +56,16 @@ def aggregate(conn, day):
             "sum(new_addresses),sum(new_mx) "
             "FROM owner_scan_run_metrics WHERE report_day=%s::date", (day,))
         measured_runs, inspected, registered_runs, found_addresses, checked_mx = cur.fetchone()
-        cur.execute(
-            "SELECT count(*),count(*) FILTER (WHERE outcome IN ('failure','partial','cancelled') "
-            "OR mirror_outcome='failure') FROM owner_scan_attempts "
-            "WHERE (recorded_at AT TIME ZONE 'Europe/Istanbul')::date=%s::date", (day,))
-        measured_scan_attempts, system_errors = cur.fetchone()
+        cur.execute("SELECT to_regclass('owner_scan_attempts') IS NOT NULL")
+        scan_attempts_available = bool(cur.fetchone()[0])
+        if scan_attempts_available:
+            cur.execute(
+                "SELECT count(*),count(*) FILTER (WHERE outcome IN ('failure','partial','cancelled') "
+                "OR mirror_outcome='failure') FROM owner_scan_attempts "
+                "WHERE (recorded_at AT TIME ZONE 'Europe/Istanbul')::date=%s::date", (day,))
+            measured_scan_attempts, system_errors = cur.fetchone()
+        else:
+            measured_scan_attempts, system_errors = None, None
         cur.execute(
             "SELECT count(*) FROM owner_leads WHERE "
             "(first_seen_at AT TIME ZONE 'Europe/Istanbul')::date=%s::date "
@@ -106,8 +111,9 @@ def aggregate(conn, day):
                 failed=int(failed),delayed=int(delayed),replies=int(replies),
                 duplicate=int(duplicate),accepted_today=int(accepted_today),
                 eligible=eligible, measured_runs=int(measured_runs),
-                measured_scan_attempts=int(measured_scan_attempts),
-                system_errors=(int(system_errors) if measured_scan_attempts else None),
+                measured_scan_attempts=(int(measured_scan_attempts)
+                                        if measured_scan_attempts is not None else None),
+                system_errors=(int(system_errors) if measured_scan_attempts is not None else None),
                 inspected=None if inspected is None else int(inspected),
                 found_addresses=None if found_addresses is None else int(found_addresses),
                 checked_mx=None if checked_mx is None else int(checked_mx),
