@@ -24,6 +24,9 @@ Repository Secrets: `GMAIL_SENDER_ADDRESS`, `GMAIL_APP_PASSWORD`, `REVIEW_DATABA
 
 Alıcılar, mail gövdeleri ve gönderim geçmişi özel veritabanında kalır. Public dosyalara yalnızca OSM kimlikleri ve günlük tarih yazılır. Telegram kabulünden sonra veritabanı işaretlemesi yapılamazsa bildirim tekrarlanabilir; mail tekrarı kapalıdır. Secrets ve gerçek müşteri verileri loglara/artifact'lara eklenmez.
 
+İYS uygunluk kanıtını özel Neon CRM'e eşlemek için dosya biçimi ve komut:
+[özel İYS kanıtı içe aktarma](docs/IYS_EVIDENCE_IMPORT.md). Bu adım gerçek İYS kontrolünün yerine geçmez ve gönderici itibar kilidini kaldırmaz.
+
 ## Doğrulama ve sınırlar
 
 ```bash
