@@ -190,21 +190,34 @@ def district_coverage(registry, path=DISTRICT_MANIFEST):
         with open(path, "r", encoding="utf-8") as manifest_file:
             manifest = json.load(manifest_file)
         provinces = manifest["provinces"]
-        districts = [row["relation_id"] for province in provinces
-                     for row in province["districts"]]
+        codes = {province["code"] for province in provinces}
+        crm_codes = [province.get("code") for province in registry["provinces"]]
+        if (len(provinces) != 81 or len(codes) != 81
+                or len(crm_codes) != 81 or set(crm_codes) != codes):
+            return None, None
+        districts_by_province = {
+            province["code"]: {row["relation_id"] for row in province["districts"]}
+            for province in provinces
+        }
+        districts = [relation_id for values in districts_by_province.values()
+                     for relation_id in values]
         district_ids = set(districts)
         if (manifest.get("province_count") != 81
                 or manifest.get("district_count") != len(districts)
                 or len(district_ids) != len(districts)
+                or len(districts_by_province) != 81
                 or not all(isinstance(value, str) and value.startswith("relation/")
                            for value in district_ids)):
             return None, None
         completed = set()
         for province in registry["provinces"]:
+            province_districts = districts_by_province.get(province.get("code"))
+            if province_districts is None:
+                return None, None
             plan = province.get("plan") or {}
             planned = set(plan.get("work_item_ids") or ())
             receipts = set((province.get("completed_items") or {}).keys())
-            completed.update(planned & receipts & district_ids)
+            completed.update(planned & receipts & province_districts)
         return len(completed), len(district_ids)
     except (OSError, ValueError, KeyError, TypeError):
         return None, None
