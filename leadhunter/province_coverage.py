@@ -87,6 +87,18 @@ def _registry(registry):
     for code, entry in actual.items():
         if entry.get("name") != expected[code] or entry.get("status") not in STATUS_VALUES:
             raise ValueError("Coverage registry has an invalid province record")
+        if not isinstance(entry.get("completed_items"), dict) or not isinstance(entry.get("attempts"), list):
+            raise ValueError("Coverage registry has invalid district receipt state")
+        for attempt in entry["attempts"]:
+            source_sha256 = attempt.get("source_sha256")
+            if source_sha256 is not None and (
+                    not isinstance(source_sha256, str) or not _SHA256.fullmatch(source_sha256)):
+                raise ValueError("Coverage attempt has an invalid source SHA-256")
+        for receipt in entry["completed_items"].values():
+            source_sha256 = receipt.get("source_sha256")
+            if source_sha256 is not None and (
+                    not isinstance(source_sha256, str) or not _SHA256.fullmatch(source_sha256)):
+                raise ValueError("District receipt has an invalid source SHA-256")
     return actual
 
 
@@ -147,8 +159,14 @@ def configure_plan(registry, province_code, *, source_url, source_sha256,
     return result
 
 
-def begin_attempt(registry, province_code, *, attempt_id, started_at):
-    """Start one serialized bounded attempt; successful items remain resumable."""
+def begin_attempt(registry, province_code, *, attempt_id, started_at,
+                  source_sha256=None):
+    """Start a source-bound attempt for items lacking this snapshot's receipt.
+
+    A missing source digest preserves the legacy first-pass behavior. National
+    PBF workers must pass the verified snapshot SHA-256 so completed districts
+    are refreshed only when the current source differs.
+    """
     current = _registry(registry)
     if province_code not in current:
         raise ValueError("Unknown province code")
@@ -160,19 +178,27 @@ def begin_attempt(registry, province_code, *, attempt_id, started_at):
         raise ValueError("Province boundary/work-item manifest is not configured")
     if entry["status"] == "running":
         raise ValueError("Province already has a running attempt")
-    if entry["status"] == "completed":
+    if entry["status"] == "completed" and source_sha256 is None:
         raise ValueError("Completed province cannot be scanned again by first-pass workflow")
+    if (source_sha256 is not None
+            and (not isinstance(source_sha256, str) or not _SHA256.fullmatch(source_sha256))):
+        raise ValueError("Attempt source requires a lowercase SHA-256")
     if not isinstance(attempt_id, str) or not attempt_id.strip():
         raise ValueError("attempt_id is required for idempotent resumption")
     if any(a["attempt_id"] == attempt_id for a in entry["attempts"]):
         raise ValueError("attempt_id already exists")
     excluded = set(plan["excluded_item_ids"])
     remaining = [item for item in plan["work_item_ids"]
-                 if item not in excluded and item not in entry["completed_items"]]
+                 if item not in excluded and (
+                     item not in entry["completed_items"]
+                     or (source_sha256 is not None
+                         and entry["completed_items"][item].get("source_sha256") != source_sha256)
+                 )]
     if not remaining:
         raise ValueError("No uncompleted work items remain")
     entry["attempts"].append({
         "attempt_id": attempt_id, "started_at": str(started_at),
+        "source_sha256": source_sha256,
         "planned_item_ids": remaining, "results": {}, "finished_at": None,
     })
     entry["status"] = "running"
@@ -211,6 +237,8 @@ def record_item_result(registry, province_code, attempt_id, item_id, *,
             "source_url": _url(source_url, "Receipt source"),
             "records_count": records_count,
         }
+        if attempt.get("source_sha256") is not None:
+            receipt["source_sha256"] = attempt["source_sha256"]
         entry["completed_items"][item_id] = receipt
     else:
         if error_code not in ERROR_CODES:
@@ -236,7 +264,13 @@ def finish_attempt(registry, province_code, attempt_id, *, finished_at):
     attempt = attempts[-1]
     attempt["finished_at"] = str(finished_at)
     required = set(entry["plan"]["work_item_ids"]) - set(entry["plan"]["excluded_item_ids"])
-    completed = set(entry["completed_items"]) & required
+    attempt_source = attempt.get("source_sha256")
+    completed = {
+        item_id for item_id in required
+        if item_id in entry["completed_items"]
+        and (attempt_source is None
+             or entry["completed_items"][item_id].get("source_sha256") == attempt_source)
+    }
     failed = any(r["state"] == "failed" for r in attempt["results"].values())
     if required <= completed:
         entry["status"] = "completed"
@@ -258,11 +292,18 @@ def coverage_table(registry):
     for code, name in PROVINCES:
         entry = entries[code]
         plan = entry.get("plan") or {}
+        attempts = entry.get("attempts", ())
+        latest_source = attempts[-1].get("source_sha256") if attempts else None
         total = len(set(plan.get("work_item_ids", ())) -
                     set(plan.get("excluded_item_ids", ())))
-        completed = len(set(entry.get("completed_items", {})) &
-                        set(plan.get("work_item_ids", ())) -
-                        set(plan.get("excluded_item_ids", ())))
+        required = (set(plan.get("work_item_ids", ()))
+                    - set(plan.get("excluded_item_ids", ())))
+        completed = sum(
+            1 for item_id in required
+            if item_id in entry.get("completed_items", {})
+            and (latest_source is None
+                 or entry["completed_items"][item_id].get("source_sha256") == latest_source)
+        )
         rows.append({
             "code": code, "province": name,
             "initial_phase_target": code in INITIAL_PHASE_CITY_CODES,
@@ -271,8 +312,11 @@ def coverage_table(registry):
             "coverage_percent": round(completed * 100 / total) if total else None,
             "source_url": plan.get("source_url"),
             "source_sha256": plan.get("source_sha256"),
+            "latest_scan_source_sha256": latest_source,
             "source_data_at": max(
-                (r["source_data_at"] for r in entry.get("completed_items", {}).values()),
+                (receipt["source_data_at"]
+                 for receipt in entry.get("completed_items", {}).values()
+                 if latest_source is None or receipt.get("source_sha256") == latest_source),
                 default=None),
             "updated_at": entry.get("updated_at"),
         })
