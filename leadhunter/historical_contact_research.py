@@ -18,6 +18,7 @@ from .review_private import connect_private_database
 DEFAULT_BATCH_SIZE = 10
 MAX_BATCH_SIZE = 50
 HOST_COOLDOWN = timedelta(days=30)
+RESEARCHER_VERSION = "2026-11-27-v2"
 
 
 def _host(website):
@@ -41,8 +42,10 @@ def _json_object(value):
 
 
 def _recent_attempt(data, now):
-    item = data.get("email_research")
+    item = data.get("email_research_attempt") or data.get("email_research")
     if not isinstance(item, dict):
+        return False
+    if item.get("researcher_version") != RESEARCHER_VERSION:
         return False
     stamp = item.get("checked_at")
     if not isinstance(stamp, str):
@@ -61,7 +64,11 @@ def _eligible(row):
     data = _json_object(raw)
     if status != "review" or not data.get("website"):
         return None
-    if str(data.get("email") or "").strip():
+    email = str(data.get("email") or "").strip()
+    checks = {data.get("email_check"),
+              (data.get("_auto_mail") or {}).get("email_check")}
+    force_research = bool(email and "no_mx" in checks)
+    if email and not force_research:
         return None
     eligibility = data.get("marketing_eligibility")
     if isinstance(eligibility, dict) and eligibility.get("opted_out") is True:
@@ -75,10 +82,12 @@ def _eligible(row):
     host = _host(data.get("website"))
     if not host:
         return None
-    return {"id": lead_id, **data, "_research_host": host}
+    return {"id": lead_id, **data, "_research_host": host,
+            "_force_email_research": force_research}
 
 
 def _persist(connection, lead, found, checked_at):
+    attempt = {"checked_at": checked_at, "researcher_version": RESEARCHER_VERSION}
     if found:
         email = str(found.get("email") or "").strip().casefold()
         source = str(found.get("email_source") or "").strip()
@@ -88,16 +97,23 @@ def _persist(connection, lead, found, checked_at):
             "status": "public_address_found",
             "source_url": source,
             "checked_at": checked_at,
-            "email_check": str(found.get("email_check") or "unchecked"),
+            # Website discovery is not mailbox/MX verification. Clear any old
+            # top-level check so CRM export falls back to the fresh mail check.
+            "email_check": "unchecked",
+            "researcher_version": RESEARCHER_VERSION,
         }
         update = {"email": email, "email_source": source,
-                  "email_check": evidence["email_check"], "email_research": evidence}
+                  "email_check": None, "email_research": evidence,
+                  "email_research_attempt": {**attempt, "status": "public_address_found"}}
     else:
-        update = {"email_research": {
-            "status": "no_unique_public_address",
-            "checked_at": checked_at,
-            "email_check": "not_found",
-        }}
+        attempt["status"] = "no_new_public_address" if lead.get("_force_email_research") else "no_unique_public_address"
+        attempt["email_check"] = "not_found"
+        if lead.get("_force_email_research"):
+            update = {"email_research_attempt": attempt}
+        else:
+            update = {"email_research": {**attempt,
+                                          "status": "no_unique_public_address"},
+                      "email_research_attempt": attempt}
         email = None
     website = lead.get("website")
     with connection.cursor() as cur:
@@ -105,7 +121,9 @@ def _persist(connection, lead, found, checked_at):
             "UPDATE owner_leads SET lead_data=lead_data || %s::jsonb,updated_at=now() "
             "WHERE osm_id=%s AND status='review' "
             "AND coalesce(lead_data->>'website','')=%s "
-            "AND coalesce(btrim(lead_data->>'email'),'')='' "
+            "AND (coalesce(btrim(lead_data->>'email'),'')='' OR "
+            "lead_data->>'email_check'='no_mx' OR "
+            "lead_data#>>'{_auto_mail,email_check}'='no_mx') "
             "AND coalesce(lead_data->'_auto_mail'->>'state','') NOT IN "
             "('sending','accepted','uncertain') "
             "AND coalesce(lead_data->'_mail'->>'state','') NOT IN "
@@ -212,8 +230,10 @@ def run(connection=None, *, env=None, discover=discover_email, now=None,
                     # never changes marketing eligibility or calls SMTP.
                     from .automatic_mail import AutoMailStore
                     from .review_private import ReviewStore
+                    draft_lead = {key: value for key, value in result.items()
+                                  if key != "_force_email_research"}
                     draft = AutoMailStore(ReviewStore(db)).prepare(
-                        result, {"MAIL_DRAFT_MODE": "template"}, opener=None)
+                        draft_lead, {"MAIL_DRAFT_MODE": "template"}, opener=None)
                     if isinstance(draft, dict) and draft.get("state") == "draft":
                         counts["drafts_prepared"] += 1
                     elif isinstance(draft, dict) and draft.get("state") == "skipped":
