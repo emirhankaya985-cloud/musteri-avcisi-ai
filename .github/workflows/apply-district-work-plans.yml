@@ -1,0 +1,23 @@
+name: Apply Pinned District Work Plans (No Scan)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: musteri-avcisi-province-ledger-init
+  cancel-in-progress: false
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install free private PostgreSQL driver
+        run: python -m pip install 'psycopg[binary]==3.2.12'
+      - name: Validate work plan and add missing plans only
+        env:
+          REVIEW_DATABASE_URL: ${{ secrets.REVIEW_DATABASE_URL }}
+        run: python -m leadhunter.apply_district_plans
