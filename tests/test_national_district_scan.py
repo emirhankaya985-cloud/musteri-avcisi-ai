@@ -174,6 +174,45 @@ class DistrictPbfAttributionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "crosses or ambiguously"):
             scan._object_point(_Way(), {"area": "yes"}, self.index)
 
+    def test_native_processor_filter_preserves_every_supported_business_tag(self):
+        import osmium
+        from leadhunter.sector_taxonomy import overpass_tag_selectors
+
+        pbf = Path(self.temp_dir.name) / "taxonomy-candidates.osm.pbf"
+        # Only tag pairs retained by the current scanner tag allowlist are
+        # candidates; the optimization must not widen scanner behavior.
+        pairs = tuple((key, value) for key, value in overpass_tag_selectors()
+                      if key in scan.ALLOWED_TAGS)
+        expected_ids = set()
+        header = osmium.io.Header()
+        header.set("osmosis_replication_timestamp", "2026-11-27T00:00:00Z")
+        with osmium.SimpleWriter(pbf, header=header) as writer:
+            for offset, (key, value) in enumerate(pairs, start=2000):
+                expected_ids.add(f"node/{offset}")
+                writer.add_node(osmium.osm.mutable.Node(
+                    id=offset, location=(29.0, 41.0),
+                    tags={"name": f"Business {offset}", key: value},
+                ))
+            # Named non-business objects and unnamed businesses must both be
+            # removed before Python; eligible tagged objects must be preserved.
+            writer.add_node(osmium.osm.mutable.Node(
+                id=3000, location=(29.0, 41.0),
+                tags={"name": "Bus Stop", "amenity": "bench"},
+            ))
+            writer.add_node(osmium.osm.mutable.Node(
+                id=3001, location=(29.0, 41.0), tags={"shop": "florist"},
+            ))
+            writer.add_node(osmium.osm.mutable.Node(
+                id=3002, location=(29.0, 41.0),
+                tags={"name": "Unchanged unsupported office", "office": "company"},
+            ))
+
+        actual_ids = {
+            f"node/{int(obj.id)}"
+            for obj in scan._business_candidate_processor(osmium, pbf)
+        }
+        self.assertEqual(actual_ids, expected_ids)
+
 
 class AttemptRecoveryTests(unittest.TestCase):
     def test_only_pbf_owned_orphan_attempts_are_finalized(self):

@@ -192,6 +192,30 @@ def _tag_map(obj):
     return {tag.k: tag.v for tag in obj.tags if tag.k in ALLOWED_TAGS}
 
 
+def _business_candidate_processor(osmium, pbf_path):
+    """Keep location caching in C++, but yield only possible named businesses.
+
+    ``with_locations`` runs first so it still sees every node required to
+    resolve way geometries. The following native filters prevent unrelated
+    tagged OSM objects from crossing into the Python loop.
+    """
+    from .sector_taxonomy import overpass_tag_selectors
+
+    candidate_types = osmium.osm.NODE | osmium.osm.WAY | osmium.osm.RELATION
+    # Match only the keys this scanner already passes through _tag_map so the
+    # native prefilter cannot introduce candidates the Python path rejects.
+    candidate_tags = tuple(
+        (key, value) for key, value in overpass_tag_selectors()
+        if key in ALLOWED_TAGS
+    )
+    return (
+        osmium.FileProcessor(str(pbf_path))
+        .with_locations("sparse_file_array")
+        .with_filter(osmium.filter.KeyFilter("name").enable_for(candidate_types))
+        .with_filter(osmium.filter.TagFilter(*candidate_tags).enable_for(candidate_types))
+    )
+
+
 def collect_district_leads(pbf_path, district_index, *,
                           max_total_leads=MAX_TOTAL_LEADS,
                           max_relation_leads=MAX_RELATION_LEADS,
@@ -237,7 +261,7 @@ def collect_district_leads(pbf_path, district_index, *,
             return
         bucket[lead["id"]] = lead
 
-    processor = osmium.FileProcessor(str(pbf_path)).with_locations("sparse_file_array")
+    processor = _business_candidate_processor(osmium, pbf_path)
     for obj in processor:
         if not (obj.is_node() or obj.is_way() or obj.is_relation()):
             continue
