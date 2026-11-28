@@ -120,7 +120,7 @@ def unique_district_for_point(point, district_index):
     return hits[0] if hits else None
 
 
-def _object_point(obj, tags):
+def _object_point(obj, tags, district_index=None):
     """Resolve an OSM node/way to Shapely's exact point-on-surface."""
     Point, LineString, Polygon, _shape, _STRtree = _shapely()
     if obj.is_node():
@@ -140,15 +140,36 @@ def _object_point(obj, tags):
         coordinates.append((lon, lat))
     if len(coordinates) < 2:
         raise ValueError("Eligible OSM way has too few resolved vertices")
-    if len(coordinates) >= 4 and coordinates[0] == coordinates[-1] and tags.get("area") != "no":
+    is_closed_area = (len(coordinates) >= 4 and coordinates[0] == coordinates[-1]
+                      and tags.get("area") != "no")
+    if is_closed_area:
         feature = Polygon(coordinates)
     else:
         feature = LineString(coordinates)
+    # OSM closed ways can self-intersect or otherwise fail polygon validity.
+    # Never repair them by guessing a polygon; use their actual ordered source
+    # vertices as a line and let exact district attribution fail closed if the
+    # representative point lies on an ambiguous boundary.
+    if feature.is_empty:
+        raise ValueError(f"Eligible OSM way/{int(obj.id)} has empty source geometry")
+    used_invalid_area_fallback = not feature.is_valid and is_closed_area
+    if used_invalid_area_fallback:
+        feature = LineString(coordinates)
     if feature.is_empty or not feature.is_valid:
-        raise ValueError("Eligible OSM way has an invalid source geometry")
+        raise ValueError(f"Eligible OSM way/{int(obj.id)} has invalid source geometry")
     point = feature.representative_point()
     if point.is_empty or not point.is_valid:
-        raise ValueError("Eligible OSM way has no valid point-on-surface")
+        raise ValueError(f"Eligible OSM way/{int(obj.id)} has no valid point-on-surface")
+    if used_invalid_area_fallback:
+        if district_index is None:
+            raise ValueError(f"Eligible OSM way/{int(obj.id)} invalid polygon needs district validation")
+        line_hits = {
+            district_index["relation_ids"][int(index)]
+            for index in district_index["tree"].query(feature)
+            if district_index["polygons"][int(index)].covers(feature)
+        }
+        if len(line_hits) != 1 or unique_district_for_point(point, district_index) not in line_hits:
+            raise ValueError(f"Eligible OSM way/{int(obj.id)} invalid polygon crosses or ambiguously meets districts")
     return point
 
 
@@ -236,7 +257,7 @@ def collect_district_leads(pbf_path, district_index, *,
                 raise ValueError("Eligible OSM relation count exceeds the configured safety bound")
             relation_leads[int(obj.id)] = lead
             continue
-        retain(lead, _object_point(obj, tags))
+        retain(lead, _object_point(obj, tags, district_index))
 
     if relation_leads:
         relation_filter = osmium.filter.IdFilter(relation_leads).enable_for(osmium.osm.RELATION)
@@ -301,6 +322,24 @@ def districts_needing_refresh(province_state, plan, source_sha256):
                  or completed[relation_id].get("source_sha256") != source_sha256)]
 
 
+def _reject_older_snapshot(province_states, plans, source_at):
+    """Do not let a delayed older PBF run replace newer district receipts."""
+    current_source_at = _aware_timestamp(source_at, "PBF header timestamp")
+    for code, plan in plans.items():
+        completed = province_states[code].get("completed_items", {})
+        for relation_id in set(plan["work_item_ids"]) - set(plan["excluded_item_ids"]):
+            receipt = completed.get(relation_id)
+            if not receipt or not receipt.get("source_data_at"):
+                continue
+            receipt_source_at = _aware_timestamp(
+                receipt["source_data_at"], f"District {relation_id} receipt timestamp",
+            )
+            if receipt_source_at > current_source_at:
+                raise RuntimeError(
+                    f"Verified PBF snapshot is older than the stored receipt for district {relation_id}"
+                )
+
+
 def _finalize_province(connection, code, attempt_id, finished_at):
     finish_attempt(connection, code, attempt_id, finished_at=finished_at)
 
@@ -320,6 +359,14 @@ def _release_worker_lock(connection):
         row = cur.fetchone()
     if not row or row[0] is not True:
         raise RuntimeError("National district scan lost its Neon worker lock")
+
+
+def _close_connection(connection):
+    """Close a worker connection without masking the primary scan result."""
+    try:
+        connection.close()
+    except Exception:
+        pass
 
 
 def _require_review_queue(connection):
@@ -377,9 +424,16 @@ def run(env=None, *, connection=None, output=print, now=None):
         raise ValueError("Provided source timestamp does not match the checksum-verified PBF header")
 
     owns_connection = connection is None
-    if connection is None:
+    provided_connection = connection
+    db_url = env.get("REVIEW_DATABASE_URL")
+
+    def open_connection():
+        if not owns_connection:
+            return provided_connection
         from .review_private import connect_private_database
-        connection = connect_private_database(env.get("REVIEW_DATABASE_URL"))
+        return connect_private_database(db_url)
+
+    connection = open_connection()
     active = None
     lock_acquired = False
     new_leads = 0
@@ -401,6 +455,7 @@ def run(env=None, *, connection=None, output=print, now=None):
         _require_review_queue(connection)
         registry = read(connection)
         province_states = _validate_registry(registry, plans, inventory)
+        _reject_older_snapshot(province_states, plans, source_at)
         recovered = recover_orphaned_attempts(
             connection, registry, finished_at=datetime.now(timezone.utc).isoformat()
         )
@@ -428,6 +483,16 @@ def run(env=None, *, connection=None, output=print, now=None):
                     "changed_existing": 0, "districts_over_limit": 0,
                     "skipped_same_snapshot": True}
 
+        # Neon session advisory locks are connection-scoped. Keep the initial
+        # claim short, then close this connection while parsing the country PBF
+        # (which can take tens of minutes) and reacquire/validate before writes.
+        if lock_acquired:
+            _release_worker_lock(connection)
+            lock_acquired = False
+        if owns_connection:
+            _close_connection(connection)
+        connection = None
+
         extraction = extract_district_geometries(
             pbf_path, inventory["district_ids"], digest,
             now=run_now, max_pbf_bytes=MAX_PBF_BYTES,
@@ -436,6 +501,32 @@ def run(env=None, *, connection=None, output=print, now=None):
             raise ValueError("Verified PBF source changed before district geometry extraction")
         district_index = build_district_index(extraction["geometries"], district_to_province)
         attribution = collect_district_leads(pbf_path, district_index)
+
+        connection = open_connection()
+        _acquire_worker_lock(connection)
+        lock_acquired = True
+        _require_review_queue(connection)
+        registry = read(connection)
+        province_states = _validate_registry(registry, plans, inventory)
+        _reject_older_snapshot(province_states, plans, source_at)
+        refresh_by_province = {
+            code: districts_needing_refresh(province_states[code], plans[code], digest)
+            for code in plans
+        }
+        target_count = sum(len(items) for items in refresh_by_province.values())
+        if target_count == 0:
+            receipts = sum(
+                1 for state in province_states.values()
+                for receipt in state.get("completed_items", {}).values()
+                if receipt.get("source_sha256") == digest
+            )
+            output("NATIONAL_DISTRICT_SCAN: skipped=claimed_by_other_worker; "
+                   f"source_sha256={digest}; districts_current={receipts}; "
+                   "business_mail_sent=0; notifications_sent=0")
+            return {"district_receipts": receipts, "candidate_count": 0,
+                    "unassigned_count": 0, "new_leads": 0,
+                    "changed_existing": 0, "districts_over_limit": 0,
+                    "skipped_same_snapshot": True}
 
         for code in sorted(plans):
             remaining = refresh_by_province[code]
@@ -530,10 +621,15 @@ def run(env=None, *, connection=None, output=print, now=None):
                 output(f"DISTRICT_ATTEMPT_FINALIZATION_FAILED: province={active[0]}; attempt={active[1]}")
         for sig, handler in old_handlers.items():
             signal.signal(sig, handler)
-        if lock_acquired:
-            _release_worker_lock(connection)
-        if owns_connection:
-            connection.close()
+        if lock_acquired and connection is not None:
+            try:
+                _release_worker_lock(connection)
+            except Exception:
+                # Preserve the scan exception/result; stale connections can
+                # disappear during long-running provider operations.
+                output("NATIONAL_DISTRICT_LOCK_RELEASE_WARNING: connection unavailable")
+        if owns_connection and connection is not None:
+            _close_connection(connection)
 
 
 def preflight(env=None, *, connection=None, output=print):
