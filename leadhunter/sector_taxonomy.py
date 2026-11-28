@@ -69,6 +69,7 @@ TAG_TAXONOMY = (
 )
 
 _BY_TAG = {(row["tag_key"], row["tag_value"]): row for row in TAG_TAXONOMY}
+_TAG_ORDER = {selector: index for index, selector in enumerate(_BY_TAG)}
 
 
 def classify_osm_tags(tags, *, osm_type=None, osm_id=None):
@@ -79,10 +80,16 @@ def classify_osm_tags(tags, *, osm_type=None, osm_id=None):
     need, SME status, or marketing eligibility.
     """
     tags = tags if isinstance(tags, dict) else {}
+    # OSM objects carry few tags compared with the full taxonomy catalog.
+    # Probe each supplied key/value directly, then restore taxonomy order so
+    # evidence output stays byte-for-byte stable for multi-sector objects.
     matches = []
-    for (key, value), entry in _BY_TAG.items():
-        if tags.get(key) == value:
-            matches.append(entry)
+    for key, value in tags.items():
+        if isinstance(value, str):
+            entry = _BY_TAG.get((key, value))
+            if entry is not None:
+                matches.append(entry)
+    matches.sort(key=lambda entry: _TAG_ORDER[(entry["tag_key"], entry["tag_value"])])
 
     # Preserve the legacy supported tag while making a generic company
     # candidate available to research. It remains explicitly unclassified.
@@ -158,3 +165,4 @@ def classify_osm_tags(tags, *, osm_type=None, osm_id=None):
 def overpass_tag_selectors():
     """Return explicit candidate tag pairs; query callers must add their own bounds/caps."""
     return tuple(sorted(_BY_TAG))
+

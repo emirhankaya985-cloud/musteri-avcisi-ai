@@ -1,7 +1,11 @@
 import unittest
 
 from leadhunter.core import lead_from_osm
-from leadhunter.sector_taxonomy import classify_osm_tags, overpass_tag_selectors
+from leadhunter.sector_taxonomy import (
+    TAG_TAXONOMY,
+    classify_osm_tags,
+    overpass_tag_selectors,
+)
 
 
 class SectorTaxonomyTests(unittest.TestCase):
@@ -76,6 +80,30 @@ class SectorTaxonomyTests(unittest.TestCase):
         self.assertIn(("office", "estate_agent"), selectors)
         self.assertIn(("man_made", "works"), selectors)
 
+    def test_indexed_taxonomy_lookup_matches_legacy_order(self):
+        combinations = []
+        for entry in TAG_TAXONOMY:
+            combinations.append({entry["tag_key"]: entry["tag_value"]})
+            other = next((candidate for candidate in TAG_TAXONOMY
+                          if candidate["tag_key"] != entry["tag_key"]), None)
+            if other:
+                combinations.append({entry["tag_key"]: entry["tag_value"],
+                                     other["tag_key"]: other["tag_value"]})
+
+        for tags in combinations:
+            expected = [entry for entry in TAG_TAXONOMY
+                        if tags.get(entry["tag_key"]) == entry["tag_value"]]
+            with self.subTest(tags=tags):
+                self.assertEqual(
+                    classify_osm_tags(tags)["matches"],
+                    expected,
+                )
+
+    def test_non_string_tag_values_are_ignored_safely(self):
+        result = classify_osm_tags({"shop": ["florist"]})
+        self.assertEqual(result["matches"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
+

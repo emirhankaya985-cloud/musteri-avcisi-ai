@@ -45,6 +45,14 @@ class DistrictAttributionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "multiple district"):
             scan.unique_district_for_point(Point(0.5, 0.5), self.index)
 
+    def test_batched_point_attribution_matches_scalar_and_fails_closed_on_edges(self):
+        from shapely.geometry import Point
+        points = [Point(0.2, 0.5), Point(0.8, 0.5), Point(1.5, 0.5)]
+        expected = [scan.unique_district_for_point(point, self.index) for point in points]
+        self.assertEqual(scan.unique_districts_for_points(points, self.index), expected)
+        with self.assertRaisesRegex(ValueError, "multiple district"):
+            scan.unique_districts_for_points([Point(0.5, 0.5)], self.index)
+
     def test_geometry_and_province_relation_sets_must_match(self):
         with self.assertRaisesRegex(ValueError, "sets must match"):
             scan.build_district_index(self.geometries, {"relation/101": "01"})

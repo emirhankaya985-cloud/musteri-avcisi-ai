@@ -34,6 +34,7 @@ MAX_PBF_BYTES = 2 * 1024 * 1024 * 1024
 MAX_DISTRICT_LEADS = 10_000
 MAX_TOTAL_LEADS = 200_000
 MAX_RELATION_LEADS = 50_000
+DISTRICT_QUERY_BATCH_SIZE = 2_048
 WORKER_LOCK_ID = 985_402_620
 RUN_ID = re.compile(r"[0-9]{6,24}\Z", re.ASCII)
 SHA256 = re.compile(r"[0-9a-f]{64}\Z", re.ASCII)
@@ -135,6 +136,26 @@ def unique_district_for_point(point, district_index):
     if len(hits) > 1:
         raise ValueError("OSM object lies in multiple district polygons; refusing ambiguous attribution")
     return hits[0] if hits else None
+
+
+def unique_districts_for_points(points, district_index):
+    """Vectorize exact covers queries while retaining fail-closed ambiguity."""
+    points = list(points)
+    if any(point.is_empty or not point.is_valid for point in points):
+        raise ValueError("OSM object has an invalid point-on-surface")
+    return _query_districts_for_valid_points(points, district_index)
+
+
+def _query_districts_for_valid_points(points, district_index):
+    """Query points validated by the OSM node/way/relation geometry builders."""
+    owners = [None] * len(points)
+    matches = district_index["tree"].query(points, predicate="covered_by")
+    for point_offset, district_offset in zip(matches[0], matches[1]):
+        point_number = int(point_offset)
+        if owners[point_number] is not None:
+            raise ValueError("OSM object lies in multiple district polygons; refusing ambiguous attribution")
+        owners[point_number] = district_index["relation_ids"][int(district_offset)]
+    return owners
 
 
 def _object_point(obj, tags, district_index=None):
@@ -258,15 +279,15 @@ def collect_district_leads(pbf_path, district_index, *,
     overflow_districts = set()
     seen_objects = set()
     relation_leads = {}
+    pending_attribution = []
     unassigned = 0
     total = 0
 
-    def retain(lead, point):
+    def retain(lead, relation_id):
         nonlocal total, unassigned
         if total >= max_total_leads:
             raise ValueError("Eligible OSM lead count exceeds the configured safety bound")
         total += 1
-        relation_id = unique_district_for_point(point, district_index)
         if relation_id is None:
             unassigned += 1
             return
@@ -277,6 +298,25 @@ def collect_district_leads(pbf_path, district_index, *,
             overflow_districts.add(relation_id)
             return
         bucket[lead["id"]] = lead
+
+    def queue_attribution(lead, point):
+        if total + len(pending_attribution) >= max_total_leads:
+            raise ValueError("Eligible OSM lead count exceeds the configured safety bound")
+        pending_attribution.append((lead, point))
+        if len(pending_attribution) >= DISTRICT_QUERY_BATCH_SIZE:
+            flush_attribution()
+
+    def flush_attribution():
+        if not pending_attribution:
+            return
+        # _object_point and _area_to_shapely validate their derived geometries;
+        # OSM node locations are validated before their Points are created.
+        owners = _query_districts_for_valid_points(
+            [point for _lead, point in pending_attribution], district_index,
+        )
+        for (lead, _point), owner in zip(pending_attribution, owners):
+            retain(lead, owner)
+        pending_attribution.clear()
 
     processor = _business_candidate_processor(osmium, pbf_path)
     for obj in processor:
@@ -298,7 +338,9 @@ def collect_district_leads(pbf_path, district_index, *,
                 raise ValueError("Eligible OSM relation count exceeds the configured safety bound")
             relation_leads[int(obj.id)] = lead
             continue
-        retain(lead, _object_point(obj, tags, district_index))
+        queue_attribution(lead, _object_point(obj, tags, district_index))
+
+    flush_attribution()
 
     if relation_leads:
         relation_filter = osmium.filter.IdFilter(relation_leads).enable_for(osmium.osm.RELATION)
@@ -316,10 +358,13 @@ def collect_district_leads(pbf_path, district_index, *,
             if relation_number in resolved_relations:
                 raise ValueError("PBF contains duplicate multipolygon geometry for a business relation")
             resolved_relations.add(relation_number)
-            retain(lead, _area_to_shapely(obj))
+            queue_attribution(lead, _area_to_shapely(obj))
+            if len(pending_attribution) >= DISTRICT_QUERY_BATCH_SIZE:
+                flush_attribution()
         if resolved_relations != set(relation_leads):
             missing = sorted(set(relation_leads) - resolved_relations)
             raise ValueError(f"Eligible business relations lack exact multipolygon geometry: {missing[:5]}")
+        flush_attribution()
 
     return {
         "leads_by_district": {
