@@ -100,6 +100,8 @@ class HistoricalResearchTests(unittest.TestCase):
         self.assertEqual(_public_email_draft_lead(("node/1", base, "review"))["id"], "node/1")
         self.assertIsNone(_public_email_draft_lead(("node/2", {
             **base, "email_source": "https://other.example/contact"}, "review")))
+        self.assertIsNone(_public_email_draft_lead(("node/4", {
+            **base, "email_source": "https://user:secret@shop.example/contact"}, "review")))
         self.assertIsNone(_public_email_draft_lead(("node/3", {
             **base, "marketing_eligibility": {"opted_out": True}}, "review")))
 
@@ -125,9 +127,30 @@ class HistoricalResearchTests(unittest.TestCase):
         self.assertEqual(data["email"], "info@shop.example")
         self.assertEqual(data["email_source"], "https://shop.example/iletisim")
         self.assertEqual(data["email_research"]["status"], "public_address_found")
+        self.assertEqual(data["email_source_host"], "shop.example")
+        self.assertEqual(data["email_source_type"], "business_website_public_contact")
+        self.assertEqual(data["email_domain"], "shop.example")
+        self.assertEqual(data["email_research"]["source_host"], "shop.example")
+        self.assertEqual(data["email_research"]["email_domain"], "shop.example")
+        self.assertEqual(data["email_research"]["retrieved_at"],
+                         data["email_retrieved_at"])
         self.assertIsNone(data["email_check"])
         self.assertNotIn("_auto_mail", data)
         self.assertNotIn("marketing_eligibility", data)
+
+    def test_rejects_public_address_source_from_another_host(self):
+        db = FakeDB([make("node/22", website="shop.example")])
+        result = run(
+            db,
+            discover=lambda lead: {**lead, "email": "info@other.example",
+                                   "email_source": "https://other.example/contact"},
+            now=datetime(2026, 11, 26, tzinfo=timezone.utc),
+            output=lambda _: None,
+        )
+        self.assertEqual(result["addresses_found"], 0)
+        self.assertEqual(result["researched"], 0)
+        self.assertEqual(result["write_conflicts"], 1)
+        self.assertNotIn("email", db.rows["node/22"][0])
 
     def test_no_unique_address_is_recorded_without_guessing(self):
         db = FakeDB([make("node/2", website="shop.example")])
@@ -194,3 +217,4 @@ class HistoricalResearchTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

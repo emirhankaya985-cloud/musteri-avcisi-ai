@@ -75,6 +75,13 @@ class EligibilityTests(unittest.TestCase):
         self.assertFalse(eligible_recipient({"marketing_eligibility":candidate},
                                             self.address,self.now))
 
+    def test_invalid_current_clock_fails_closed_instead_of_raising(self):
+        lead={"marketing_eligibility":self.consent}
+        for invalid_now in (datetime(2026,11,1,12,0), object()):
+            with self.subTest(now=invalid_now):
+                self.assertFalse(eligible_recipient(lead,self.address,invalid_now))
+
 
 if __name__=="__main__":
     unittest.main()
+

@@ -326,7 +326,7 @@ def reconcile_mail(conn, notices):
                             (digest,day,kind))
                 # A reply requires an exact frozen outgoing Message-ID.
                 has_reply = matching_reply(notices, recipient, mail_id)
-                if has_reply and not record.get("reply_feedback"):
+                if has_reply:
                     matched_reply = next(
                         n for n in notices if len(n) >= 2
                         and n[0] == recipient
@@ -342,36 +342,44 @@ def reconcile_mail(conn, notices):
                     intent = ("opt_out" if "opt_out" in matching_intents else
                               "positive_review" if "positive_review" in matching_intents
                               else "needs_review")
-                    reply_data = {"state": "sender_matched_reply",
-                                  "intent": intent,
-                                  "observed_at": datetime.now(timezone.utc).isoformat()}
-                    cur.execute(
-                        "UPDATE owner_leads SET lead_data=jsonb_set("
-                        "lead_data,'{_auto_mail,reply_feedback}',%s::jsonb,true),"
-                        "updated_at=now() WHERE osm_id=%s AND "
-                        "lead_data->'_auto_mail'->>'state' IN ('accepted','sending','uncertain')",
-                        (json.dumps(reply_data), lead_id))
-                    changed += 1
-                    if intent == "opt_out":
-                        # A verified reply from the frozen recipient explicitly
-                        # refused further communication. Record this privately
-                        # and block all new send claims, without deleting mail.
+                    prior_feedback = record.get("reply_feedback") or {}
+                    prior_intent = (prior_feedback.get("intent")
+                                    if isinstance(prior_feedback, dict) else None)
+                    # A later explicit refusal always outranks an earlier
+                    # matched reply, including an earlier positive response.
+                    # Other duplicate thread replies remain idempotent.
+                    should_record_reply = (
+                        not prior_feedback
+                        or intent == "opt_out" and prior_intent != "opt_out"
+                    )
+                    if should_record_reply:
+                        reply_data = {"state": "sender_matched_reply",
+                                      "intent": intent,
+                                      "observed_at": datetime.now(timezone.utc).isoformat()}
                         cur.execute(
                             "UPDATE owner_leads SET lead_data=jsonb_set("
-                            "lead_data,'{marketing_eligibility}',"
-                            "COALESCE(lead_data->'marketing_eligibility','{}'::jsonb) || "
-                            "'{\"opted_out\":true}'::jsonb,true),updated_at=now() "
-                            "WHERE osm_id=%s",(lead_id,))
-                    # Keep lifecycle history in the same outer transaction as
-                    # the matched reply and opt-out suppression. A failure
-                    # rolls back both so the next read-only watcher can retry.
-                    # The helper only advances an existing email_sent stage;
-                    # explicit opt-out may initialize DNC from its verified
-                    # exact-thread evidence.
-                    from .mail_lifecycle import record_matched_reply
-                    record_matched_reply(
-                        conn, lead_id, sender=recipient,
-                        reply_reference=matched_reply[1], intent=intent)
+                            "lead_data,'{_auto_mail,reply_feedback}',%s::jsonb,true),"
+                            "updated_at=now() WHERE osm_id=%s AND "
+                            "lead_data->'_auto_mail'->>'state' IN ('accepted','sending','uncertain')",
+                            (json.dumps(reply_data), lead_id))
+                        changed += 1
+                        if intent == "opt_out":
+                            # A verified reply from the frozen recipient explicitly
+                            # refused further communication. Record this privately
+                            # and block all new send claims, without deleting mail.
+                            cur.execute(
+                                "UPDATE owner_leads SET lead_data=jsonb_set("
+                                "lead_data,'{marketing_eligibility}',"
+                                "COALESCE(lead_data->'marketing_eligibility','{}'::jsonb) || "
+                                "'{\"opted_out\":true}'::jsonb,true),updated_at=now() "
+                                "WHERE osm_id=%s",(lead_id,))
+                        # Keep lifecycle history in the same outer transaction
+                        # as reply feedback and suppression so failed writes can
+                        # be retried by the read-only watcher.
+                        from .mail_lifecycle import record_matched_reply
+                        record_matched_reply(
+                            conn, lead_id, sender=recipient,
+                            reply_reference=matched_reply[1], intent=intent)
                 before = record.get("delivery_feedback") or {}
                 if not state or before.get("state") == "failed" and state != "failed":
                     continue
@@ -495,3 +503,4 @@ if __name__ == "__main__":
         run()
     except Exception:
         raise RuntimeError("Private Gmail watch failed; sensitive details redacted") from None
+

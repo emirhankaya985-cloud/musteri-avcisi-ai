@@ -43,8 +43,14 @@ def eligible_recipient(lead, recipient, now=None):
         return False
     if timestamp.tzinfo is None:
         return False
-    now = now or datetime.now(timezone.utc)
-    age = now - timestamp.astimezone(timezone.utc)
+    current = datetime.now(timezone.utc) if now is None else now
+    if (not isinstance(current, datetime) or current.tzinfo is None
+            or current.utcoffset() is None):
+        return False
+    try:
+        age = current.astimezone(timezone.utc) - timestamp.astimezone(timezone.utc)
+    except (OverflowError, TypeError, ValueError):
+        return False
     if age < timedelta(0):
         return False
     route = info.get("route")
@@ -58,3 +64,4 @@ def eligible_recipient(lead, recipient, now=None):
                 and info.get("iys_rejected") is False
                 and age <= timedelta(hours=24))
     return False
+
