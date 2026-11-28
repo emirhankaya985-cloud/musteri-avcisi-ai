@@ -1,1 +1,1 @@
-Single owner-authorized retry trigger for the national district OSM scan workflow.
+Single owner-authorized second retry trigger for the national district OSM scan workflow.
