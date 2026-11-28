@@ -185,6 +185,51 @@ class MailWatchSafetyTests(unittest.TestCase):
                              expected)
             self.assertEqual(changed, int(expected))
 
+    def test_later_explicit_optout_overrides_an_earlier_matched_reply(self):
+        from leadhunter.mail_watch import reconcile_mail
+        from contextlib import nullcontext
+        lead = {"_auto_mail": {
+            "state": "accepted",
+            "recipient": "synthetic-recipient@example.invalid",
+            "id": "abcdefghijklmnopqrstuvwx",
+            "reply_feedback": {"state": "sender_matched_reply",
+                               "intent": "positive_review"},
+        }}
+
+        class Cursor:
+            def __init__(self):
+                self.sql = []
+                self.last = ""
+            def execute(self, sql, params=()):
+                self.sql.append((sql, params))
+                self.last = sql
+            def fetchall(self):
+                if "SELECT osm_id, lead_data FROM owner_leads" in self.last:
+                    return [("node/11", lead)]
+                if "reply_feedback" in self.last:
+                    return [("node/11", {"intent": "opt_out"})]
+                return []
+            def fetchone(self):
+                return (None,) if "to_regclass" in self.last else None
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+
+        class FakeConn:
+            def __init__(self): self.cur = Cursor()
+            def cursor(self): return self.cur
+            def transaction(self): return nullcontext()
+
+        db = FakeConn()
+        notices = [("synthetic-recipient@example.invalid",
+                    "reply:<abcdefghijklmnopqrstuvwx@gmail.com>",
+                    {"intent": "opt_out"})]
+        changed, pending = reconcile_mail(db, notices)
+        updates = [sql for sql, _params in db.cur.sql if sql.startswith("UPDATE")]
+        self.assertEqual(changed, 1)
+        self.assertEqual(pending, [("node/11", "reply")])
+        self.assertTrue(any("reply_feedback" in sql for sql in updates))
+        self.assertTrue(any("marketing_eligibility" in sql for sql in updates))
+
     def test_missing_credentials_never_attempts_connection(self):
         with self.assertRaisesRegex(RuntimeError, "not configured"):
             read_delivery_messages({}, imap_factory=lambda *a,**kw:
@@ -193,3 +238,4 @@ class MailWatchSafetyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

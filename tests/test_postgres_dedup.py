@@ -412,6 +412,36 @@ class PostgresDedupTests(unittest.TestCase):
         self.assertEqual(record["reply_feedback"]["telegram_message_id"],193)
         self.assertNotIn("delivery_feedback",record)
 
+    def test_later_exact_thread_optout_overrides_prior_reply_feedback(self):
+        from leadhunter.mail_watch import reconcile_mail
+        self.insert("node/193", "accepted")
+        frozen_id = "c" * 24
+        recipient = "synthetic-optout@example.invalid"
+        self.db.execute(
+            "UPDATE owner_leads SET lead_data=jsonb_set(lead_data,"
+            "'{_auto_mail,id}',%s::jsonb,true) WHERE osm_id='node/193'",
+            (json.dumps(frozen_id),),
+        )
+        self.db.execute(
+            "UPDATE owner_leads SET lead_data=jsonb_set(lead_data,"
+            "'{_auto_mail,reply_feedback}',%s::jsonb,true) WHERE osm_id='node/193'",
+            (json.dumps({"state": "sender_matched_reply",
+                         "intent": "positive_review"}),),
+        )
+        changed, pending = reconcile_mail(self.db, [(
+            recipient,
+            "reply:<" + frozen_id + "@gmail.com>",
+            {"intent": "opt_out"},
+        )])
+        self.assertEqual(changed, 1)
+        self.assertEqual(pending, [("node/193", "reply")])
+        record = self.db.execute(
+            "SELECT lead_data->'_auto_mail',lead_data->'marketing_eligibility' "
+            "FROM owner_leads WHERE osm_id='node/193'",
+        ).fetchone()
+        self.assertEqual(record[0]["reply_feedback"]["intent"], "opt_out")
+        self.assertIs(record[1]["opted_out"], True)
+
     def test_daily_quota_one_is_global_across_concurrent_claims(self):
         for lid, recipient in (("node/301","a301@example.invalid"),
                                ("node/302","a302@example.invalid")):
@@ -573,3 +603,4 @@ class PostgresDedupTests(unittest.TestCase):
         store = AutoMailStore(ReviewStore(self.db))
         self.assertIsNone(store.claim('node/1'))
         self.assertIsNone(store.claim('node/2'))
+

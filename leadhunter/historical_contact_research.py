@@ -32,6 +32,37 @@ def _host(website):
         return None
 
 
+def _public_site_host(url):
+    try:
+        value = str(url or "").strip()
+        if value and "://" not in value:
+            value = "https://" + value
+        parsed = urlsplit(value)
+        if (parsed.scheme not in ("http", "https") or parsed.username or parsed.password
+                or parsed.port not in (None, 80, 443)):
+            return None
+        return _host(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _source_matches_website(website, source):
+    website_host = _public_site_host(website)
+    source_host = _public_site_host(source)
+    return bool(website_host and source_host and website_host == source_host)
+
+
+def _retrieved_at(found, fallback):
+    try:
+        value = datetime.fromisoformat(
+            str(found.get("email_retrieved_at") or "").replace("Z", "+00:00"))
+        if value.tzinfo is None or value.utcoffset() is None:
+            return fallback
+        return value.astimezone(timezone.utc).isoformat()
+    except (TypeError, ValueError, OverflowError):
+        return fallback
+
+
 def _json_object(value):
     if isinstance(value, str):
         try:
@@ -91,11 +122,18 @@ def _persist(connection, lead, found, checked_at):
     if found:
         email = str(found.get("email") or "").strip().casefold()
         source = str(found.get("email_source") or "").strip()
-        if not valid_recipient(email) or not source.startswith(("https://", "http://")):
+        if not valid_recipient(email) or not _source_matches_website(lead.get("website"), source):
             return False
+        source_host = _public_site_host(source)
+        email_domain = email.rsplit("@", 1)[1].casefold()
+        retrieved_at = _retrieved_at(found, checked_at)
         evidence = {
             "status": "public_address_found",
             "source_url": source,
+            "source_host": source_host,
+            "source_type": "business_website_public_contact",
+            "retrieved_at": retrieved_at,
+            "email_domain": email_domain,
             "checked_at": checked_at,
             # Website discovery is not mailbox/MX verification. Clear any old
             # top-level check so CRM export falls back to the fresh mail check.
@@ -103,6 +141,10 @@ def _persist(connection, lead, found, checked_at):
             "researcher_version": RESEARCHER_VERSION,
         }
         update = {"email": email, "email_source": source,
+                  "email_source_host": source_host,
+                  "email_source_type": "business_website_public_contact",
+                  "email_retrieved_at": retrieved_at,
+                  "email_domain": email_domain,
                   "email_check": None, "email_research": evidence,
                   "email_research_attempt": {**attempt, "status": "public_address_found"}}
     else:
@@ -145,9 +187,7 @@ def _public_email_draft_lead(row):
         return None
     if research.get("status") != "public_address_found":
         return None
-    if not valid_recipient(email) or not source.startswith(("https://", "http://")):
-        return None
-    if _host(data.get("website")) != _host(source):
+    if not valid_recipient(email) or not _source_matches_website(data.get("website"), source):
         return None
     eligibility = data.get("marketing_eligibility")
     if isinstance(eligibility, dict) and eligibility.get("opted_out") is True:
@@ -311,3 +351,4 @@ if __name__ == "__main__":
     except (TypeError, ValueError):
         raise SystemExit("CONTACT_RESEARCH_BATCH_SIZE must be an integer") from None
     run(batch_size=batch_size)
+

@@ -12,7 +12,9 @@ import os
 import re
 import signal
 import sys
+import time
 from collections import defaultdict
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,6 +34,7 @@ MAX_PBF_BYTES = 2 * 1024 * 1024 * 1024
 MAX_DISTRICT_LEADS = 10_000
 MAX_TOTAL_LEADS = 200_000
 MAX_RELATION_LEADS = 50_000
+DISTRICT_QUERY_BATCH_SIZE = 2_048
 WORKER_LOCK_ID = 985_402_620
 RUN_ID = re.compile(r"[0-9]{6,24}\Z", re.ASCII)
 SHA256 = re.compile(r"[0-9a-f]{64}\Z", re.ASCII)
@@ -40,6 +43,21 @@ ALLOWED_TAGS = frozenset((
     "contact:phone", "phone", "email", "contact:email",
     "addr:street", "addr:housenumber", "addr:district",
 ))
+
+
+@contextmanager
+def _scan_phase(output, name):
+    """Log boundaries and elapsed time for potentially long scan phases."""
+    started = time.monotonic()
+    output(f"NATIONAL_SCAN_PHASE: name={name}; state=started")
+    try:
+        yield
+    except BaseException:
+        output(f"NATIONAL_SCAN_PHASE: name={name}; state=failed; "
+               f"elapsed_s={time.monotonic() - started:.1f}")
+        raise
+    output(f"NATIONAL_SCAN_PHASE: name={name}; state=completed; "
+           f"elapsed_s={time.monotonic() - started:.1f}")
 
 
 def _aware_timestamp(value, label):
@@ -120,6 +138,26 @@ def unique_district_for_point(point, district_index):
     return hits[0] if hits else None
 
 
+def unique_districts_for_points(points, district_index):
+    """Vectorize exact covers queries while retaining fail-closed ambiguity."""
+    points = list(points)
+    if any(point.is_empty or not point.is_valid for point in points):
+        raise ValueError("OSM object has an invalid point-on-surface")
+    return _query_districts_for_valid_points(points, district_index)
+
+
+def _query_districts_for_valid_points(points, district_index):
+    """Query points validated by the OSM node/way/relation geometry builders."""
+    owners = [None] * len(points)
+    matches = district_index["tree"].query(points, predicate="covered_by")
+    for point_offset, district_offset in zip(matches[0], matches[1]):
+        point_number = int(point_offset)
+        if owners[point_number] is not None:
+            raise ValueError("OSM object lies in multiple district polygons; refusing ambiguous attribution")
+        owners[point_number] = district_index["relation_ids"][int(district_offset)]
+    return owners
+
+
 def _object_point(obj, tags, district_index=None):
     """Resolve an OSM node/way to Shapely's exact point-on-surface."""
     Point, LineString, Polygon, _shape, _STRtree = _shapely()
@@ -192,6 +230,30 @@ def _tag_map(obj):
     return {tag.k: tag.v for tag in obj.tags if tag.k in ALLOWED_TAGS}
 
 
+def _business_candidate_processor(osmium, pbf_path):
+    """Keep location caching in C++, but yield only possible named businesses.
+
+    ``with_locations`` runs first so it still sees every node required to
+    resolve way geometries. The following native filters prevent unrelated
+    tagged OSM objects from crossing into the Python loop.
+    """
+    from .sector_taxonomy import overpass_tag_selectors
+
+    candidate_types = osmium.osm.NODE | osmium.osm.WAY | osmium.osm.RELATION
+    # Match only the keys this scanner already passes through _tag_map so the
+    # native prefilter cannot introduce candidates the Python path rejects.
+    candidate_tags = tuple(
+        (key, value) for key, value in overpass_tag_selectors()
+        if key in ALLOWED_TAGS
+    )
+    return (
+        osmium.FileProcessor(str(pbf_path))
+        .with_locations("sparse_file_array")
+        .with_filter(osmium.filter.KeyFilter("name").enable_for(candidate_types))
+        .with_filter(osmium.filter.TagFilter(*candidate_tags).enable_for(candidate_types))
+    )
+
+
 def collect_district_leads(pbf_path, district_index, *,
                           max_total_leads=MAX_TOTAL_LEADS,
                           max_relation_leads=MAX_RELATION_LEADS,
@@ -217,15 +279,15 @@ def collect_district_leads(pbf_path, district_index, *,
     overflow_districts = set()
     seen_objects = set()
     relation_leads = {}
+    pending_attribution = []
     unassigned = 0
     total = 0
 
-    def retain(lead, point):
+    def retain(lead, relation_id):
         nonlocal total, unassigned
         if total >= max_total_leads:
             raise ValueError("Eligible OSM lead count exceeds the configured safety bound")
         total += 1
-        relation_id = unique_district_for_point(point, district_index)
         if relation_id is None:
             unassigned += 1
             return
@@ -237,7 +299,26 @@ def collect_district_leads(pbf_path, district_index, *,
             return
         bucket[lead["id"]] = lead
 
-    processor = osmium.FileProcessor(str(pbf_path)).with_locations("sparse_file_array")
+    def queue_attribution(lead, point):
+        if total + len(pending_attribution) >= max_total_leads:
+            raise ValueError("Eligible OSM lead count exceeds the configured safety bound")
+        pending_attribution.append((lead, point))
+        if len(pending_attribution) >= DISTRICT_QUERY_BATCH_SIZE:
+            flush_attribution()
+
+    def flush_attribution():
+        if not pending_attribution:
+            return
+        # _object_point and _area_to_shapely validate their derived geometries;
+        # OSM node locations are validated before their Points are created.
+        owners = _query_districts_for_valid_points(
+            [point for _lead, point in pending_attribution], district_index,
+        )
+        for (lead, _point), owner in zip(pending_attribution, owners):
+            retain(lead, owner)
+        pending_attribution.clear()
+
+    processor = _business_candidate_processor(osmium, pbf_path)
     for obj in processor:
         if not (obj.is_node() or obj.is_way() or obj.is_relation()):
             continue
@@ -257,7 +338,9 @@ def collect_district_leads(pbf_path, district_index, *,
                 raise ValueError("Eligible OSM relation count exceeds the configured safety bound")
             relation_leads[int(obj.id)] = lead
             continue
-        retain(lead, _object_point(obj, tags, district_index))
+        queue_attribution(lead, _object_point(obj, tags, district_index))
+
+    flush_attribution()
 
     if relation_leads:
         relation_filter = osmium.filter.IdFilter(relation_leads).enable_for(osmium.osm.RELATION)
@@ -275,10 +358,13 @@ def collect_district_leads(pbf_path, district_index, *,
             if relation_number in resolved_relations:
                 raise ValueError("PBF contains duplicate multipolygon geometry for a business relation")
             resolved_relations.add(relation_number)
-            retain(lead, _area_to_shapely(obj))
+            queue_attribution(lead, _area_to_shapely(obj))
+            if len(pending_attribution) >= DISTRICT_QUERY_BATCH_SIZE:
+                flush_attribution()
         if resolved_relations != set(relation_leads):
             missing = sorted(set(relation_leads) - resolved_relations)
             raise ValueError(f"Eligible business relations lack exact multipolygon geometry: {missing[:5]}")
+        flush_attribution()
 
     return {
         "leads_by_district": {
@@ -416,9 +502,10 @@ def run(env=None, *, connection=None, output=print, now=None):
             district_to_province[relation_id] = code
     if set(district_to_province) != set(inventory["district_ids"]):
         raise ValueError("Pinned province-to-district relation attribution is incomplete")
-    verified_source = verify_pbf_snapshot(
-        pbf_path, digest, now=run_now, max_pbf_bytes=MAX_PBF_BYTES,
-    )
+    with _scan_phase(output, "snapshot_verification"):
+        verified_source = verify_pbf_snapshot(
+            pbf_path, digest, now=run_now, max_pbf_bytes=MAX_PBF_BYTES,
+        )
     source_at = verified_source["snapshot_timestamp"]
     if _aware_timestamp(source_at, "PBF header timestamp") != expected_timestamp:
         raise ValueError("Provided source timestamp does not match the checksum-verified PBF header")
@@ -493,14 +580,22 @@ def run(env=None, *, connection=None, output=print, now=None):
             _close_connection(connection)
         connection = None
 
-        extraction = extract_district_geometries(
-            pbf_path, inventory["district_ids"], digest,
-            now=run_now, max_pbf_bytes=MAX_PBF_BYTES,
-        )
+        with _scan_phase(output, "district_geometry_extraction"):
+            extraction = extract_district_geometries(
+                pbf_path, inventory["district_ids"], digest,
+                now=run_now, max_pbf_bytes=MAX_PBF_BYTES,
+            )
         if extraction["source"]["snapshot_timestamp"] != source_at:
             raise ValueError("Verified PBF source changed before district geometry extraction")
-        district_index = build_district_index(extraction["geometries"], district_to_province)
-        attribution = collect_district_leads(pbf_path, district_index)
+        with _scan_phase(output, "district_spatial_index"):
+            district_index = build_district_index(extraction["geometries"], district_to_province)
+        with _scan_phase(output, "business_candidate_attribution"):
+            attribution = collect_district_leads(pbf_path, district_index)
+        output("NATIONAL_SCAN_ATTRIBUTION: "
+               f"candidates={attribution['candidate_count']}; "
+               f"unassigned={attribution['unassigned_count']}; "
+               f"districts_with_leads={len(attribution['leads_by_district'])}; "
+               f"districts_over_limit={len(attribution['overflow_districts'])}")
 
         connection = open_connection()
         _acquire_worker_lock(connection)
@@ -533,6 +628,7 @@ def run(env=None, *, connection=None, output=print, now=None):
             if not remaining:
                 continue
             attempt_id = f"{attempt_prefix}-{code}"
+            province_started = time.monotonic()
             registry = begin_attempt(connection, code, attempt_id=attempt_id,
                                      started_at=run_now.isoformat(),
                                      source_sha256=digest)
@@ -587,7 +683,8 @@ def run(env=None, *, connection=None, output=print, now=None):
             failed_items = sum(item in attribution["overflow_districts"] for item in remaining)
             output(f"NATIONAL_DISTRICT_PROVINCE: code={code}; "
                    f"snapshot_receipts={province_current}; failed={failed_items}; "
-                   f"source_sha256={digest}")
+                   f"source_sha256={digest}; "
+                   f"elapsed_s={time.monotonic() - province_started:.1f}")
 
         coverage = {row["code"]: row for row in read(connection)["provinces"]}
         completed_total = sum(
@@ -662,3 +759,4 @@ if __name__ == "__main__":
         preflight()
     else:
         run()
+

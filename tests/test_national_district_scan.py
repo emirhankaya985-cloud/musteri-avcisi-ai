@@ -45,6 +45,14 @@ class DistrictAttributionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "multiple district"):
             scan.unique_district_for_point(Point(0.5, 0.5), self.index)
 
+    def test_batched_point_attribution_matches_scalar_and_fails_closed_on_edges(self):
+        from shapely.geometry import Point
+        points = [Point(0.2, 0.5), Point(0.8, 0.5), Point(1.5, 0.5)]
+        expected = [scan.unique_district_for_point(point, self.index) for point in points]
+        self.assertEqual(scan.unique_districts_for_points(points, self.index), expected)
+        with self.assertRaisesRegex(ValueError, "multiple district"):
+            scan.unique_districts_for_points([Point(0.5, 0.5)], self.index)
+
     def test_geometry_and_province_relation_sets_must_match(self):
         with self.assertRaisesRegex(ValueError, "sets must match"):
             scan.build_district_index(self.geometries, {"relation/101": "01"})
@@ -174,6 +182,45 @@ class DistrictPbfAttributionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "crosses or ambiguously"):
             scan._object_point(_Way(), {"area": "yes"}, self.index)
 
+    def test_native_processor_filter_preserves_every_supported_business_tag(self):
+        import osmium
+        from leadhunter.sector_taxonomy import overpass_tag_selectors
+
+        pbf = Path(self.temp_dir.name) / "taxonomy-candidates.osm.pbf"
+        # Only tag pairs retained by the current scanner tag allowlist are
+        # candidates; the optimization must not widen scanner behavior.
+        pairs = tuple((key, value) for key, value in overpass_tag_selectors()
+                      if key in scan.ALLOWED_TAGS)
+        expected_ids = set()
+        header = osmium.io.Header()
+        header.set("osmosis_replication_timestamp", "2026-11-27T00:00:00Z")
+        with osmium.SimpleWriter(pbf, header=header) as writer:
+            for offset, (key, value) in enumerate(pairs, start=2000):
+                expected_ids.add(f"node/{offset}")
+                writer.add_node(osmium.osm.mutable.Node(
+                    id=offset, location=(29.0, 41.0),
+                    tags={"name": f"Business {offset}", key: value},
+                ))
+            # Named non-business objects and unnamed businesses must both be
+            # removed before Python; eligible tagged objects must be preserved.
+            writer.add_node(osmium.osm.mutable.Node(
+                id=3000, location=(29.0, 41.0),
+                tags={"name": "Bus Stop", "amenity": "bench"},
+            ))
+            writer.add_node(osmium.osm.mutable.Node(
+                id=3001, location=(29.0, 41.0), tags={"shop": "florist"},
+            ))
+            writer.add_node(osmium.osm.mutable.Node(
+                id=3002, location=(29.0, 41.0),
+                tags={"name": "Unchanged unsupported office", "office": "company"},
+            ))
+
+        actual_ids = {
+            f"node/{int(obj.id)}"
+            for obj in scan._business_candidate_processor(osmium, pbf)
+        }
+        self.assertEqual(actual_ids, expected_ids)
+
 
 class AttemptRecoveryTests(unittest.TestCase):
     def test_only_pbf_owned_orphan_attempts_are_finalized(self):
@@ -245,6 +292,24 @@ class SameSnapshotNoopTests(unittest.TestCase):
         collect.assert_not_called()
 
 
+class ScanPhaseLoggingTests(unittest.TestCase):
+    def test_phase_logs_completion_and_elapsed_time(self):
+        logs = []
+        with scan._scan_phase(logs.append, "offline_fixture"):
+            pass
+        self.assertEqual(logs[0], "NATIONAL_SCAN_PHASE: name=offline_fixture; state=started")
+        self.assertRegex(logs[1],
+                         r"^NATIONAL_SCAN_PHASE: name=offline_fixture; state=completed; elapsed_s=[0-9]+\.[0-9]$")
+
+    def test_phase_logs_failure_and_preserves_exception(self):
+        logs = []
+        with self.assertRaisesRegex(RuntimeError, "fixture failure"):
+            with scan._scan_phase(logs.append, "offline_fixture"):
+                raise RuntimeError("fixture failure")
+        self.assertRegex(logs[1],
+                         r"^NATIONAL_SCAN_PHASE: name=offline_fixture; state=failed; elapsed_s=[0-9]+\.[0-9]$")
+
+
 class NeonConnectionLifecycleTests(unittest.TestCase):
     def test_neon_lock_is_released_and_connection_closed_during_pbf_parse(self):
         digest = "f" * 64
@@ -257,6 +322,7 @@ class NeonConnectionLifecycleTests(unittest.TestCase):
             "provinces": {"01": {"district_ids": ("relation/101",)}},
         }
         events = []
+        logs = []
 
         class _Connection:
             def __init__(self, label): self.label, self.closed = label, False
@@ -311,7 +377,7 @@ class NeonConnectionLifecycleTests(unittest.TestCase):
         ):
             result = scan.run(
                 env={"REVIEW_DATABASE_URL": "postgresql://redacted"},
-                output=lambda _line: None,
+                output=logs.append,
                 now=datetime(2026, 11, 28, tzinfo=timezone.utc),
             )
         self.assertEqual(result["district_receipts"], 0)
@@ -319,7 +385,21 @@ class NeonConnectionLifecycleTests(unittest.TestCase):
                          ["acquire", "release", "close", "extract", "collect", "acquire", "begin"])
         self.assertTrue(all_connections[0].closed)
         self.assertTrue(all_connections[1].closed)
+        self.assertTrue(any(
+            line.startswith("NATIONAL_SCAN_PHASE: name=district_geometry_extraction; state=completed; elapsed_s=")
+            for line in logs
+        ))
+        self.assertTrue(any(
+            line.startswith("NATIONAL_SCAN_PHASE: name=business_candidate_attribution; state=completed; elapsed_s=")
+            for line in logs
+        ))
+        self.assertIn(
+            "NATIONAL_SCAN_ATTRIBUTION: candidates=0; unassigned=0; "
+            "districts_with_leads=0; districts_over_limit=0",
+            logs,
+        )
 
 
 if __name__ == "__main__":
     unittest.main()
+

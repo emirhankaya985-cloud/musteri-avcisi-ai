@@ -6,14 +6,18 @@ outside the recorded website host. Results belong only in private mail storage.
 import ipaddress
 import re
 import socket
+from datetime import datetime, timezone
 from html.parser import HTMLParser
+from urllib.error import HTTPError
 from urllib.parse import urljoin, urlsplit, unquote
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.robotparser import RobotFileParser
 from .outreach import valid_recipient
 
 MAX_PAGES = 8
 MAX_PAGE_BYTES = 300_000
 PAGE_TIMEOUT = 5
+USER_AGENT = 'MusteriAvcisiAI/0.1 contact research'
 CONTACT_TERMS = ('contact', 'iletisim', 'iletişim', 'hakkimizda', 'hakkımızda',
                  'about', 'kurumsal', 'bize-ulasin', 'bize-ulaşın', 'contact-us')
 COMMON_CONTACT_PATHS = ('/iletisim', '/iletisim/', '/contact', '/contact/',
@@ -113,6 +117,31 @@ def public_url(url, host, resolver=socket.getaddrinfo):
     return url
 
 
+def _read_robots_policy(client, base_url, host):
+    """Read the same-host robots policy once; ``None`` means fail closed."""
+    parsed = urlsplit(base_url)
+    robots_url = f'{parsed.scheme}://{parsed.netloc}/robots.txt'
+    public_url(robots_url, host)
+    request = Request(robots_url, headers={'User-Agent': USER_AGENT})
+    parser = RobotFileParser(robots_url)
+    try:
+        with client.open(request, timeout=PAGE_TIMEOUT) as response:
+            public_url(response.geturl(), host)
+            raw = response.read(MAX_PAGE_BYTES + 1)
+            if len(raw) > MAX_PAGE_BYTES:
+                return None
+            charset = response.headers.get_content_charset() or 'utf-8'
+            parser.parse(raw.decode(charset, errors='replace').splitlines())
+    except HTTPError as exc:
+        if exc.code in (404, 410):
+            parser.parse([])
+        else:
+            return None
+    except Exception:
+        return None
+    return parser
+
+
 class SameHostRedirect(HTTPRedirectHandler):
     def __init__(self, host):
         self.host = host
@@ -140,6 +169,11 @@ def discover_email(lead):
         seen = set()
         found = {}
         path_candidates = [urljoin(url, path) for path in COMMON_CONTACT_PATHS]
+        # Read robots.txt before any business page. If its policy cannot be
+        # fetched safely, stop instead of bypassing a possibly restrictive rule.
+        robots_policy = _read_robots_policy(client, url, host)
+        if robots_policy is None:
+            return lead
         while queue and len(seen) < MAX_PAGES:
             page = queue.pop(0)
             if page in seen:
@@ -147,7 +181,13 @@ def discover_email(lead):
             seen.add(page)
             try:
                 public_url(page, host)
-                req = Request(page, headers={'User-Agent': 'MusteriAvcisiAI/0.1 contact research'})
+                try:
+                    allowed = robots_policy.can_fetch(USER_AGENT, page)
+                except Exception:
+                    allowed = False
+                if not allowed:
+                    continue
+                req = Request(page, headers={'User-Agent': USER_AGENT})
                 with client.open(req, timeout=8) as response:
                     public_url(response.geturl(), host)
                     if 'html' not in response.headers.get('Content-Type', '').lower():
@@ -184,8 +224,18 @@ def discover_email(lead):
         selected = _choose_email(found)
         if selected:
             email, source = selected
-            return {**lead, 'email': email, 'email_source': source}
+            source_host = urlsplit(source).hostname
+            return {
+                **lead,
+                'email': email,
+                'email_source': source,
+                'email_source_host': _canonical_host(source_host),
+                'email_source_type': 'business_website_public_contact',
+                'email_retrieved_at': datetime.now(timezone.utc).isoformat(),
+                'email_domain': email.rsplit('@', 1)[1].casefold(),
+            }
     except Exception:
         # Research failure must never invent an address or expose private URLs.
         pass
     return lead
+
