@@ -12,7 +12,9 @@ import os
 import re
 import signal
 import sys
+import time
 from collections import defaultdict
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,6 +42,21 @@ ALLOWED_TAGS = frozenset((
     "contact:phone", "phone", "email", "contact:email",
     "addr:street", "addr:housenumber", "addr:district",
 ))
+
+
+@contextmanager
+def _scan_phase(output, name):
+    """Log boundaries and elapsed time for potentially long scan phases."""
+    started = time.monotonic()
+    output(f"NATIONAL_SCAN_PHASE: name={name}; state=started")
+    try:
+        yield
+    except BaseException:
+        output(f"NATIONAL_SCAN_PHASE: name={name}; state=failed; "
+               f"elapsed_s={time.monotonic() - started:.1f}")
+        raise
+    output(f"NATIONAL_SCAN_PHASE: name={name}; state=completed; "
+           f"elapsed_s={time.monotonic() - started:.1f}")
 
 
 def _aware_timestamp(value, label):
@@ -440,9 +457,10 @@ def run(env=None, *, connection=None, output=print, now=None):
             district_to_province[relation_id] = code
     if set(district_to_province) != set(inventory["district_ids"]):
         raise ValueError("Pinned province-to-district relation attribution is incomplete")
-    verified_source = verify_pbf_snapshot(
-        pbf_path, digest, now=run_now, max_pbf_bytes=MAX_PBF_BYTES,
-    )
+    with _scan_phase(output, "snapshot_verification"):
+        verified_source = verify_pbf_snapshot(
+            pbf_path, digest, now=run_now, max_pbf_bytes=MAX_PBF_BYTES,
+        )
     source_at = verified_source["snapshot_timestamp"]
     if _aware_timestamp(source_at, "PBF header timestamp") != expected_timestamp:
         raise ValueError("Provided source timestamp does not match the checksum-verified PBF header")
@@ -517,14 +535,22 @@ def run(env=None, *, connection=None, output=print, now=None):
             _close_connection(connection)
         connection = None
 
-        extraction = extract_district_geometries(
-            pbf_path, inventory["district_ids"], digest,
-            now=run_now, max_pbf_bytes=MAX_PBF_BYTES,
-        )
+        with _scan_phase(output, "district_geometry_extraction"):
+            extraction = extract_district_geometries(
+                pbf_path, inventory["district_ids"], digest,
+                now=run_now, max_pbf_bytes=MAX_PBF_BYTES,
+            )
         if extraction["source"]["snapshot_timestamp"] != source_at:
             raise ValueError("Verified PBF source changed before district geometry extraction")
-        district_index = build_district_index(extraction["geometries"], district_to_province)
-        attribution = collect_district_leads(pbf_path, district_index)
+        with _scan_phase(output, "district_spatial_index"):
+            district_index = build_district_index(extraction["geometries"], district_to_province)
+        with _scan_phase(output, "business_candidate_attribution"):
+            attribution = collect_district_leads(pbf_path, district_index)
+        output("NATIONAL_SCAN_ATTRIBUTION: "
+               f"candidates={attribution['candidate_count']}; "
+               f"unassigned={attribution['unassigned_count']}; "
+               f"districts_with_leads={len(attribution['leads_by_district'])}; "
+               f"districts_over_limit={len(attribution['overflow_districts'])}")
 
         connection = open_connection()
         _acquire_worker_lock(connection)
@@ -557,6 +583,7 @@ def run(env=None, *, connection=None, output=print, now=None):
             if not remaining:
                 continue
             attempt_id = f"{attempt_prefix}-{code}"
+            province_started = time.monotonic()
             registry = begin_attempt(connection, code, attempt_id=attempt_id,
                                      started_at=run_now.isoformat(),
                                      source_sha256=digest)
@@ -611,7 +638,8 @@ def run(env=None, *, connection=None, output=print, now=None):
             failed_items = sum(item in attribution["overflow_districts"] for item in remaining)
             output(f"NATIONAL_DISTRICT_PROVINCE: code={code}; "
                    f"snapshot_receipts={province_current}; failed={failed_items}; "
-                   f"source_sha256={digest}")
+                   f"source_sha256={digest}; "
+                   f"elapsed_s={time.monotonic() - province_started:.1f}")
 
         coverage = {row["code"]: row for row in read(connection)["provinces"]}
         completed_total = sum(
@@ -686,3 +714,4 @@ if __name__ == "__main__":
         preflight()
     else:
         run()
+

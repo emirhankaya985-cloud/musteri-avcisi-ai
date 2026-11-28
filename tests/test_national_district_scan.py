@@ -284,6 +284,24 @@ class SameSnapshotNoopTests(unittest.TestCase):
         collect.assert_not_called()
 
 
+class ScanPhaseLoggingTests(unittest.TestCase):
+    def test_phase_logs_completion_and_elapsed_time(self):
+        logs = []
+        with scan._scan_phase(logs.append, "offline_fixture"):
+            pass
+        self.assertEqual(logs[0], "NATIONAL_SCAN_PHASE: name=offline_fixture; state=started")
+        self.assertRegex(logs[1],
+                         r"^NATIONAL_SCAN_PHASE: name=offline_fixture; state=completed; elapsed_s=[0-9]+\.[0-9]$")
+
+    def test_phase_logs_failure_and_preserves_exception(self):
+        logs = []
+        with self.assertRaisesRegex(RuntimeError, "fixture failure"):
+            with scan._scan_phase(logs.append, "offline_fixture"):
+                raise RuntimeError("fixture failure")
+        self.assertRegex(logs[1],
+                         r"^NATIONAL_SCAN_PHASE: name=offline_fixture; state=failed; elapsed_s=[0-9]+\.[0-9]$")
+
+
 class NeonConnectionLifecycleTests(unittest.TestCase):
     def test_neon_lock_is_released_and_connection_closed_during_pbf_parse(self):
         digest = "f" * 64
@@ -296,6 +314,7 @@ class NeonConnectionLifecycleTests(unittest.TestCase):
             "provinces": {"01": {"district_ids": ("relation/101",)}},
         }
         events = []
+        logs = []
 
         class _Connection:
             def __init__(self, label): self.label, self.closed = label, False
@@ -350,7 +369,7 @@ class NeonConnectionLifecycleTests(unittest.TestCase):
         ):
             result = scan.run(
                 env={"REVIEW_DATABASE_URL": "postgresql://redacted"},
-                output=lambda _line: None,
+                output=logs.append,
                 now=datetime(2026, 11, 28, tzinfo=timezone.utc),
             )
         self.assertEqual(result["district_receipts"], 0)
@@ -358,7 +377,21 @@ class NeonConnectionLifecycleTests(unittest.TestCase):
                          ["acquire", "release", "close", "extract", "collect", "acquire", "begin"])
         self.assertTrue(all_connections[0].closed)
         self.assertTrue(all_connections[1].closed)
+        self.assertTrue(any(
+            line.startswith("NATIONAL_SCAN_PHASE: name=district_geometry_extraction; state=completed; elapsed_s=")
+            for line in logs
+        ))
+        self.assertTrue(any(
+            line.startswith("NATIONAL_SCAN_PHASE: name=business_candidate_attribution; state=completed; elapsed_s=")
+            for line in logs
+        ))
+        self.assertIn(
+            "NATIONAL_SCAN_ATTRIBUTION: candidates=0; unassigned=0; "
+            "districts_with_leads=0; districts_over_limit=0",
+            logs,
+        )
 
 
 if __name__ == "__main__":
     unittest.main()
+
